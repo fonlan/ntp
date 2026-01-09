@@ -1,0 +1,119 @@
+{
+  "app": {
+    "title": "NTP - 书签导航",
+    "loading": "加载中..."
+  },
+  "search": {
+    "placeholder": "搜索...",
+    "noKeywords": "请输入搜索关键词",
+    "noEngine": "没有可用的搜索引擎"
+  },
+  "settings": {
+    "title": "设置",
+    "button": "设置",
+    "backgroundColor": "背景颜色",
+    "colors": {
+      "default": "默认灰",
+      "white": "纯白",
+      "dark": "深色",
+      "warm": "暖黄",
+      "mint": "薄荷绿",
+      "pink": "淡粉"
+    },
+    "bookmarkSize": "书签尺寸",
+    "width": "宽度",
+    "height": "高度",
+    "columns": "每行列数",
+    "auto": "自动",
+    "preview": "预览",
+    "example": {
+      "title": "示例书签",
+      "description": "这是一个示例描述"
+    },
+    "groupManagement": "分组管理",
+    "searchEngine": "搜索引擎",
+    "dataManagement": "数据管理",
+    "language": "语言",
+    "importBookmarks": "导入书签",
+    "exportBookmarks": "导出书签"
+  },
+  "group": {
+    "add": "新建分组",
+    "edit": "编辑分组",
+    "title": "分组名称",
+    "titlePlaceholder": "分组名称",
+    "save": "保存",
+    "cancel": "取消",
+    "deleteConfirm": "确定要删除这个分组吗？分组内的书签将变为未分组。",
+    "untitled": "未命名",
+    "ungrouped": "未分组",
+    "bookmarks": "个书签"
+  },
+  "searchEngine": {
+    "add": "添加搜索引擎",
+    "edit": "编辑搜索引擎",
+    "name": "名称",
+    "namePlaceholder": "例如：百度",
+    "url": "URL",
+    "urlPlaceholder": "https://www.baidu.com/s?wd={q}",
+    "urlHint": "使用 {q} 作为搜索关键词占位符",
+    "placeholder": "占位文本",
+    "placeholderExample": "例如：百度一下",
+    "setDefault": "设为默认搜索引擎",
+    "deleteConfirm": "确定要删除这个搜索引擎吗？",
+    "default": "默认"
+  },
+  "bookmark": {
+    "add": "添加书签",
+    "edit": "编辑书签",
+    "url": "URL",
+    "urlPlaceholder": "https://example.com",
+    "title": "标题",
+    "titlePlaceholder": "留空自动获取",
+    "icon": "图标 URL",
+    "iconPlaceholder": "留空自动获取或上传图标",
+    "fetchIcon": "获取图标",
+    "uploadIcon": "上传图标",
+    "iconPreview": "图标预览:",
+    "group": "分组",
+    "description": "描述",
+    "descriptionPlaceholder": "可选备注信息",
+    "deleteConfirm": "确定要删除这个书签吗？",
+    "enterUrlFirst": "请先输入URL",
+    "empty": "暂无书签，点击设置添加"
+  },
+  "upload": {
+    "fileSizeLimit": "文件大小不能超过 512KB",
+    "unsupportedFormat": "不支持的文件格式，请上传 PNG、JPG、GIF、SVG 或 ICO 格式的图片",
+    "uploadFailed": "上传失败"
+  },
+  "actions": {
+    "all": "全部",
+    "delete": "删除",
+    "edit": "编辑",
+    "save": "保存",
+    "cancel": "取消",
+    "add": "添加",
+    "create": "创建",
+    "confirm": "确认"
+  },
+  "import": {
+    "title": "导入书签",
+    "selectFile": "选择 HTML 书签文件",
+    "submit": "导入",
+    "success": "导入成功！<br>已导入: ${imported}<br>失败: ${failed}",
+    "failed": "导入失败: "
+  },
+  "export": {
+    "failed": "导出失败"
+  },
+  "errors": {
+    "loadEngineFailed": "加载搜索引擎失败:",
+    "loadGroupFailed": "加载分组失败:",
+    "loadBookmarkFailed": "加载书签失败:",
+    "deleteFailed": "删除失败",
+    "saveFailed": "保存失败",
+    "saveOrderFailed": "保存排序失败:",
+    "noFileSelected": "请选择文件"
+  }
+}

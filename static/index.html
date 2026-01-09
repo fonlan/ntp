@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="app.title">NTP - Bookmark Navigation</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/i18n.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- 顶部搜索栏 -->
+        <div class="top-bar">
+            <div class="search-container">
+                <div class="search-box">
+                    <div class="search-engine-selector" id="searchEngineSelector">
+                        <img id="currentEngineIcon" src="" alt="" class="engine-icon">
+                        <span id="currentEngineName">Loading...</span>
+                        <svg class="dropdown-arrow" width="12" height="12" viewBox="0 0 12 12" fill="none">
+                            <path d="M2 4L6 8L10 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <input type="text" id="searchInput" class="search-input" data-i18n-placeholder="search.placeholder" placeholder="Search...">
+                    <button id="searchBtn" class="search-submit-btn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"/>
+                            <path d="M21 21l-4.35-4.35"/>
+                        </svg>
+                    </button>
+                </div>
+                <!-- 搜索引擎下拉菜单 -->
+                <div class="engine-dropdown" id="engineDropdown"></div>
+            </div>
+
+            <!-- Settings button -->
+            <button id="settingsBtn" class="settings-btn" data-i18n-title="settings.button" title="Settings">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Group tabs -->
+        <div class="groups-tabs">
+            <button class="group-tab active" data-group-id="" data-i18n="actions.all">All</button>
+        </div>
+
+        <!-- Bookmarks list -->
+        <div id="bookmarksContainer" class="bookmarks-container">
+            <div class="loading" data-i18n="app.loading">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Settings modal -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content settings-modal">
+            <div class="modal-header">
+                <h2 data-i18n="settings.title">Settings</h2>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="settings-sections">
+                    <!-- Background color settings -->
+                    <div class="settings-section">
+                        <h3 data-i18n="settings.backgroundColor">Background Color</h3>
+                        <div class="color-options">
+                            <label class="color-option">
+                                <input type="radio" name="bgColor" value="#F8FAFC" checked>
+                                <span class="color-preview" style="background: #F8FAFC;"></span>
+                                <span class="color-name" data-i18n="settings.colors.default">Default Gray</span>
+                            </label>
+                            <label class="color-option">
+                                <input type="radio" name="bgColor" value="#FFFFFF">
+                                <span class="color-preview" style="background: #FFFFFF; border: 1px solid #E2E8F0;"></span>
+                                <span class="color-name" data-i18n="settings.colors.white">Pure White</span>
+                            </label>
+                            <label class="color-option">
+                                <input type="radio" name="bgColor" value="#0F172A">
+                                <span class="color-preview" style="background: #0F172A;"></span>
+                                <span class="color-name" data-i18n="settings.colors.dark">Dark</span>
+                            </label>
+                            <label class="color-option">
+                                <input type="radio" name="bgColor" value="#FEF3C7">
+                                <span class="color-preview" style="background: #FEF3C7;"></span>
+                                <span class="color-name" data-i18n="settings.colors.warm">Warm Yellow</span>
+                            </label>
+                            <label class="color-option">
+                                <input type="radio" name="bgColor" value="#ECFDF5">
+                                <span class="color-preview" style="background: #ECFDF5;"></span>
+                                <span class="color-name" data-i18n="settings.colors.mint">Mint Green</span>
+                            </label>
+                            <label class="color-option">
+                                <input type="radio" name="bgColor" value="#FEE2E2">
+                                <span class="color-preview" style="background: #FEE2E2;"></span>
+                                <span class="color-name" data-i18n="settings.colors.pink">Pale Pink</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Bookmark size settings -->
+                    <div class="settings-section">
+                        <h3 data-i18n="settings.bookmarkSize">Bookmark Size</h3>
+                        <div class="bookmark-size-controls">
+                            <div class="size-control-group">
+                                <label><span data-i18n="settings.width">Width</span>: <span id="widthValue">320</span>px</label>
+                                <input type="range" id="bookmarkWidth" min="200" max="600" value="320" step="10">
+                            </div>
+                            <div class="size-control-group">
+                                <label><span data-i18n="settings.height">Height</span>: <span id="heightValue">80</span>px</label>
+                                <input type="range" id="bookmarkHeight" min="60" max="150" value="80" step="5">
+                            </div>
+                            <div class="size-control-group">
+                                <label><span data-i18n="settings.columns">Columns per row</span>: <span id="columnsValue" data-i18n="settings.auto">Auto</span></label>
+                                <select id="bookmarkColumns">
+                                    <option value="0" data-i18n="settings.auto">Auto</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                    <option value="6">6</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="bookmark-preview-container">
+                            <h4 data-i18n="settings.preview">Preview</h4>
+                            <div class="bookmark-preview" id="bookmarkPreview">
+                                <div class="bookmark-icon">🌐</div>
+                                <div class="bookmark-content">
+                                    <div class="bookmark-title" data-i18n="settings.example.title">Example Bookmark</div>
+                                    <div class="bookmark-desc" data-i18n="settings.example.description">This is an example description</div>
+                                    <div class="bookmark-url">https://example.com</div>
+                                </div>
+                                <div class="bookmark-actions">
+                                    <button class="action-icon-btn">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                                            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                        </svg>
+                                    </button>
+                                    <button class="action-icon-btn delete">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="3 6 5 6 21 6"/>
+                                            <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Language settings -->
+                    <div class="settings-section">
+                        <h3 data-i18n="settings.language">Language</h3>
+                        <select id="languageSelect" class="language-select">
+                            <option value="en">English</option>
+                            <option value="zh">简体中文</option>
+                        </select>
+                    </div>
+
+                    <!-- Group management -->
+                    <div class="settings-section">
+                        <h3 data-i18n="settings.groupManagement">Group Management</h3>
+                        <button id="addGroupBtn" class="btn btn-primary"><span data-i18n="group.add">Add Group</span></button>
+                        <div id="groupsList" class="settings-list"></div>
+                    </div>
+
+                    <!-- Search engine management -->
+                    <div class="settings-section">
+                        <h3 data-i18n="settings.searchEngine">Search Engine</h3>
+                        <button id="addEngineBtn" class="btn btn-primary"><span data-i18n="searchEngine.add">Add Search Engine</span></button>
+                        <div id="enginesList" class="settings-list"></div>
+                    </div>
+
+                    <!-- Import/Export -->
+                    <div class="settings-section">
+                        <h3 data-i18n="settings.dataManagement">Data Management</h3>
+                        <div class="data-actions">
+                            <button id="importBtn" class="btn btn-secondary">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                                    <polyline points="17 8 12 3 7 8"/>
+                                    <line x1="12" y1="3" x2="12" y2="15"/>
+                                </svg>
+                                <span data-i18n="settings.importBookmarks">Import Bookmarks</span>
+                            </button>
+                            <button id="exportBtn" class="btn btn-secondary">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                                    <polyline points="7 10 12 15 17 10"/>
+                                    <line x1="12" y1="15" x2="12" y2="3"/>
+                                </svg>
+                                <span data-i18n="settings.exportBookmarks">Export Bookmarks</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit group modal -->
+    <div id="groupModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="groupModalTitle" data-i18n="group.add">Add Group</h2>
+                <span class="close">&times;</span>
+            </div>
+            <form id="groupForm" class="modal-body">
+                <input type="hidden" id="groupId">
+                <div class="form-group">
+                    <label for="groupName" data-i18n="group.title">Group Name</label>
+                    <input type="text" id="groupName" required data-i18n-placeholder="group.titlePlaceholder" placeholder="Group name">
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary" data-i18n="actions.save">Save</button>
+                    <button type="button" class="btn btn-secondary close-btn" data-i18n="actions.cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add/Edit search engine modal -->
+    <div id="engineEditModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="engineEditModalTitle" data-i18n="searchEngine.add">Add Search Engine</h2>
+                <span class="close">&times;</span>
+            </div>
+            <form id="engineEditForm" class="modal-body">
+                <input type="hidden" id="engineId">
+                <div class="form-group">
+                    <label for="engineName" data-i18n="searchEngine.name">Name</label>
+                    <input type="text" id="engineName" required data-i18n-placeholder="searchEngine.namePlaceholder" placeholder="e.g., Google">
+                </div>
+                <div class="form-group">
+                    <label for="engineUrl" data-i18n="searchEngine.url">URL</label>
+                    <input type="text" id="engineUrl" required data-i18n-placeholder="searchEngine.urlPlaceholder" placeholder="https://www.google.com/search?q={q}">
+                    <small data-i18n="searchEngine.urlHint">Use {q} as the search keyword placeholder</small>
+                </div>
+                <div class="form-group">
+                    <label for="enginePlaceholder" data-i18n="searchEngine.placeholder">Placeholder Text</label>
+                    <input type="text" id="enginePlaceholder" data-i18n-placeholder="searchEngine.placeholderExample" placeholder="e.g., Search Google">
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="engineDefault">
+                        <span data-i18n="searchEngine.setDefault">Set as default search engine</span>
+                    </label>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary" data-i18n="actions.save">Save</button>
+                    <button type="button" class="btn btn-secondary close-btn" data-i18n="actions.cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add/Edit bookmark modal -->
+    <div id="bookmarkModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="bookmarkModalTitle" data-i18n="bookmark.add">Add Bookmark</h2>
+                <span class="close">&times;</span>
+            </div>
+            <form id="bookmarkForm" class="modal-body">
+                <input type="hidden" id="bookmarkId">
+                <div class="form-group">
+                    <label for="bookmarkUrl" data-i18n="bookmark.url">URL</label>
+                    <input type="url" id="bookmarkUrl" required data-i18n-placeholder="bookmark.urlPlaceholder" placeholder="https://example.com">
+                </div>
+                <div class="form-group">
+                    <label for="bookmarkTitle" data-i18n="bookmark.title">Title</label>
+                    <input type="text" id="bookmarkTitle" data-i18n-placeholder="bookmark.titlePlaceholder" placeholder="Leave empty to auto-fetch">
+                </div>
+                <div class="form-group">
+                    <label for="bookmarkIcon" data-i18n="bookmark.icon">Icon URL</label>
+                    <div class="icon-input-group">
+                        <input type="text" id="bookmarkIcon" data-i18n-placeholder="bookmark.iconPlaceholder" placeholder="Leave empty to auto-fetch or upload icon">
+                        <button type="button" id="fetchIconBtn" class="btn btn-secondary btn-sm" data-i18n="bookmark.fetchIcon">Fetch Icon</button>
+                    </div>
+                    <div class="icon-upload-group">
+                        <label for="iconUpload" class="btn btn-secondary btn-sm">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                                <polyline points="17 8 12 3 7 8"/>
+                                <line x1="12" y1="3" x2="12" y2="15"/>
+                            </svg>
+                            <span data-i18n="bookmark.uploadIcon">Upload Icon</span>
+                        </label>
+                        <input type="file" id="iconUpload" accept="image/png,image/jpeg,image/gif,image/svg+xml,image/x-icon" style="display: none;">
+                        <span id="uploadFileName" style="font-size: 12px; color: var(--text-secondary); margin-left: 8px;"></span>
+                    </div>
+                    <div class="icon-preview-container" id="iconPreviewContainer" style="display: none;">
+                        <span class="icon-preview-label" data-i18n="bookmark.iconPreview">Icon Preview:</span>
+                        <img id="iconPreview" class="icon-preview-image" src="" alt="">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="bookmarkGroup" data-i18n="bookmark.group">Group</label>
+                    <select id="bookmarkGroup">
+                        <option value="" data-i18n="group.ungrouped">No Group</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="bookmarkDesc" data-i18n="bookmark.description">Description</label>
+                    <textarea id="bookmarkDesc" rows="3" data-i18n-placeholder="bookmark.descriptionPlaceholder" placeholder="Optional notes"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary" data-i18n="actions.save">Save</button>
+                    <button type="button" class="btn btn-secondary close-btn" data-i18n="actions.cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Import bookmarks modal -->
+    <div id="importModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 data-i18n="import.title">Import Bookmarks</h2>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="importFile" data-i18n="import.selectFile">Select HTML bookmark file</label>
+                    <input type="file" id="importFile" accept=".html,.htm" required>
+                </div>
+                <div id="importResult" class="import-result"></div>
+                <div class="modal-footer">
+                    <button id="importSubmitBtn" class="btn btn-primary" data-i18n="import.submit">Import</button>
+                    <button type="button" class="btn btn-secondary close-btn" data-i18n="actions.cancel">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

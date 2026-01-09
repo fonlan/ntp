@@ -1,0 +1,119 @@
+{
+  "app": {
+    "title": "NTP - Bookmark Navigation",
+    "loading": "Loading..."
+  },
+  "search": {
+    "placeholder": "Search...",
+    "noKeywords": "Please enter search keywords",
+    "noEngine": "No search engine available"
+  },
+  "settings": {
+    "title": "Settings",
+    "button": "Settings",
+    "backgroundColor": "Background Color",
+    "colors": {
+      "default": "Default Gray",
+      "white": "Pure White",
+      "dark": "Dark",
+      "warm": "Warm Yellow",
+      "mint": "Mint Green",
+      "pink": "Pale Pink"
+    },
+    "bookmarkSize": "Bookmark Size",
+    "width": "Width",
+    "height": "Height",
+    "columns": "Columns per row",
+    "auto": "Auto",
+    "preview": "Preview",
+    "example": {
+      "title": "Example Bookmark",
+      "description": "This is an example description"
+    },
+    "groupManagement": "Group Management",
+    "searchEngine": "Search Engine",
+    "dataManagement": "Data Management",
+    "language": "Language",
+    "importBookmarks": "Import Bookmarks",
+    "exportBookmarks": "Export Bookmarks"
+  },
+  "group": {
+    "add": "Add Group",
+    "edit": "Edit Group",
+    "title": "Group Name",
+    "titlePlaceholder": "Group name",
+    "save": "Save",
+    "cancel": "Cancel",
+    "deleteConfirm": "Are you sure you want to delete this group? Bookmarks in this group will become ungrouped.",
+    "untitled": "Untitled",
+    "ungrouped": "No Group",
+    "bookmarks": "bookmarks"
+  },
+  "searchEngine": {
+    "add": "Add Search Engine",
+    "edit": "Edit Search Engine",
+    "name": "Name",
+    "namePlaceholder": "e.g., Google",
+    "url": "URL",
+    "urlPlaceholder": "https://www.google.com/search?q={q}",
+    "urlHint": "Use {q} as the search keyword placeholder",
+    "placeholder": "Placeholder Text",
+    "placeholderExample": "e.g., Search Google",
+    "setDefault": "Set as default search engine",
+    "deleteConfirm": "Are you sure you want to delete this search engine?",
+    "default": "Default"
+  },
+  "bookmark": {
+    "add": "Add Bookmark",
+    "edit": "Edit Bookmark",
+    "url": "URL",
+    "urlPlaceholder": "https://example.com",
+    "title": "Title",
+    "titlePlaceholder": "Leave empty to auto-fetch",
+    "icon": "Icon URL",
+    "iconPlaceholder": "Leave empty to auto-fetch or upload icon",
+    "fetchIcon": "Fetch Icon",
+    "uploadIcon": "Upload Icon",
+    "iconPreview": "Icon Preview:",
+    "group": "Group",
+    "description": "Description",
+    "descriptionPlaceholder": "Optional notes",
+    "deleteConfirm": "Are you sure you want to delete this bookmark?",
+    "enterUrlFirst": "Please enter URL first",
+    "empty": "No bookmarks yet, click settings to add"
+  },
+  "upload": {
+    "fileSizeLimit": "File size cannot exceed 512KB",
+    "unsupportedFormat": "Unsupported file format. Please upload PNG, JPG, GIF, SVG or ICO images",
+    "uploadFailed": "Upload failed"
+  },
+  "actions": {
+    "all": "All",
+    "delete": "Delete",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel",
+    "add": "Add",
+    "create": "Create",
+    "confirm": "Confirm"
+  },
+  "import": {
+    "title": "Import Bookmarks",
+    "selectFile": "Select HTML bookmark file",
+    "submit": "Import",
+    "success": "Import successful!<br>Imported: ${imported}<br>Failed: ${failed}",
+    "failed": "Import failed: "
+  },
+  "export": {
+    "failed": "Export failed"
+  },
+  "errors": {
+    "loadEngineFailed": "Failed to load search engine:",
+    "loadGroupFailed": "Failed to load groups:",
+    "loadBookmarkFailed": "Failed to load bookmarks:",
+    "deleteFailed": "Delete failed",
+    "saveFailed": "Save failed",
+    "saveOrderFailed": "Failed to save order:",
+    "noFileSelected": "Please select a file"
+  }
+}

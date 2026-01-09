@@ -1,0 +1,55 @@
+# Binaries
+ntp
+ntp.exe
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test files
+*.test
+*.out
+coverage.txt
+coverage.html
+
+# Dependencies
+vendor/
+go.sum
+
+# Data files
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Log files
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Docker
+.dockerignore
+
+# Environment variables
+.env
+.env.local
+
+# Backup files
+*.bak
+*.backup
+
+.spec-workflow/
+.claude/
+CLAUDE.md

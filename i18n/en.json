@@ -1,0 +1,66 @@
+{
+  "bookmark": {
+    "listFailed": "Failed to get bookmark list",
+    "invalidRequest": "Invalid request format",
+    "createFailed": "Failed to create bookmark",
+    "notFound": "Bookmark not found",
+    "updateFailed": "Failed to update bookmark",
+    "deleteFailed": "Failed to delete bookmark",
+    "deleteSuccess": "Deleted successfully",
+    "reorderSuccess": "Reordered successfully",
+    "reorderFailed": "Failed to reorder",
+    "missingKeyword": "Missing search keyword",
+    "searchFailed": "Search failed",
+    "parseFormFailed": "Failed to parse form",
+    "getFileFailed": "Failed to get file",
+    "readFileFailed": "Failed to read file",
+    "parseBookmarkFailed": "Failed to parse bookmarks",
+    "getBookmarkFailed": "Failed to get bookmarks",
+    "getGroupFailed": "Failed to get groups",
+    "fileSizeLimit": "File size cannot exceed 512KB",
+    "saveIconFailed": "Failed to save icon"
+  },
+  "group": {
+    "listFailed": "Failed to get group list",
+    "createFailed": "Failed to create group",
+    "notFound": "Group not found",
+    "updateFailed": "Failed to update group",
+    "deleteFailed": "Failed to delete group",
+    "reorderFailed": "Failed to reorder"
+  },
+  "searchEngine": {
+    "listFailed": "Failed to get search engine list",
+    "createFailed": "Failed to create search engine",
+    "notFound": "Search engine not found",
+    "cannotDeleteLast": "Cannot delete the last search engine",
+    "deleteFailed": "Failed to delete search engine",
+    "setDefaultFailed": "Failed to set default engine",
+    "setDefaultSuccess": "Set successfully",
+    "reorderFailed": "Failed to reorder"
+  },
+  "fetch": {
+    "fetchFailed": "Failed to fetch",
+    "requestFailed": "Request failed",
+    "invalidStatusCode": "HTTP status code",
+    "readResponseFailed": "Failed to read response",
+    "parseHTMLFailed": "Failed to parse HTML"
+  },
+  "database": {
+    "openFailed": "Failed to open database",
+    "setPragmaFailed": "Failed to set SQLite pragma",
+    "readSchemaFailed": "Failed to read schema",
+    "executeSchemaFailed": "Failed to execute schema",
+    "initSuccess": "Database initialized successfully"
+  },
+  "icon": {
+    "downloadFailed": "Failed to download icon",
+    "invalidStatusCode": "Failed to download icon",
+    "readDataFailed": "Failed to read icon data",
+    "createDirFailed": "Failed to create icon directory",
+    "saveFailed": "Failed to save icon",
+    "parseURLFailed": "Failed to parse URL",
+    "allSourcesFailed": "All favicon sources failed",
+    "unsupportedFormat": "Unsupported file format",
+    "deleteFailed": "Failed to delete icon"
+  }
+}
