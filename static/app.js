@@ -22,9 +22,11 @@ let state = {
     engines: [],
     currentEngine: null,
     draggedItem: null,
-    bookmarkWidth: 320,
+    containerWidth: 1400,
     bookmarkHeight: 80,
-    bookmarkColumns: 0
+    bookmarkColumns: 0,
+    mobileColumns: 2,
+    cardOpacity: 95
 };
 
 // Initialize
@@ -69,23 +71,36 @@ function loadSettings() {
     if (bgColorRadio) bgColorRadio.checked = true;
 
     // Bookmark size
-    state.bookmarkWidth = parseInt(localStorage.getItem('bookmarkWidth')) || 320;
+    state.containerWidth = parseInt(localStorage.getItem('containerWidth')) || 1400;
     state.bookmarkHeight = parseInt(localStorage.getItem('bookmarkHeight')) || 80;
     state.bookmarkColumns = parseInt(localStorage.getItem('bookmarkColumns')) || 0;
+    state.mobileColumns = parseInt(localStorage.getItem('mobileColumns')) || 2;
+    state.cardOpacity = parseInt(localStorage.getItem('cardOpacity')) || 95;
 
-    document.getElementById('bookmarkWidth').value = state.bookmarkWidth;
+    document.getElementById('containerWidth').value = state.containerWidth;
     document.getElementById('bookmarkHeight').value = state.bookmarkHeight;
     document.getElementById('bookmarkColumns').value = state.bookmarkColumns;
+    document.getElementById('mobileColumns').value = state.mobileColumns;
+    document.getElementById('cardOpacity').value = state.cardOpacity;
 
     updateSizeDisplay();
     updatePreview();
     applyBookmarkSize();
+    applyCardOpacity();
 }
 
 function saveSetting(key, value) {
     localStorage.setItem(key, value);
     if (key === 'bgColor') {
         document.body.style.background = value;
+    } else if (key === 'cardOpacity') {
+        state.cardOpacity = parseInt(value);
+        updateSizeDisplay();
+        applyCardOpacity();
+    } else if (key === 'containerWidth' || key === 'bookmarkColumns' || key === 'mobileColumns') {
+        state[key] = parseInt(value);
+        updateSizeDisplay();
+        applyBookmarkSize();
     } else {
         state[key] = parseInt(value);
         updateSizeDisplay();
@@ -95,33 +110,61 @@ function saveSetting(key, value) {
 }
 
 function updateSizeDisplay() {
-    document.getElementById('widthValue').textContent = state.bookmarkWidth;
+    document.getElementById('containerWidthValue').textContent = state.containerWidth;
     document.getElementById('heightValue').textContent = state.bookmarkHeight;
+    document.getElementById('opacityValue').textContent = state.cardOpacity;
 
     const columnsSelect = document.getElementById('bookmarkColumns');
     const columnsText = columnsSelect.options[columnsSelect.selectedIndex].text;
     document.getElementById('columnsValue').textContent = columnsText;
+
+    const mobileColumnsSelect = document.getElementById('mobileColumns');
+    const mobileColumnsText = mobileColumnsSelect.options[mobileColumnsSelect.selectedIndex].text;
+    document.getElementById('mobileColumnsValue').textContent = mobileColumnsText;
 }
 
 function updatePreview() {
     const preview = document.getElementById('bookmarkPreview');
+    // 计算预览宽度
+    let previewWidth;
+    if (state.bookmarkColumns > 0) {
+        previewWidth = Math.floor(state.containerWidth / state.bookmarkColumns);
+    } else {
+        previewWidth = 250; // 自动模式下的默认预览宽度
+    }
     // Set outer dimensions of the card (including padding)
-    preview.style.width = state.bookmarkWidth + 'px';
+    preview.style.width = previewWidth + 'px';
     preview.style.height = state.bookmarkHeight + 'px';
     preview.style.minHeight = state.bookmarkHeight + 'px';
 }
 
 function applyBookmarkSize() {
+    const mainContainer = document.querySelector('.container');
     const groupBookmarksContainers = document.querySelectorAll('.group-bookmarks');
     const cards = document.querySelectorAll('.bookmark-card');
 
+    // 设置主容器宽度
+    mainContainer.style.maxWidth = state.containerWidth + 'px';
+
+    // 计算书签宽度
+    let bookmarkWidth;
+    if (state.bookmarkColumns > 0) {
+        bookmarkWidth = Math.floor(state.containerWidth / state.bookmarkColumns);
+    } else {
+        bookmarkWidth = 250; // 自动模式下的默认最小宽度
+    }
+
     // 对每个分组容器设置列数
     groupBookmarksContainers.forEach(container => {
+        // 桌面端布局
         if (state.bookmarkColumns > 0) {
             container.style.gridTemplateColumns = `repeat(${state.bookmarkColumns}, 1fr)`;
         } else {
-            container.style.gridTemplateColumns = `repeat(auto-fill, minmax(${state.bookmarkWidth}px, 1fr))`;
+            container.style.gridTemplateColumns = `repeat(auto-fill, minmax(${bookmarkWidth}px, 1fr))`;
         }
+
+        // 移动端布局（通过 CSS 变量传递）
+        container.style.setProperty('--mobile-columns', state.mobileColumns);
     });
 
     // 设置每个书签卡片的高度
@@ -131,6 +174,23 @@ function applyBookmarkSize() {
         card.style.height = state.bookmarkHeight + 'px';
         card.style.overflow = 'hidden';
     });
+}
+
+function applyCardOpacity() {
+    const opacityValue = state.cardOpacity / 100;
+    const rgbaColor = `rgba(255, 255, 255, ${opacityValue})`;
+
+    // 应用到所有书签卡片
+    const cards = document.querySelectorAll('.bookmark-card');
+    cards.forEach(card => {
+        card.style.background = rgbaColor;
+    });
+
+    // 应用到预览卡片
+    const preview = document.getElementById('bookmarkPreview');
+    if (preview) {
+        preview.style.background = rgbaColor;
+    }
 }
 
 // ===================================
@@ -760,8 +820,8 @@ function initEventListeners() {
     });
 
     // Bookmark size controls
-    document.getElementById('bookmarkWidth').addEventListener('input', (e) => {
-        saveSetting('bookmarkWidth', e.target.value);
+    document.getElementById('containerWidth').addEventListener('input', (e) => {
+        saveSetting('containerWidth', e.target.value);
     });
 
     document.getElementById('bookmarkHeight').addEventListener('input', (e) => {
@@ -770,6 +830,14 @@ function initEventListeners() {
 
     document.getElementById('bookmarkColumns').addEventListener('change', (e) => {
         saveSetting('bookmarkColumns', e.target.value);
+    });
+
+    document.getElementById('mobileColumns').addEventListener('change', (e) => {
+        saveSetting('mobileColumns', e.target.value);
+    });
+
+    document.getElementById('cardOpacity').addEventListener('input', (e) => {
+        saveSetting('cardOpacity', e.target.value);
     });
 
     // Modal close

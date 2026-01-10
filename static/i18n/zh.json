@@ -21,9 +21,13 @@
       "pink": "淡粉"
     },
     "bookmarkSize": "书签尺寸",
+    "containerWidth": "容器宽度",
+    "calculatedWidth": "计算书签宽度",
     "width": "宽度",
     "height": "高度",
     "columns": "每行列数",
+    "mobileColumns": "移动端列数",
+    "cardOpacity": "卡片透明度",
     "auto": "自动",
     "preview": "预览",
     "example": {

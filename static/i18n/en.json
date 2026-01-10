@@ -21,9 +21,13 @@
       "pink": "Pale Pink"
     },
     "bookmarkSize": "Bookmark Size",
+    "containerWidth": "Container Width",
+    "calculatedWidth": "Calculated Bookmark Width",
     "width": "Width",
     "height": "Height",
     "columns": "Columns per row",
+    "mobileColumns": "Mobile columns",
+    "cardOpacity": "Card Opacity",
     "auto": "Auto",
     "preview": "Preview",
     "example": {

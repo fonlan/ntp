@@ -110,20 +110,25 @@
                         </div>
                     </div>
 
+                    <!-- Container Width -->
+                    <div class="settings-section">
+                        <h3 data-i18n="settings.containerWidth">Container Width</h3>
+                        <div class="size-control-group">
+                            <label><span class="label-text" data-i18n="settings.containerWidth">Container Width</span> <span id="containerWidthValue">1400</span>px</label>
+                            <input type="range" id="containerWidth" min="800" max="2000" value="1400" step="50">
+                        </div>
+                    </div>
+
                     <!-- Bookmark size settings -->
                     <div class="settings-section">
                         <h3 data-i18n="settings.bookmarkSize">Bookmark Size</h3>
                         <div class="bookmark-size-controls">
                             <div class="size-control-group">
-                                <label><span data-i18n="settings.width">Width</span>: <span id="widthValue">320</span>px</label>
-                                <input type="range" id="bookmarkWidth" min="200" max="600" value="320" step="10">
-                            </div>
-                            <div class="size-control-group">
-                                <label><span data-i18n="settings.height">Height</span>: <span id="heightValue">80</span>px</label>
+                                <label><span class="label-text" data-i18n="settings.height">Height</span> <span id="heightValue">80</span>px</label>
                                 <input type="range" id="bookmarkHeight" min="60" max="150" value="80" step="5">
                             </div>
                             <div class="size-control-group">
-                                <label><span data-i18n="settings.columns">Columns per row</span>: <span id="columnsValue" data-i18n="settings.auto">Auto</span></label>
+                                <label><span class="label-text" data-i18n="settings.columns">Columns per row</span> <span id="columnsValue" data-i18n="settings.auto">Auto</span></label>
                                 <select id="bookmarkColumns">
                                     <option value="0" data-i18n="settings.auto">Auto</option>
                                     <option value="2">2</option>
@@ -132,6 +137,17 @@
                                     <option value="5">5</option>
                                     <option value="6">6</option>
                                 </select>
+                            </div>
+                            <div class="size-control-group">
+                                <label><span class="label-text" data-i18n="settings.mobileColumns">Mobile columns</span> <span id="mobileColumnsValue">2</span></label>
+                                <select id="mobileColumns">
+                                    <option value="1">1</option>
+                                    <option value="2" selected>2</option>
+                                </select>
+                            </div>
+                            <div class="size-control-group">
+                                <label><span class="label-text" data-i18n="settings.cardOpacity">Card Opacity</span> <span id="opacityValue">95</span>%</label>
+                                <input type="range" id="cardOpacity" min="50" max="100" value="95" step="5">
                             </div>
                         </div>
                         <div class="bookmark-preview-container">
