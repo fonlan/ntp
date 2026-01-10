@@ -77,11 +77,21 @@ function loadSettings() {
     state.mobileColumns = parseInt(localStorage.getItem('mobileColumns')) || 2;
     state.cardOpacity = parseInt(localStorage.getItem('cardOpacity')) || 95;
 
-    document.getElementById('containerWidth').value = state.containerWidth;
-    document.getElementById('bookmarkHeight').value = state.bookmarkHeight;
-    document.getElementById('bookmarkColumns').value = state.bookmarkColumns;
-    document.getElementById('mobileColumns').value = state.mobileColumns;
-    document.getElementById('cardOpacity').value = state.cardOpacity;
+    // Set values to DOM elements only if they exist
+    const containerWidthEl = document.getElementById('containerWidth');
+    if (containerWidthEl) containerWidthEl.value = state.containerWidth;
+
+    const bookmarkHeightEl = document.getElementById('bookmarkHeight');
+    if (bookmarkHeightEl) bookmarkHeightEl.value = state.bookmarkHeight;
+
+    const bookmarkColumnsEl = document.getElementById('bookmarkColumns');
+    if (bookmarkColumnsEl) bookmarkColumnsEl.value = state.bookmarkColumns;
+
+    const mobileColumnsEl = document.getElementById('mobileColumns');
+    if (mobileColumnsEl) mobileColumnsEl.value = state.mobileColumns;
+
+    const cardOpacityEl = document.getElementById('cardOpacity');
+    if (cardOpacityEl) cardOpacityEl.value = state.cardOpacity;
 
     updateSizeDisplay();
     updatePreview();
@@ -110,21 +120,34 @@ function saveSetting(key, value) {
 }
 
 function updateSizeDisplay() {
-    document.getElementById('containerWidthValue').textContent = state.containerWidth;
-    document.getElementById('heightValue').textContent = state.bookmarkHeight;
-    document.getElementById('opacityValue').textContent = state.cardOpacity;
+    const containerWidthValueEl = document.getElementById('containerWidthValue');
+    if (containerWidthValueEl) containerWidthValueEl.textContent = state.containerWidth;
+
+    const heightValueEl = document.getElementById('heightValue');
+    if (heightValueEl) heightValueEl.textContent = state.bookmarkHeight;
+
+    const opacityValueEl = document.getElementById('opacityValue');
+    if (opacityValueEl) opacityValueEl.textContent = state.cardOpacity;
 
     const columnsSelect = document.getElementById('bookmarkColumns');
-    const columnsText = columnsSelect.options[columnsSelect.selectedIndex].text;
-    document.getElementById('columnsValue').textContent = columnsText;
+    const columnsValueEl = document.getElementById('columnsValue');
+    if (columnsSelect && columnsValueEl && columnsSelect.selectedIndex >= 0) {
+        const columnsText = columnsSelect.options[columnsSelect.selectedIndex].text;
+        columnsValueEl.textContent = columnsText;
+    }
 
     const mobileColumnsSelect = document.getElementById('mobileColumns');
-    const mobileColumnsText = mobileColumnsSelect.options[mobileColumnsSelect.selectedIndex].text;
-    document.getElementById('mobileColumnsValue').textContent = mobileColumnsText;
+    const mobileColumnsValueEl = document.getElementById('mobileColumnsValue');
+    if (mobileColumnsSelect && mobileColumnsValueEl && mobileColumnsSelect.selectedIndex >= 0) {
+        const mobileColumnsText = mobileColumnsSelect.options[mobileColumnsSelect.selectedIndex].text;
+        mobileColumnsValueEl.textContent = mobileColumnsText;
+    }
 }
 
 function updatePreview() {
     const preview = document.getElementById('bookmarkPreview');
+    if (!preview) return;
+
     // 计算预览宽度
     let previewWidth;
     if (state.bookmarkColumns > 0) {
@@ -144,7 +167,9 @@ function applyBookmarkSize() {
     const cards = document.querySelectorAll('.bookmark-card');
 
     // 设置主容器宽度
-    mainContainer.style.maxWidth = state.containerWidth + 'px';
+    if (mainContainer) {
+        mainContainer.style.maxWidth = state.containerWidth + 'px';
+    }
 
     // 计算书签宽度
     let bookmarkWidth;
@@ -207,6 +232,8 @@ function renderCurrentEngine() {
     const iconEl = document.getElementById('currentEngineIcon');
     const nameEl = document.getElementById('currentEngineName');
 
+    if (!iconEl || !nameEl) return;
+
     if (state.currentEngine) {
         // 优先使用本地缓存图标，否则使用 Google favicon
         iconEl.src = getFavicon(state.currentEngine.url, state.currentEngine.icon_path);
@@ -219,6 +246,8 @@ function renderCurrentEngine() {
 
 function renderEngineDropdown() {
     const dropdown = document.getElementById('engineDropdown');
+    if (!dropdown) return;
+
     dropdown.innerHTML = state.engines.map(e => `
         <div class="engine-dropdown-item ${state.currentEngine?.id === e.id ? 'active' : ''}"
              data-engine-id="${e.id}">
@@ -255,7 +284,9 @@ function getFavicon(url, iconPath) {
 
 function toggleEngineDropdown() {
     const dropdown = document.getElementById('engineDropdown');
-    dropdown.classList.toggle('show');
+    if (dropdown) {
+        dropdown.classList.toggle('show');
+    }
 }
 
 // ===================================
