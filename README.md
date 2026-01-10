@@ -57,6 +57,43 @@ docker run -d \
   ntp
 ```
 
+### 使用 GHCR 镜像（推荐）
+
+本项目通过 GitHub Actions 自动构建并发布 Docker 镜像到 GitHub Container Registry (GHCR)。
+
+#### 自动构建触发条件
+
+- 推送到 `main` 或 `master` 分支
+- 推送版本标签（如 `v1.0.0`）
+- 创建 Pull Request（仅构建，不推送）
+
+#### 拉取并运行镜像
+
+```bash
+# 登录 GHCR（首次需要）
+echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u USERNAME --password-stdin
+
+# 拉取最新镜像
+docker pull ghcr.io/你的用户名/ntp:latest
+
+# 运行容器
+docker run -d \
+  --name ntp \
+  -p 8080:8080 \
+  -e PORT=8080 \
+  -v ./data:/root/data \
+  ghcr.io/你的用户名/ntp:latest
+```
+
+#### 可用镜像标签
+
+- `latest`：最新稳定版（main/master 分支）
+- `v1.0.0`、`v1.0`、`v1`：版本标签（基于 Git 标签）
+- `main`、`master`：分支名
+- `sha-abc1234`：基于提交 SHA
+
+**注意**：首次使用前，需要在 GitHub 仓库设置中启用 "Actions" 权限：`Settings` → `Actions` → `General` → `Workflow permissions` → 选择 "Read and write permissions"。
+
 ### 本地运行/开发
 
 本项目依赖 `go-sqlite3`（CGO），需要本机具备 C 编译环境与 SQLite 开发库：
