@@ -70,10 +70,7 @@ docker run -d \
 #### 拉取并运行镜像
 
 ```bash
-# 登录 GHCR（首次需要）
-echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u USERNAME --password-stdin
-
-# 拉取最新镜像
+# 拉取最新镜像（公开仓库无需登录）
 docker pull ghcr.io/你的用户名/ntp:latest
 
 # 运行容器

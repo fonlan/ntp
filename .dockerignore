@@ -1,0 +1,37 @@
+# 运行时数据
+data
+*.db
+*.db-wal
+*.db-shm
+*.log
+
+# 版本控制
+.git
+.gitignore
+.gitattributes
+
+# 文档和配置
+README.md
+CLAUDE.md
+GITHUB_ACTIONS.md
+LICENSE
+.claude
+.spec-workflow
+.vscode
+.idea
+
+# Docker 相关
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# CI/CD
+.github
+
+# 编译产物
+ntp
+ntp.exe
+
+# 测试文件
+*_test.go
+test/

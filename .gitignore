@@ -15,7 +15,6 @@ coverage.html
 
 # Dependencies
 vendor/
-go.sum
 
 # Data files
 data/
