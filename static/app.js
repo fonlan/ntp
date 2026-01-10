@@ -12,7 +12,18 @@ async function apiRequest(url, options = {}) {
         headers['Content-Type'] = 'application/json';
     }
 
-    return fetch(url, { ...options, headers });
+    const response = await fetch(url, { ...options, headers });
+
+    // 处理 401 未授权响应，重定向到登录页
+    if (response.status === 401) {
+        // 如果当前不在登录页面，则重定向
+        if (window.location.pathname !== '/login') {
+            window.location.href = '/login';
+        }
+        throw new Error('Unauthorized');
+    }
+
+    return response;
 }
 
 // Global state
