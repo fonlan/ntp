@@ -1,99 +1,150 @@
 # NTP - 轻量书签导航
 
-一个极致轻量、快速的书签页网站，支持搜索引擎切换、书签分组管理、自动获取网站信息。
+NTP 是一个轻量的书签导航（Start Page）服务：支持书签分组管理、拖拽排序、搜索引擎切换、书签导入/导出，以及自动获取站点标题/图标。
 
 ## 特性
 
-- 🔍 **多搜索引擎切换** - 预设常见搜索引擎，支持自定义添加
-- 📁 **书签分组管理** - 支持创建分组、拖拽排序
-- 🤖 **自动获取信息** - 添加书签时自动获取网站标题和图标
-- 📥 **导入/导出** - 支持浏览器书签 HTML 格式
-- 🎨 **极简界面** - 现代化设计，响应式布局
-- ⚡ **极致轻量** - Docker 镜像仅 ~15MB，内存占用 ~15MB
-- 💾 **SQLite 存储** - 无需额外数据库服务
+- 🔍 **多搜索引擎切换**：预置常见搜索引擎，支持自定义添加（URL 使用 `{q}` 作为关键词占位符）
+- 📁 **分组/书签管理**：支持创建分组、批量排序、拖拽排序
+- 🤖 **自动获取网站信息**：添加书签时自动抓取标题与图标；支持上传自定义图标
+- 📥 **导入/导出**：兼容浏览器书签 HTML（Netscape Bookmark File）
+- 💾 **SQLite 存储**：单文件数据库，无需额外数据库服务
 
 ## 技术栈
 
-- **后端**: Go 1.19 + 标准库 net/http
-- **数据库**: SQLite (CGO)
-- **前端**: 原生 HTML/CSS/JavaScript
-- **部署**: Docker + Docker Compose
+- **后端**：Go 1.19 + `net/http`
+- **数据库**：SQLite（`mattn/go-sqlite3`，需要 CGO）
+- **前端**：原生 HTML/CSS/JavaScript
+- **部署**：Docker + Docker Compose
+
+## 目录结构
+
+```text
+.
+├─ main.go                 # HTTP 路由与启动入口
+├─ handlers/               # 请求处理（Controller）
+├─ models/                 # 数据模型与 Repository（SQLite）
+│  ├─ migrations/          # 数据库迁移（编译期 embed）
+│  └─ schema.sql           # 初始 schema（与 V001 迁移内容一致，主要作参考）
+├─ services/               # 业务服务（图标下载/缓存等）
+├─ middleware/             # 中间件（Locale/i18n 等）
+├─ static/                 # 前端静态资源
+└─ data/                   # 运行时数据（建议持久化挂载）
+```
 
 ## 快速开始
 
-### Docker 部署（推荐）
+### Docker Compose（推荐）
 
-1. 克隆仓库
 ```bash
-git clone <repo-url>
-cd ntp
+docker compose up -d --build
 ```
 
-2. 使用 Docker Compose 启动
+访问 `http://localhost:8080`。
+
+默认使用卷挂载将 `./data` 映射到容器内 `/root/data`，用于持久化数据库与图标文件。
+
+### Docker（不使用 Compose）
+
 ```bash
-docker-compose up -d
+docker build -t ntp .
+
+docker run -d \
+  --name ntp \
+  -p 8080:8080 \
+  -e PORT=8080 \
+  -v ./data:/root/data \
+  ntp
 ```
 
-3. 访问 http://localhost:8080
+### 本地运行/开发
 
-### 本地开发
+本项目依赖 `go-sqlite3`（CGO），需要本机具备 C 编译环境与 SQLite 开发库：
 
-1. 安装依赖
+- Debian/Ubuntu：`sudo apt-get install -y build-essential libsqlite3-dev`
+- Alpine：`apk add --no-cache gcc musl-dev sqlite-dev`
+- macOS（Homebrew）：`brew install sqlite`
+
+运行：
+
 ```bash
 go mod download
+go run .
 ```
 
-2. 运行
+编译并运行（确保 `CGO_ENABLED=1`）：
+
 ```bash
-go run main.go
+CGO_ENABLED=1 go build -o ntp .
+./ntp
 ```
 
-3. 访问 http://localhost:8080
+## 配置
 
-## 使用说明
+- `PORT`：服务端口（默认：`8080`）
 
-### 添加书签
+## 数据与持久化
 
-点击"+ 添加书签"按钮，输入 URL：
-- 留空标题和图标，系统会自动获取
-- 可选择分组和添加描述
+- 数据目录：启动时自动创建 `data/` 与 `data/icons/`
+- 数据库文件：`data/bookmarks.db`
+  - WAL 模式下会出现 `data/bookmarks.db-wal` / `data/bookmarks.db-shm`，同样需要持久化
+- 图标文件：`data/icons/*`，通过 `/data/icons/` 访问
 
-### 管理分组
+## 数据库迁移
 
-- 点击"+ 新建分组"创建分组
-- 点击分组标签筛选书签
-- 拖拽书签卡片进行排序
+程序启动时会自动执行未执行的迁移。迁移文件位于 `models/migrations/*.sql`，并通过 Go `embed` 编译进二进制。
 
-### 搜索引擎
+- 命名格式：`V{版本号}__{描述}.sql`（从 `001` 递增）
+- 迁移记录：`schema_migrations` 表
 
-- 从下拉框选择搜索引擎
-- 点击⚙️图标管理搜索引擎
-- 支持添加自定义搜索引擎（URL 使用 `{q}` 作为关键词占位符）
+添加新迁移：
 
-### 导入/导出
+1. 在 `models/migrations/` 新建 `V002__xxx.sql`
+2. 写入 SQL
+3. 重新构建并部署，启动时自动应用
 
-- **导入**: 点击"📥 导入"，选择浏览器导出的 HTML 书签文件
-- **导出**: 点击"📤 导出"，下载标准格式的书签 HTML 文件
+详见：`models/migrations/MIGRATIONS.md`
 
-## 环境变量
+## 国际化（i18n）
 
-- `PORT`: 服务端口（默认: 8080）
+- 语言包：`i18n/en.json`、`i18n/zh.json`
+- 前端请求会携带 `X-Locale: en|zh`，后端也会根据 `Accept-Language` 回退判断
 
-## 数据持久化
+## HTTP API（可选）
 
-SQLite 数据库文件存储在 `data/bookmarks.db`，建议使用 Docker 卷挂载：
+项目提供一组 JSON API 供二次集成（默认启用 CORS）。
 
-```yaml
-volumes:
-  - ./data:/root/data
-```
+### Bookmarks
 
-## 性能指标
+- `GET /api/bookmarks`：获取全部书签（可选：`?group_id=ID`）
+- `POST /api/bookmarks`：创建书签
+- `PUT /api/bookmark/{id}`：更新书签
+- `DELETE /api/bookmark/{id}`：删除书签
+- `POST /api/bookmarks/reorder`：批量排序（`[{id, sort_order}]`）
+- `GET /api/bookmarks/search?q=keyword`：搜索
+- `POST /api/bookmarks/import`：导入（multipart，字段名 `file`）
+- `GET /api/bookmarks/export`：导出（返回 HTML 文件）
 
-- Docker 镜像大小: ~15MB
-- 内存占用: ~15MB
-- 启动时间: < 100ms
-- 支持 1000+ 书签流畅渲染
+### Groups
+
+- `GET /api/groups`：获取分组
+- `POST /api/groups`：创建分组
+- `PUT /api/groups/{id}`：更新分组
+- `DELETE /api/groups/{id}`：删除分组
+- `POST /api/groups/reorder`：批量排序（`[{id, sort_order}]`）
+
+### Search Engines
+
+- `GET /api/search-engines`：获取搜索引擎
+- `POST /api/search-engines`：创建搜索引擎
+- `PUT /api/search-engine/{id}`：更新搜索引擎
+- `DELETE /api/search-engine/{id}`：删除搜索引擎
+- `POST /api/search-engines/reorder`：批量排序（`[{id, sort_order}]`）
+
+### Metadata / Icons
+
+- `POST /api/fetch-metadata`：抓取标题/图标（`{url}`）
+- `POST /api/upload-icon`：上传图标（multipart，字段名 `icon`，最大 512KB；返回 `icon_path`）
 
 ## 许可证
 

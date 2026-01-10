@@ -80,7 +80,7 @@ func (r *SearchEngineRepository) GetAll() ([]SearchEngine, error) {
 	}
 	defer rows.Close()
 
-	var engines []SearchEngine
+	engines := []SearchEngine{}
 	for rows.Next() {
 		var e SearchEngine
 		if err := rows.Scan(&e.ID, &e.Name, &e.URL, &e.Placeholder, &e.IsDefault, &e.SortOrder); err != nil {

@@ -8,16 +8,11 @@ async function apiRequest(url, options = {}) {
         ...(options.headers || {})
     };
 
-    // If body is provided and Content-Type is not set, default to JSON
-    // But skip for FormData (let browser set the boundary)
     if (options.body && !(options.body instanceof FormData) && !headers['Content-Type']) {
         headers['Content-Type'] = 'application/json';
     }
 
-    return fetch(url, {
-        ...options,
-        headers
-    });
+    return fetch(url, { ...options, headers });
 }
 
 // Global state
@@ -25,7 +20,6 @@ let state = {
     bookmarks: [],
     groups: [],
     engines: [],
-    currentGroup: null,
     currentEngine: null,
     draggedItem: null,
     bookmarkWidth: 320,
@@ -35,40 +29,56 @@ let state = {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
-    // Wait for i18n to be ready
     await i18n.init();
     loadSettings();
-    loadSearchEngines();
-    loadGroups();
-    loadBookmarks();
+    Promise.all([loadSearchEngines(), loadGroups(), loadBookmarks()]);
     initEventListeners();
 });
+
+// ===================================
+// Utility Functions
+// ===================================
+function ensureArray(data) {
+    return Array.isArray(data) ? data : [];
+}
+
+function showError(message) {
+    alert(message);
+}
+
+async function loadData(url, errorMsg) {
+    try {
+        const res = await apiRequest(url);
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        const data = await res.json();
+        return ensureArray(data);
+    } catch (err) {
+        console.error(errorMsg, err);
+        return [];
+    }
+}
 
 // ===================================
 // Settings
 // ===================================
 function loadSettings() {
-    // Load background color
+    // Background color
     const bgColor = localStorage.getItem('bgColor') || '#F8FAFC';
     document.body.style.background = bgColor;
     const bgColorRadio = document.querySelector(`input[name="bgColor"][value="${bgColor}"]`);
     if (bgColorRadio) bgColorRadio.checked = true;
 
-    // Load bookmark size
+    // Bookmark size
     state.bookmarkWidth = parseInt(localStorage.getItem('bookmarkWidth')) || 320;
     state.bookmarkHeight = parseInt(localStorage.getItem('bookmarkHeight')) || 80;
     state.bookmarkColumns = parseInt(localStorage.getItem('bookmarkColumns')) || 0;
 
-    // Update control values
     document.getElementById('bookmarkWidth').value = state.bookmarkWidth;
     document.getElementById('bookmarkHeight').value = state.bookmarkHeight;
     document.getElementById('bookmarkColumns').value = state.bookmarkColumns;
 
-    // Update display values
     updateSizeDisplay();
     updatePreview();
-
-    // Apply bookmark size style
     applyBookmarkSize();
 }
 
@@ -76,19 +86,10 @@ function saveSetting(key, value) {
     localStorage.setItem(key, value);
     if (key === 'bgColor') {
         document.body.style.background = value;
-    } else if (key === 'bookmarkWidth') {
-        state.bookmarkWidth = parseInt(value);
+    } else {
+        state[key] = parseInt(value);
         updateSizeDisplay();
         updatePreview();
-        applyBookmarkSize();
-    } else if (key === 'bookmarkHeight') {
-        state.bookmarkHeight = parseInt(value);
-        updateSizeDisplay();
-        updatePreview();
-        applyBookmarkSize();
-    } else if (key === 'bookmarkColumns') {
-        state.bookmarkColumns = parseInt(value);
-        updateSizeDisplay();
         applyBookmarkSize();
     }
 }
@@ -136,15 +137,10 @@ function applyBookmarkSize() {
 // Search Engine
 // ===================================
 async function loadSearchEngines() {
-    try {
-        const res = await apiRequest(`${API}/search-engines`);
-        state.engines = await res.json();
-        state.currentEngine = state.engines.find(e => e.is_default) || state.engines[0];
-        renderCurrentEngine();
-        renderEngineDropdown();
-    } catch (err) {
-        console.error(i18n.t('errors.loadEngineFailed'), err);
-    }
+    state.engines = await loadData(`${API}/search-engines`, i18n.t('errors.loadEngineFailed'));
+    state.currentEngine = state.engines.find(e => e.is_default) || state.engines[0] || null;
+    renderCurrentEngine();
+    renderEngineDropdown();
 }
 
 function renderCurrentEngine() {
@@ -206,21 +202,14 @@ function toggleEngineDropdown() {
 // Groups
 // ===================================
 async function loadGroups() {
-    try {
-        const res = await apiRequest(`${API}/groups`);
-        state.groups = await res.json();
-        renderGroups();
-        updateGroupSelect();
-        renderSettingsGroups();
-    } catch (err) {
-        console.error(i18n.t('errors.loadGroupFailed'), err);
-    }
+    state.groups = await loadData(`${API}/groups`, i18n.t('errors.loadGroupFailed'));
+    renderGroups();
+    updateGroupSelect();
+    renderSettingsGroups();
 }
 
 function renderGroups() {
-    // 移除分组标签栏，因为现在所有分组都会显示在首页
-    const container = document.querySelector('.groups-tabs');
-    container.style.display = 'none';
+    document.querySelector('.groups-tabs').style.display = 'none';
 }
 
 function updateGroupSelect() {
@@ -233,14 +222,8 @@ function updateGroupSelect() {
 // Bookmarks
 // ===================================
 async function loadBookmarks() {
-    try {
-        // 加载所有书签，不再按分组过滤
-        const res = await apiRequest(`${API}/bookmarks`);
-        state.bookmarks = await res.json();
-        renderBookmarks();
-    } catch (err) {
-        console.error(i18n.t('errors.loadBookmarkFailed'), err);
-    }
+    state.bookmarks = await loadData(`${API}/bookmarks`, i18n.t('errors.loadBookmarkFailed'));
+    renderBookmarks();
 }
 
 function renderBookmarks() {
@@ -251,22 +234,15 @@ function renderBookmarks() {
         return;
     }
 
-    // 按分组分组书签，保持分组的排序顺序
+    // 按分组分组书签
     const groupedBookmarks = {};
     const ungroupedBookmarks = [];
-
-    // 初始化所有分组（按 sort_order 排序）
     const sortedGroups = [...state.groups].sort((a, b) => a.sort_order - b.sort_order);
-    sortedGroups.forEach(g => {
-        groupedBookmarks[g.id] = [];
-    });
 
-    // 分配书签到对应分组
+    sortedGroups.forEach(g => groupedBookmarks[g.id] = []);
     state.bookmarks.forEach(b => {
-        if (b.group_id) {
-            if (groupedBookmarks[b.group_id]) {
-                groupedBookmarks[b.group_id].push(b);
-            }
+        if (b.group_id && groupedBookmarks[b.group_id]) {
+            groupedBookmarks[b.group_id].push(b);
         } else {
             ungroupedBookmarks.push(b);
         }
@@ -274,8 +250,6 @@ function renderBookmarks() {
 
     // 渲染 HTML
     let html = '';
-
-    // 渲染每个分组
     sortedGroups.forEach(group => {
         const bookmarks = groupedBookmarks[group.id];
         if (bookmarks && bookmarks.length > 0) {
@@ -283,35 +257,52 @@ function renderBookmarks() {
                 <div class="bookmark-group">
                     <h3 class="group-title">${escapeHtml(group.name)}</h3>
                     <div class="group-bookmarks">
-                        ${bookmarks.map(b => renderBookmarkCard(b)).join('')}
+                        ${bookmarks.map(renderBookmarkCard).join('')}
                     </div>
                 </div>
             `;
         }
     });
 
-    // 渲染未分组书签
     if (ungroupedBookmarks.length > 0) {
         html += `
             <div class="bookmark-group">
                 <h3 class="group-title">${i18n.t('group.ungrouped')}</h3>
                 <div class="group-bookmarks">
-                    ${ungroupedBookmarks.map(b => renderBookmarkCard(b)).join('')}
+                    ${ungroupedBookmarks.map(renderBookmarkCard).join('')}
                 </div>
             </div>
         `;
     }
 
     container.innerHTML = html;
-
-    // Apply bookmark size and bind drag events
     applyBookmarkSize();
     initDragAndDrop();
+    initBookmarkClickHandlers();
+}
+
+// 初始化书签卡片点击事件
+function initBookmarkClickHandlers() {
+    const cards = document.querySelectorAll('.bookmark-card');
+    cards.forEach(card => {
+        card.addEventListener('click', (e) => {
+            // 如果点击的是按钮，不处理
+            if (e.target.closest('.bookmark-actions')) {
+                return;
+            }
+            const url = card.dataset.url;
+            const target = card.dataset.target || '_blank';
+            if (url) {
+                window.open(url, target);
+            }
+        });
+    });
 }
 
 function renderBookmarkCard(b) {
+    const target = b.is_new_window !== false ? '_blank' : '_self';
     return `
-        <div class="bookmark-card" draggable="true" data-id="${b.id}">
+        <div class="bookmark-card" draggable="true" data-id="${b.id}" data-url="${escapeHtml(b.url)}" data-target="${target}">
             <img src="${getFavicon(b.url, b.icon_path || b.icon_url)}"
                  class="bookmark-icon"
                  onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌐</text></svg>'">
@@ -321,13 +312,13 @@ function renderBookmarkCard(b) {
                 <div class="bookmark-url">${escapeHtml(b.url)}</div>
             </div>
             <div class="bookmark-actions">
-                <button class="action-icon-btn" onclick="editBookmark(${b.id})" data-i18n-title="actions.edit" title="Edit">
+                <button class="action-icon-btn" onclick="event.stopPropagation(); editBookmark(${b.id})" data-i18n-title="actions.edit" title="Edit">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
                         <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
                     </svg>
                 </button>
-                <button class="action-icon-btn delete" onclick="deleteBookmark(${b.id})" data-i18n-title="actions.delete" title="Delete">
+                <button class="action-icon-btn delete" onclick="event.stopPropagation(); deleteBookmark(${b.id})" data-i18n-title="actions.delete" title="Delete">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="3 6 5 6 21 6"/>
                         <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
@@ -338,40 +329,42 @@ function renderBookmarkCard(b) {
     `;
 }
 
-// Drag and drop sorting
-function initDragAndDrop() {
-    const cards = document.querySelectorAll('.bookmark-card');
+// ===================================
+// Drag and Drop
+// ===================================
+function initDraggable(selector, onDrop) {
+    const items = document.querySelectorAll(selector);
 
-    cards.forEach(card => {
-        card.addEventListener('dragstart', (e) => {
-            state.draggedItem = card;
-            card.classList.add('dragging');
+    items.forEach(item => {
+        item.addEventListener('dragstart', (e) => {
+            state.draggedItem = item;
+            item.classList.add('dragging');
         });
 
-        card.addEventListener('dragend', () => {
-            card.classList.remove('dragging');
+        item.addEventListener('dragend', () => {
+            item.classList.remove('dragging');
             state.draggedItem = null;
         });
 
-        card.addEventListener('dragover', (e) => {
+        item.addEventListener('dragover', (e) => {
             e.preventDefault();
             const dragging = document.querySelector('.dragging');
-            if (dragging && dragging !== card) {
-                const rect = card.getBoundingClientRect();
+            if (dragging && dragging !== item) {
+                const rect = item.getBoundingClientRect();
                 const midpoint = rect.y + rect.height / 2;
-                if (e.clientY < midpoint) {
-                    card.parentNode.insertBefore(dragging, card);
-                } else {
-                    card.parentNode.insertBefore(dragging, card.nextSibling);
-                }
+                item.parentNode.insertBefore(dragging, e.clientY < midpoint ? item : item.nextSibling);
             }
         });
 
-        card.addEventListener('drop', async (e) => {
+        item.addEventListener('drop', async (e) => {
             e.preventDefault();
-            await saveBookmarkOrder();
+            await onDrop();
         });
     });
+}
+
+function initDragAndDrop() {
+    initDraggable('.bookmark-card', saveBookmarkOrder);
 }
 
 async function saveBookmarkOrder() {
@@ -426,17 +419,21 @@ function showBookmarkModal(bookmark = null) {
         document.getElementById('bookmarkIcon').value = bookmark.icon_path || bookmark.icon_url || '';
         document.getElementById('bookmarkGroup').value = bookmark.group_id !== null && bookmark.group_id !== undefined ? bookmark.group_id : '';
         document.getElementById('bookmarkDesc').value = bookmark.description || '';
+        document.getElementById('bookmarkNewWindow').checked = bookmark.is_new_window !== false; // 默认true
 
-        // Show icon preview
-        if (bookmark.icon_path || bookmark.icon_url) {
-            showIconPreview(bookmark.icon_path || bookmark.icon_url);
-        }
+        // Show icon preview - use getFavicon to get correct icon
+        const faviconUrl = getFavicon(bookmark.url, bookmark.icon_path || bookmark.icon_url);
+        showIconPreview(faviconUrl);
     } else {
         title.textContent = i18n.t('bookmark.add');
+        // 先设置默认值，再重置表单
+        document.getElementById('bookmarkNewWindow').checked = true;
         document.getElementById('bookmarkForm').reset();
         document.getElementById('bookmarkId').value = '';
         document.getElementById('uploadFileName').textContent = '';
         hideIconPreview();
+        // reset() 会重置 checkbox，所以需要再次设置
+        document.getElementById('bookmarkNewWindow').checked = true;
     }
 
     modal.classList.add('show');
@@ -513,9 +510,7 @@ async function uploadIcon(file) {
 
 async function editBookmark(id) {
     const bookmark = state.bookmarks.find(b => b.id === id);
-    if (bookmark) {
-        showBookmarkModal(bookmark);
-    }
+    if (bookmark) showBookmarkModal(bookmark);
 }
 
 async function deleteBookmark(id) {
@@ -523,11 +518,10 @@ async function deleteBookmark(id) {
 
     try {
         await apiRequest(`${API}/bookmark/${id}`, { method: 'DELETE' });
-        await loadBookmarks();
-        await loadGroups();
+        await Promise.all([loadBookmarks(), loadGroups()]);
     } catch (err) {
         console.error(i18n.t('errors.deleteFailed'), err);
-        alert(i18n.t('errors.deleteFailed'));
+        showError(i18n.t('errors.deleteFailed'));
     }
 }
 
@@ -536,14 +530,12 @@ async function deleteBookmark(id) {
 // ===================================
 function showGroupModal(group = null) {
     const modal = document.getElementById('groupModal');
-    const title = document.getElementById('groupModalTitle');
+    document.getElementById('groupModalTitle').textContent = i18n.t(group ? 'group.edit' : 'group.add');
 
     if (group) {
-        title.textContent = i18n.t('group.edit');
         document.getElementById('groupId').value = group.id;
         document.getElementById('groupName').value = group.name;
     } else {
-        title.textContent = i18n.t('group.add');
         document.getElementById('groupForm').reset();
         document.getElementById('groupId').value = '';
     }
@@ -553,9 +545,7 @@ function showGroupModal(group = null) {
 
 async function editGroup(id) {
     const group = state.groups.find(g => g.id === id);
-    if (group) {
-        showGroupModal(group);
-    }
+    if (group) showGroupModal(group);
 }
 
 async function deleteGroup(id) {
@@ -567,7 +557,7 @@ async function deleteGroup(id) {
         renderSettingsGroups();
     } catch (err) {
         console.error(i18n.t('errors.deleteFailed'), err);
-        alert(i18n.t('errors.deleteFailed'));
+        showError(i18n.t('errors.deleteFailed'));
     }
 }
 
@@ -592,58 +582,24 @@ function renderSettingsGroups() {
 
 // 分组拖拽排序
 function initGroupDragAndDrop() {
-    const items = document.querySelectorAll('#groupsList .settings-item');
+    initDraggable('#groupsList .settings-item', async () => {
+        const items = document.querySelectorAll('#groupsList .settings-item');
+        const groupItems = Array.from(items).map((item, index) => ({
+            id: parseInt(item.dataset.id),
+            sort_order: index
+        }));
 
-    items.forEach(item => {
-        item.addEventListener('dragstart', (e) => {
-            state.draggedItem = item;
-            item.classList.add('dragging');
-        });
-
-        item.addEventListener('dragend', () => {
-            item.classList.remove('dragging');
-            state.draggedItem = null;
-        });
-
-        item.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            const dragging = document.querySelector('#groupsList .dragging');
-            if (dragging && dragging !== item) {
-                const rect = item.getBoundingClientRect();
-                const midpoint = rect.y + rect.height / 2;
-                if (e.clientY < midpoint) {
-                    item.parentNode.insertBefore(dragging, item);
-                } else {
-                    item.parentNode.insertBefore(dragging, item.nextSibling);
-                }
-            }
-        });
-
-        item.addEventListener('drop', async (e) => {
-            e.preventDefault();
-            await saveGroupOrder();
-        });
+        try {
+            await apiRequest(`${API}/groups/reorder`, {
+                method: 'POST',
+                body: JSON.stringify(groupItems)
+            });
+            await loadGroups();
+        } catch (err) {
+            console.error(i18n.t('errors.saveOrderFailed'), err);
+            showError(i18n.t('errors.saveOrderFailed'));
+        }
     });
-}
-
-async function saveGroupOrder() {
-    const items = document.querySelectorAll('#groupsList .settings-item');
-    const groupItems = Array.from(items).map((item, index) => ({
-        id: parseInt(item.dataset.id),
-        sort_order: index
-    }));
-
-    try {
-        await apiRequest(`${API}/groups/reorder`, {
-            method: 'POST',
-            body: JSON.stringify(groupItems)
-        });
-        // 重新加载分组以获取更新后的排序
-        await loadGroups();
-    } catch (err) {
-        console.error(i18n.t('errors.saveOrderFailed'), err);
-        alert(i18n.t('errors.saveOrderFailed'));
-    }
 }
 
 // ===================================
@@ -651,17 +607,15 @@ async function saveGroupOrder() {
 // ===================================
 function showEngineModal(engine = null) {
     const modal = document.getElementById('engineEditModal');
-    const title = document.getElementById('engineEditModalTitle');
+    document.getElementById('engineEditModalTitle').textContent = i18n.t(engine ? 'searchEngine.edit' : 'searchEngine.add');
 
     if (engine) {
-        title.textContent = i18n.t('searchEngine.edit');
         document.getElementById('engineId').value = engine.id;
         document.getElementById('engineName').value = engine.name;
         document.getElementById('engineUrl').value = engine.url;
         document.getElementById('enginePlaceholder').value = engine.placeholder || '';
         document.getElementById('engineDefault').checked = engine.is_default;
     } else {
-        title.textContent = i18n.t('searchEngine.add');
         document.getElementById('engineEditForm').reset();
         document.getElementById('engineId').value = '';
     }
@@ -671,9 +625,7 @@ function showEngineModal(engine = null) {
 
 async function editEngine(id) {
     const engine = state.engines.find(e => e.id === id);
-    if (engine) {
-        showEngineModal(engine);
-    }
+    if (engine) showEngineModal(engine);
 }
 
 async function deleteEngine(id) {
@@ -685,7 +637,7 @@ async function deleteEngine(id) {
         renderSettingsEngines();
     } catch (err) {
         console.error(i18n.t('errors.deleteFailed'), err);
-        alert(i18n.t('errors.deleteFailed'));
+        showError(i18n.t('errors.deleteFailed'));
     }
 }
 
@@ -853,14 +805,11 @@ function initEventListeners() {
 
         languageSelect.addEventListener('change', async (e) => {
             await i18n.setLocale(e.target.value);
-            // Re-render components to apply new language
             renderGroups();
             renderBookmarks();
             updateGroupSelect();
             renderCurrentEngine();
             renderEngineDropdown();
-            // Update modal titles if they're visible
-            updateAllModalTitles();
         });
     }
 
@@ -875,6 +824,11 @@ function initEventListeners() {
         } else {
             hideIconPreview();
         }
+    });
+
+    // Icon upload button click
+    document.getElementById('uploadIconBtn').addEventListener('click', () => {
+        document.getElementById('iconUpload').click();
     });
 
     // Icon upload
@@ -901,7 +855,8 @@ function initEventListeners() {
             title: document.getElementById('bookmarkTitle').value,
             icon_url: document.getElementById('bookmarkIcon').value,
             group_id: groupValue === '' || groupValue === null || groupValue === undefined ? null : parseInt(groupValue, 10),
-            description: document.getElementById('bookmarkDesc').value
+            description: document.getElementById('bookmarkDesc').value,
+            is_new_window: document.getElementById('bookmarkNewWindow').checked
         };
 
         try {
@@ -996,10 +951,4 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
-}
-
-// Update all modal titles when language changes
-function updateAllModalTitles() {
-    // This function is called when language is changed
-    // Modals will update their titles when opened next time
 }

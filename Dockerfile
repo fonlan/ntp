@@ -23,9 +23,10 @@ RUN apk --no-cache add ca-certificates sqlite-libs
 
 WORKDIR /root/
 
-# 从构建阶段复制二进制文件
+# 从构建阶段复制二进制文件和资源
 COPY --from=builder /app/ntp .
 COPY --from=builder /app/static ./static
+COPY --from=builder /app/i18n ./i18n
 
 # 创建数据目录
 RUN mkdir -p data

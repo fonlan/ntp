@@ -1,12 +1,12 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"ntp/handlers"
 	"ntp/i18n"
@@ -24,7 +24,6 @@ func main() {
 		log.Fatalf("创建数据目录失败: %v", err)
 	}
 
-	// 确保图标目录存在
 	iconDir := filepath.Join(dataDir, "icons")
 	if err := os.MkdirAll(iconDir, 0755); err != nil {
 		log.Fatalf("创建图标目录失败: %v", err)
@@ -37,12 +36,10 @@ func main() {
 	}
 	defer models.CloseDB()
 
-	// 初始化 repositories
+	// 初始化 repositories 和 services
 	bookmarkRepo := models.NewBookmarkRepository(models.DB)
 	groupRepo := models.NewGroupRepository(models.DB)
 	searchEngineRepo := models.NewSearchEngineRepository(models.DB)
-
-	// 初始化 services
 	iconService := services.NewIconService(iconDir, "/data/icons")
 
 	// 初始化 handlers
@@ -64,145 +61,8 @@ func main() {
 	mux.Handle("/data/icons/", http.StripPrefix("/data/icons/", http.FileServer(http.Dir(iconDir))))
 	mux.Handle("/", http.FileServer(http.Dir("static")))
 
-	// API 路由 - 使用明确的路径避免冲突
-	mux.HandleFunc("/api/bookmarks", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case "GET":
-			bookmarkHandler.List(w, r)
-		case "POST":
-			bookmarkHandler.Create(w, r)
-		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
-
-	mux.HandleFunc("/api/bookmarks/search", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "GET" {
-			bookmarkHandler.Search(w, r)
-		} else {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
-
-	mux.HandleFunc("/api/bookmarks/export", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "GET" {
-			bookmarkHandler.Export(w, r)
-		} else {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
-
-	mux.HandleFunc("/api/bookmarks/import", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "POST" {
-			bookmarkHandler.Import(w, r)
-		} else {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
-
-	mux.HandleFunc("/api/bookmarks/reorder", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "POST" {
-			bookmarkHandler.Reorder(w, r)
-		} else {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
-
-	// 书签详情 API (带 ID)
-	mux.HandleFunc("/api/bookmark/", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case "PUT":
-			bookmarkHandler.Update(w, r)
-		case "DELETE":
-			bookmarkHandler.Delete(w, r)
-		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
-
-	// 分组 API
-	mux.HandleFunc("/api/groups", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case "GET":
-			groupHandler.List(w, r)
-		case "POST":
-			groupHandler.Create(w, r)
-		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
-
-	mux.HandleFunc("/api/groups/reorder", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "POST" {
-			groupHandler.Reorder(w, r)
-		} else {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
-
-	// 分组详情 API (带 ID)
-	mux.HandleFunc("/api/group/", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case "PUT":
-			groupHandler.Update(w, r)
-		case "DELETE":
-			groupHandler.Delete(w, r)
-		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
-
-	// 搜索引擎 API
-	mux.HandleFunc("/api/search-engines", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case "GET":
-			searchEngineHandler.List(w, r)
-		case "POST":
-			searchEngineHandler.Create(w, r)
-		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
-
-	mux.HandleFunc("/api/search-engines/reorder", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "POST" {
-			searchEngineHandler.Reorder(w, r)
-		} else {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
-
-	// 搜索引擎详情 API (带 ID)
-	mux.HandleFunc("/api/search-engine/", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case "PUT":
-			searchEngineHandler.Update(w, r)
-		case "DELETE":
-			searchEngineHandler.Delete(w, r)
-		case "POST":
-			searchEngineHandler.SetDefault(w, r)
-		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
-
-	// 自动获取网站元数据
-	mux.HandleFunc("/api/fetch-metadata", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "POST" {
-			fetchHandler.FetchMetadata(w, r)
-		} else {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
-
-	// 上传图标
-	mux.HandleFunc("/api/upload-icon", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "POST" {
-			bookmarkHandler.UploadIcon(w, r)
-		} else {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
+	// API 路由
+	registerAPIRoutes(mux, bookmarkHandler, groupHandler, searchEngineHandler, fetchHandler)
 
 	// 搜索跳转
 	mux.HandleFunc("/search", func(w http.ResponseWriter, r *http.Request) {
@@ -213,13 +73,12 @@ func main() {
 		var err error
 
 		if engineID != "" {
-			// 根据 ID 获取引擎
-			engine, err = searchEngineRepo.GetByID(atoi64(engineID))
+			id, _ := strconv.ParseInt(engineID, 10, 64)
+			engine, err = searchEngineRepo.GetByID(id)
 			if err != nil || engine == nil {
 				engine, _ = searchEngineRepo.GetDefault()
 			}
 		} else {
-			// 获取默认引擎
 			engine, _ = searchEngineRepo.GetDefault()
 		}
 
@@ -241,11 +100,81 @@ func main() {
 	addr := "0.0.0.0:" + port
 	log.Printf("服务器启动在 http://0.0.0.0:%s", port)
 
-	// 应用中间件
 	handler := middleware.LocaleMiddleware(enableCORS(mux))
-
 	if err := http.ListenAndServe(addr, handler); err != nil {
 		log.Fatalf("服务器启动失败: %v", err)
+	}
+}
+
+// registerAPIRoutes 注册所有 API 路由
+func registerAPIRoutes(mux *http.ServeMux, bh *handlers.BookmarkHandler, gh *handlers.GroupHandler, sh *handlers.SearchEngineHandler, fh *handlers.FetchHandler) {
+	// 书签路由
+	mux.HandleFunc("/api/bookmarks", methodRouter(map[string]http.HandlerFunc{
+		"GET":  bh.List,
+		"POST": bh.Create,
+	}))
+	mux.HandleFunc("/api/bookmarks/search", methodRouter(map[string]http.HandlerFunc{
+		"GET": bh.Search,
+	}))
+	mux.HandleFunc("/api/bookmarks/export", methodRouter(map[string]http.HandlerFunc{
+		"GET": bh.Export,
+	}))
+	mux.HandleFunc("/api/bookmarks/import", methodRouter(map[string]http.HandlerFunc{
+		"POST": bh.Import,
+	}))
+	mux.HandleFunc("/api/bookmarks/reorder", methodRouter(map[string]http.HandlerFunc{
+		"POST": bh.Reorder,
+	}))
+	mux.HandleFunc("/api/bookmark/", methodRouter(map[string]http.HandlerFunc{
+		"PUT":    bh.Update,
+		"DELETE": bh.Delete,
+	}))
+
+	// 分组路由
+	mux.HandleFunc("/api/groups", methodRouter(map[string]http.HandlerFunc{
+		"GET":  gh.List,
+		"POST": gh.Create,
+	}))
+	mux.HandleFunc("/api/groups/reorder", methodRouter(map[string]http.HandlerFunc{
+		"POST": gh.Reorder,
+	}))
+	mux.HandleFunc("/api/groups/", methodRouter(map[string]http.HandlerFunc{
+		"PUT":    gh.Update,
+		"DELETE": gh.Delete,
+	}))
+
+	// 搜索引擎路由
+	mux.HandleFunc("/api/search-engines", methodRouter(map[string]http.HandlerFunc{
+		"GET":  sh.List,
+		"POST": sh.Create,
+	}))
+	mux.HandleFunc("/api/search-engines/reorder", methodRouter(map[string]http.HandlerFunc{
+		"POST": sh.Reorder,
+	}))
+	mux.HandleFunc("/api/search-engine/", methodRouter(map[string]http.HandlerFunc{
+		"PUT":    sh.Update,
+		"DELETE": sh.Delete,
+		"POST":   sh.SetDefault,
+	}))
+
+	// 其他 API
+	mux.HandleFunc("/api/fetch-metadata", methodRouter(map[string]http.HandlerFunc{
+		"POST": fh.FetchMetadata,
+	}))
+	mux.HandleFunc("/api/upload-icon", methodRouter(map[string]http.HandlerFunc{
+		"POST": bh.UploadIcon,
+	}))
+}
+
+// methodRouter 路由方法选择器
+func methodRouter(handlers map[string]http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		handler, ok := handlers[r.Method]
+		if !ok {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		handler(w, r)
 	}
 }
 
@@ -263,23 +192,4 @@ func enableCORS(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
-}
-
-// respondJSON 返回 JSON 响应
-func respondJSON(w http.ResponseWriter, status int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
-}
-
-// respondError 返回错误响应
-func respondError(w http.ResponseWriter, status int, message string) {
-	respondJSON(w, status, map[string]string{"error": message})
-}
-
-// atoi64 字符串转 int64
-func atoi64(s string) int64 {
-	var i int64
-	fmt.Sscanf(s, "%d", &i)
-	return i
 }

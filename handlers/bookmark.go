@@ -41,6 +41,7 @@ type BookmarkCreateRequest struct {
 	Title       string `json:"title,omitempty"`
 	IconURL     string `json:"icon_url,omitempty"`
 	Description string `json:"description,omitempty"`
+	IsNewWindow bool   `json:"is_new_window"`
 }
 
 // BookmarkUpdateRequest 更新请求
@@ -51,6 +52,7 @@ type BookmarkUpdateRequest struct {
 	Description *string `json:"description,omitempty"`
 	GroupID     *int64  `json:"group_id"`
 	SortOrder   *int    `json:"sort_order,omitempty"`
+	IsNewWindow *bool   `json:"is_new_window,omitempty"`
 }
 
 // BookmarkReorderRequest 排序请求
@@ -94,6 +96,7 @@ func (h *BookmarkHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Title:       req.Title,
 		GroupID:     req.GroupID,
 		SortOrder:   0,
+		IsNewWindow: req.IsNewWindow,
 	}
 
 	// 处理可选字段
@@ -117,13 +120,22 @@ func (h *BookmarkHandler) Create(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// 下载并保存图标到本地
+	// 处理图标
 	if bookmark.IconURL != nil && *bookmark.IconURL != "" {
-		iconPath, err := h.iconService.DownloadIcon(*bookmark.IconURL)
-		if err == nil {
-			bookmark.IconPath = &iconPath
+		iconURL := *bookmark.IconURL
+		// 如果已经是本地图标路径，直接使用
+		if strings.HasPrefix(iconURL, "/data/icons/") {
+			bookmark.IconPath = &iconURL
+			bookmark.IconURL = nil // 使用本地图标后清空URL字段
+		} else {
+			// 外部URL，尝试下载并保存到本地
+			iconPath, err := h.iconService.DownloadIcon(iconURL)
+			if err == nil {
+				bookmark.IconPath = &iconPath
+				bookmark.IconURL = nil // 使用本地图标后清空URL
+			}
+			// 如果下载失败，保留 IconURL 字段作为后备
 		}
-		// 如果下载失败，保留 IconURL 字段作为后备
 	} else {
 		// 尝试自动下载 favicon
 		iconPath, err := h.iconService.DownloadFavicon(bookmark.URL)
@@ -165,15 +177,27 @@ func (h *BookmarkHandler) Update(w http.ResponseWriter, r *http.Request) {
 		bookmark.URL = *req.URL
 	}
 	if req.IconURL != nil {
-		bookmark.IconURL = req.IconURL
-		// 下载新图标
-		iconPath, err := h.iconService.DownloadIcon(*req.IconURL)
-		if err == nil {
+		iconURL := *req.IconURL
+		// 如果已经是本地图标路径，直接使用
+		if strings.HasPrefix(iconURL, "/data/icons/") {
 			// 删除旧图标
-			if bookmark.IconPath != nil && *bookmark.IconPath != "" {
+			if bookmark.IconPath != nil && *bookmark.IconPath != "" && *bookmark.IconPath != iconURL {
 				h.iconService.DeleteIcon(*bookmark.IconPath)
 			}
-			bookmark.IconPath = &iconPath
+			bookmark.IconPath = &iconURL
+			bookmark.IconURL = nil // 使用本地图标后清空URL字段
+		} else {
+			// 外部URL，尝试下载并保存到本地
+			bookmark.IconURL = req.IconURL
+			iconPath, err := h.iconService.DownloadIcon(iconURL)
+			if err == nil {
+				// 删除旧图标
+				if bookmark.IconPath != nil && *bookmark.IconPath != "" {
+					h.iconService.DeleteIcon(*bookmark.IconPath)
+				}
+				bookmark.IconPath = &iconPath
+				bookmark.IconURL = nil // 使用本地图标后清空URL
+			}
 		}
 	}
 	if req.Description != nil {
@@ -183,6 +207,9 @@ func (h *BookmarkHandler) Update(w http.ResponseWriter, r *http.Request) {
 	bookmark.GroupID = req.GroupID
 	if req.SortOrder != nil {
 		bookmark.SortOrder = *req.SortOrder
+	}
+	if req.IsNewWindow != nil {
+		bookmark.IsNewWindow = *req.IsNewWindow
 	}
 
 	if err := h.bookmarkRepo.Update(bookmark); err != nil {

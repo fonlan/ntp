@@ -72,7 +72,7 @@ func (h *GroupHandler) Create(w http.ResponseWriter, r *http.Request) {
 // Update 更新分组
 func (h *GroupHandler) Update(w http.ResponseWriter, r *http.Request) {
 	translator := middleware.TranslatorFromContext(r.Context())
-	id := extractPathID(r, "/api/group/")
+	id := extractPathID(r, "/api/groups/")
 
 	group, err := h.groupRepo.GetByID(id)
 	if err != nil || group == nil {
@@ -104,7 +104,7 @@ func (h *GroupHandler) Update(w http.ResponseWriter, r *http.Request) {
 // Delete 删除分组
 func (h *GroupHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	translator := middleware.TranslatorFromContext(r.Context())
-	id := extractPathID(r, "/api/group/")
+	id := extractPathID(r, "/api/groups/")
 
 	if err := h.groupRepo.Delete(id); err != nil {
 		respondError(w, http.StatusInternalServerError, translator.T("group.deleteFailed")+": "+err.Error())

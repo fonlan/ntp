@@ -78,6 +78,7 @@
     "group": "分组",
     "description": "描述",
     "descriptionPlaceholder": "可选备注信息",
+    "newWindow": "在新窗口打开",
     "deleteConfirm": "确定要删除这个书签吗？",
     "enterUrlFirst": "请先输入URL",
     "empty": "暂无书签，点击设置添加"

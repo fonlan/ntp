@@ -78,6 +78,7 @@
     "group": "Group",
     "description": "Description",
     "descriptionPlaceholder": "Optional notes",
+    "newWindow": "Open in new window",
     "deleteConfirm": "Are you sure you want to delete this bookmark?",
     "enterUrlFirst": "Please enter URL first",
     "empty": "No bookmarks yet, click settings to add"

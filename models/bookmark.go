@@ -15,6 +15,7 @@ type Bookmark struct {
 	Description *string    `json:"description"`
 	GroupID     *int64     `json:"group_id"`
 	SortOrder   int        `json:"sort_order"`
+	IsNewWindow bool       `json:"is_new_window"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
 }
@@ -32,10 +33,10 @@ func NewBookmarkRepository(db *sql.DB) *BookmarkRepository {
 // Create 创建书签
 func (r *BookmarkRepository) Create(bookmark *Bookmark) error {
 	result, err := r.db.Exec(
-		`INSERT INTO bookmarks (title, url, icon_url, icon_path, description, group_id, sort_order)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO bookmarks (title, url, icon_url, icon_path, description, group_id, sort_order, is_new_window)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		bookmark.Title, bookmark.URL, bookmark.IconURL, bookmark.IconPath,
-		bookmark.Description, bookmark.GroupID, bookmark.SortOrder,
+		bookmark.Description, bookmark.GroupID, bookmark.SortOrder, bookmark.IsNewWindow,
 	)
 	if err != nil {
 		return err
@@ -54,12 +55,12 @@ func (r *BookmarkRepository) Create(bookmark *Bookmark) error {
 func (r *BookmarkRepository) GetByID(id int64) (*Bookmark, error) {
 	bookmark := &Bookmark{}
 	err := r.db.QueryRow(
-		`SELECT id, title, url, icon_url, icon_path, description, group_id, sort_order, created_at, updated_at
+		`SELECT id, title, url, icon_url, icon_path, description, group_id, sort_order, is_new_window, created_at, updated_at
 		 FROM bookmarks WHERE id = ?`,
 		id,
 	).Scan(
 		&bookmark.ID, &bookmark.Title, &bookmark.URL, &bookmark.IconURL, &bookmark.IconPath,
-		&bookmark.Description, &bookmark.GroupID, &bookmark.SortOrder,
+		&bookmark.Description, &bookmark.GroupID, &bookmark.SortOrder, &bookmark.IsNewWindow,
 		&bookmark.CreatedAt, &bookmark.UpdatedAt,
 	)
 
@@ -76,12 +77,12 @@ func (r *BookmarkRepository) GetAll(groupID *int64) ([]Bookmark, error) {
 
 	if groupID == nil {
 		rows, err = r.db.Query(
-			`SELECT id, title, url, icon_url, icon_path, description, group_id, sort_order, created_at, updated_at
+			`SELECT id, title, url, icon_url, icon_path, description, group_id, sort_order, is_new_window, created_at, updated_at
 			 FROM bookmarks ORDER BY sort_order ASC`,
 		)
 	} else {
 		rows, err = r.db.Query(
-			`SELECT id, title, url, icon_url, icon_path, description, group_id, sort_order, created_at, updated_at
+			`SELECT id, title, url, icon_url, icon_path, description, group_id, sort_order, is_new_window, created_at, updated_at
 			 FROM bookmarks WHERE group_id = ? ORDER BY sort_order ASC`,
 			*groupID,
 		)
@@ -92,12 +93,12 @@ func (r *BookmarkRepository) GetAll(groupID *int64) ([]Bookmark, error) {
 	}
 	defer rows.Close()
 
-	var bookmarks []Bookmark
+	bookmarks := []Bookmark{}
 	for rows.Next() {
 		var b Bookmark
 		if err := rows.Scan(
 			&b.ID, &b.Title, &b.URL, &b.IconURL, &b.IconPath,
-			&b.Description, &b.GroupID, &b.SortOrder,
+			&b.Description, &b.GroupID, &b.SortOrder, &b.IsNewWindow,
 			&b.CreatedAt, &b.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -112,10 +113,10 @@ func (r *BookmarkRepository) GetAll(groupID *int64) ([]Bookmark, error) {
 func (r *BookmarkRepository) Update(bookmark *Bookmark) error {
 	_, err := r.db.Exec(
 		`UPDATE bookmarks
-		 SET title = ?, url = ?, icon_url = ?, icon_path = ?, description = ?, group_id = ?, sort_order = ?, updated_at = CURRENT_TIMESTAMP
+		 SET title = ?, url = ?, icon_url = ?, icon_path = ?, description = ?, group_id = ?, sort_order = ?, is_new_window = ?, updated_at = CURRENT_TIMESTAMP
 		 WHERE id = ?`,
 		bookmark.Title, bookmark.URL, bookmark.IconURL, bookmark.IconPath,
-		bookmark.Description, bookmark.GroupID, bookmark.SortOrder,
+		bookmark.Description, bookmark.GroupID, bookmark.SortOrder, bookmark.IsNewWindow,
 		bookmark.ID,
 	)
 	return err
@@ -154,7 +155,7 @@ func (r *BookmarkRepository) BatchReorder(items []ReorderItem) error {
 // Search 搜索书签
 func (r *BookmarkRepository) Search(query string) ([]Bookmark, error) {
 	rows, err := r.db.Query(
-		`SELECT id, title, url, icon_url, icon_path, description, group_id, sort_order, created_at, updated_at
+		`SELECT id, title, url, icon_url, icon_path, description, group_id, sort_order, is_new_window, created_at, updated_at
 		 FROM bookmarks
 		 WHERE title LIKE ? OR url LIKE ? OR description LIKE ?
 		 ORDER BY sort_order ASC`,
@@ -171,7 +172,7 @@ func (r *BookmarkRepository) Search(query string) ([]Bookmark, error) {
 		var b Bookmark
 		if err := rows.Scan(
 			&b.ID, &b.Title, &b.URL, &b.IconURL, &b.IconPath,
-			&b.Description, &b.GroupID, &b.SortOrder,
+			&b.Description, &b.GroupID, &b.SortOrder, &b.IsNewWindow,
 			&b.CreatedAt, &b.UpdatedAt,
 		); err != nil {
 			return nil, err

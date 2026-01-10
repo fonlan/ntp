@@ -77,7 +77,7 @@ func (s *IconService) DownloadFavicon(websiteURL string) (string, error) {
 		return "", fmt.Errorf("解析URL失败: %w", err)
 	}
 
-	domain := u.Hostname
+	domain := u.Hostname()
 
 	// 使用多个favicon源
 	faviconURLs := []string{

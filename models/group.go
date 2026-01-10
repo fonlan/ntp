@@ -74,7 +74,7 @@ func (r *GroupRepository) GetAll() ([]Group, error) {
 	}
 	defer rows.Close()
 
-	var groups []Group
+	groups := []Group{}
 	for rows.Next() {
 		var g Group
 		if err := rows.Scan(&g.ID, &g.Name, &g.SortOrder, &g.CreatedAt, &g.BookmarkCount); err != nil {

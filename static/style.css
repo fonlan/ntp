@@ -909,6 +909,30 @@ body {
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
+/* 语言选择下拉框 */
+.language-select {
+    width: 100%;
+    max-width: 200px;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    background: var(--bg-card);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.language-select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.language-select:hover {
+    border-color: var(--secondary);
+}
+
 /* 书签预览 */
 .bookmark-preview-container {
     margin-top: 20px;
@@ -951,28 +975,30 @@ body {
 }
 
 /* 图标输入和预览 */
-.icon-input-group {
+.icon-input-wrapper {
     display: flex;
     gap: 8px;
+    align-items: center;
     margin-bottom: 8px;
 }
 
-.icon-input-group input {
+.icon-input-wrapper input {
     flex: 1;
 }
 
-.icon-upload-group {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
+/* 图标按钮样式 */
+.icon-only-btn {
+    padding: 8px;
+    min-width: 36px;
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
 }
 
-.icon-upload-group label {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    cursor: pointer;
+.icon-only-btn svg {
+    width: 16px;
+    height: 16px;
+    margin: 0;
 }
 
 .icon-preview-container {

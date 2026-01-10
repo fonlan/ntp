@@ -3,6 +3,7 @@ version: '3.8'
 services:
   ntp:
     build: .
+    container_name: ntp
     ports:
       - "8080:8080"
     volumes:
