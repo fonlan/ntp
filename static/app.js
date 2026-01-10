@@ -165,6 +165,7 @@ function applyBookmarkSize() {
     const mainContainer = document.querySelector('.container');
     const groupBookmarksContainers = document.querySelectorAll('.group-bookmarks');
     const cards = document.querySelectorAll('.bookmark-card');
+    const isMobile = window.innerWidth <= 768;
 
     // 设置主容器宽度
     if (mainContainer) {
@@ -181,15 +182,29 @@ function applyBookmarkSize() {
 
     // 对每个分组容器设置列数
     groupBookmarksContainers.forEach(container => {
-        // 桌面端布局
-        if (state.bookmarkColumns > 0) {
-            container.style.gridTemplateColumns = `repeat(${state.bookmarkColumns}, 1fr)`;
+        // 桌面端布局 - 只在桌面端设置内联样式
+        if (!isMobile) {
+            if (state.bookmarkColumns > 0) {
+                container.style.gridTemplateColumns = `repeat(${state.bookmarkColumns}, 1fr)`;
+            } else {
+                container.style.gridTemplateColumns = `repeat(auto-fill, minmax(${bookmarkWidth}px, 1fr))`;
+            }
         } else {
-            container.style.gridTemplateColumns = `repeat(auto-fill, minmax(${bookmarkWidth}px, 1fr))`;
+            // 移动端清除内联样式，让 CSS 变量生效
+            container.style.gridTemplateColumns = '';
         }
 
         // 移动端布局（通过 CSS 变量传递）
         container.style.setProperty('--mobile-columns', state.mobileColumns);
+
+        // 桌面端布局也通过 CSS 变量传递（可选，用于一致性）
+        if (state.bookmarkColumns > 0) {
+            container.style.setProperty('--desktop-columns', state.bookmarkColumns);
+            container.style.setProperty('--desktop-width', bookmarkWidth + 'px');
+        } else {
+            container.style.setProperty('--desktop-columns', 'auto');
+            container.style.setProperty('--desktop-width', bookmarkWidth + 'px');
+        }
     });
 
     // 设置每个书签卡片的高度
@@ -1097,6 +1112,15 @@ function initEventListeners() {
             console.error(i18n.t('errors.saveFailed'), err);
             alert(i18n.t('errors.saveFailed'));
         }
+    });
+
+    // Window resize - 重新应用书签尺寸设置以适配桌面/移动端切换
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            applyBookmarkSize();
+        }, 100);
     });
 }
 
