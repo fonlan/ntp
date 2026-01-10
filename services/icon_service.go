@@ -29,7 +29,7 @@ func NewIconService(iconDir, baseURL string) *IconService {
 // DownloadIcon 下载图标并保存到本地
 func (s *IconService) DownloadIcon(iconURL string) (string, error) {
 	// 如果是本地路径，直接返回
-	if strings.HasPrefix(iconURL, "/static/icons/") {
+	if strings.HasPrefix(iconURL, "/data/icons/") {
 		return iconURL, nil
 	}
 
@@ -66,7 +66,7 @@ func (s *IconService) DownloadIcon(iconURL string) (string, error) {
 	}
 
 	// 返回URL路径
-	return "/static/icons/" + filename, nil
+	return "/data/icons/" + filename, nil
 }
 
 // DownloadFavicon 从网站域名下载favicon
@@ -120,17 +120,17 @@ func (s *IconService) SaveUploadedIcon(filename string, data []byte) (string, er
 	}
 
 	// 返回URL路径
-	return "/static/icons/" + newFilename, nil
+	return "/data/icons/" + newFilename, nil
 }
 
 // DeleteIcon 删除本地图标文件
 func (s *IconService) DeleteIcon(iconPath string) error {
-	if !strings.HasPrefix(iconPath, "/static/icons/") {
+	if !strings.HasPrefix(iconPath, "/data/icons/") {
 		return nil // 不是本地文件，不删除
 	}
 
 	// 提取文件名
-	filename := strings.TrimPrefix(iconPath, "/static/icons/")
+	filename := strings.TrimPrefix(iconPath, "/data/icons/")
 	filePath := filepath.Join(s.iconDir, filename)
 
 	// 检查文件是否存在

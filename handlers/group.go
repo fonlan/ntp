@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"ntp/models"
+	"ntp/middleware"
 )
 
 // GroupHandler 分组处理器
@@ -34,9 +35,11 @@ type GroupReorderRequest []models.ReorderItem
 
 // List 获取分组列表
 func (h *GroupHandler) List(w http.ResponseWriter, r *http.Request) {
+	translator := middleware.TranslatorFromContext(r.Context())
+
 	groups, err := h.groupRepo.GetAll()
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "获取分组列表失败: "+err.Error())
+		respondError(w, http.StatusInternalServerError, translator.T("group.listFailed")+": "+err.Error())
 		return
 	}
 
@@ -45,9 +48,11 @@ func (h *GroupHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // Create 创建分组
 func (h *GroupHandler) Create(w http.ResponseWriter, r *http.Request) {
+	translator := middleware.TranslatorFromContext(r.Context())
+
 	var req GroupCreateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "无效的请求格式")
+		respondError(w, http.StatusBadRequest, translator.T("common.invalidRequest"))
 		return
 	}
 
@@ -57,7 +62,7 @@ func (h *GroupHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.groupRepo.Create(group); err != nil {
-		respondError(w, http.StatusInternalServerError, "创建分组失败: "+err.Error())
+		respondError(w, http.StatusInternalServerError, translator.T("group.createFailed")+": "+err.Error())
 		return
 	}
 
@@ -66,17 +71,18 @@ func (h *GroupHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Update 更新分组
 func (h *GroupHandler) Update(w http.ResponseWriter, r *http.Request) {
-	id := extractPathID(r, "/api/groups/")
+	translator := middleware.TranslatorFromContext(r.Context())
+	id := extractPathID(r, "/api/group/")
 
 	group, err := h.groupRepo.GetByID(id)
 	if err != nil || group == nil {
-		respondError(w, http.StatusNotFound, "分组不存在")
+		respondError(w, http.StatusNotFound, translator.T("group.notFound"))
 		return
 	}
 
 	var req GroupUpdateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "无效的请求格式")
+		respondError(w, http.StatusBadRequest, translator.T("common.invalidRequest"))
 		return
 	}
 
@@ -88,7 +94,7 @@ func (h *GroupHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.groupRepo.Update(group); err != nil {
-		respondError(w, http.StatusInternalServerError, "更新分组失败: "+err.Error())
+		respondError(w, http.StatusInternalServerError, translator.T("group.updateFailed")+": "+err.Error())
 		return
 	}
 
@@ -97,21 +103,24 @@ func (h *GroupHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Delete 删除分组
 func (h *GroupHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	id := extractPathID(r, "/api/groups/")
+	translator := middleware.TranslatorFromContext(r.Context())
+	id := extractPathID(r, "/api/group/")
 
 	if err := h.groupRepo.Delete(id); err != nil {
-		respondError(w, http.StatusInternalServerError, "删除分组失败: "+err.Error())
+		respondError(w, http.StatusInternalServerError, translator.T("group.deleteFailed")+": "+err.Error())
 		return
 	}
 
-	respondJSON(w, http.StatusOK, map[string]string{"message": "删除成功"})
+	respondJSON(w, http.StatusOK, map[string]string{"message": translator.T("group.deleteSuccess")})
 }
 
 // Reorder 批量排序
 func (h *GroupHandler) Reorder(w http.ResponseWriter, r *http.Request) {
+	translator := middleware.TranslatorFromContext(r.Context())
+
 	var req GroupReorderRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "无效的请求格式")
+		respondError(w, http.StatusBadRequest, translator.T("common.invalidRequest"))
 		return
 	}
 
@@ -123,9 +132,9 @@ func (h *GroupHandler) Reorder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.groupRepo.BatchReorder(items); err != nil {
-		respondError(w, http.StatusInternalServerError, "排序失败: "+err.Error())
+		respondError(w, http.StatusInternalServerError, translator.T("group.reorderFailed")+": "+err.Error())
 		return
 	}
 
-	respondJSON(w, http.StatusOK, map[string]string{"message": "排序成功"})
+	respondJSON(w, http.StatusOK, map[string]string{"message": translator.T("group.reorderSuccess")})
 }

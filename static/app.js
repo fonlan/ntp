@@ -1,6 +1,25 @@
 // API base path
 const API = '/api';
 
+// Helper function to make API requests with language header
+async function apiRequest(url, options = {}) {
+    const headers = {
+        ...i18n.getRequestHeaders(),
+        ...(options.headers || {})
+    };
+
+    // If body is provided and Content-Type is not set, default to JSON
+    // But skip for FormData (let browser set the boundary)
+    if (options.body && !(options.body instanceof FormData) && !headers['Content-Type']) {
+        headers['Content-Type'] = 'application/json';
+    }
+
+    return fetch(url, {
+        ...options,
+        headers
+    });
+}
+
 // Global state
 let state = {
     bookmarks: [],
@@ -92,22 +111,24 @@ function updatePreview() {
 }
 
 function applyBookmarkSize() {
-    const container = document.getElementById('bookmarksContainer');
+    const groupBookmarksContainers = document.querySelectorAll('.group-bookmarks');
     const cards = document.querySelectorAll('.bookmark-card');
 
-    // Set columns
-    if (state.bookmarkColumns > 0) {
-        container.style.gridTemplateColumns = `repeat(${state.bookmarkColumns}, 1fr)`;
-    } else {
-        container.style.gridTemplateColumns = `repeat(auto-fill, minmax(${state.bookmarkWidth}px, 1fr))`;
-    }
+    // 对每个分组容器设置列数
+    groupBookmarksContainers.forEach(container => {
+        if (state.bookmarkColumns > 0) {
+            container.style.gridTemplateColumns = `repeat(${state.bookmarkColumns}, 1fr)`;
+        } else {
+            container.style.gridTemplateColumns = `repeat(auto-fill, minmax(${state.bookmarkWidth}px, 1fr))`;
+        }
+    });
 
-    // Set each bookmark card size (outer dimensions, including padding)
+    // 设置每个书签卡片的高度
     cards.forEach(card => {
-        card.style.width = ''; // Width controlled by grid
+        card.style.width = ''; // 宽度由 grid 控制
         card.style.minHeight = state.bookmarkHeight + 'px';
-        card.style.height = state.bookmarkHeight + 'px'; // Fixed height, prevent content from expanding
-        card.style.overflow = 'hidden'; // Hide overflow content
+        card.style.height = state.bookmarkHeight + 'px';
+        card.style.overflow = 'hidden';
     });
 }
 
@@ -116,7 +137,7 @@ function applyBookmarkSize() {
 // ===================================
 async function loadSearchEngines() {
     try {
-        const res = await fetch(`${API}/search-engines`);
+        const res = await apiRequest(`${API}/search-engines`);
         state.engines = await res.json();
         state.currentEngine = state.engines.find(e => e.is_default) || state.engines[0];
         renderCurrentEngine();
@@ -131,9 +152,8 @@ function renderCurrentEngine() {
     const nameEl = document.getElementById('currentEngineName');
 
     if (state.currentEngine) {
-        // Get favicon
-        const url = new URL(state.currentEngine.url);
-        iconEl.src = `https://www.google.com/s2/favicons?domain=${url.hostname}&sz=32`;
+        // 优先使用本地缓存图标，否则使用 Google favicon
+        iconEl.src = getFavicon(state.currentEngine.url, state.currentEngine.icon_path);
         nameEl.textContent = state.currentEngine.name;
     } else {
         // Show loading text in current language
@@ -146,7 +166,7 @@ function renderEngineDropdown() {
     dropdown.innerHTML = state.engines.map(e => `
         <div class="engine-dropdown-item ${state.currentEngine?.id === e.id ? 'active' : ''}"
              data-engine-id="${e.id}">
-            <img src="${getFavicon(e.url)}" alt="" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔍</text></svg>'">
+            <img src="${getFavicon(e.url, e.icon_path)}" alt="" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔍</text></svg>'">
             <span>${escapeHtml(e.name)}</span>
         </div>
     `).join('');
@@ -163,7 +183,12 @@ function renderEngineDropdown() {
     });
 }
 
-function getFavicon(url) {
+function getFavicon(url, iconPath) {
+    // 如果有本地图标路径，直接返回本地路径
+    if (iconPath && iconPath !== '') {
+        return iconPath;
+    }
+
     try {
         const domain = new URL(url).hostname;
         return `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
@@ -182,7 +207,7 @@ function toggleEngineDropdown() {
 // ===================================
 async function loadGroups() {
     try {
-        const res = await fetch(`${API}/groups`);
+        const res = await apiRequest(`${API}/groups`);
         state.groups = await res.json();
         renderGroups();
         updateGroupSelect();
@@ -193,28 +218,9 @@ async function loadGroups() {
 }
 
 function renderGroups() {
+    // 移除分组标签栏，因为现在所有分组都会显示在首页
     const container = document.querySelector('.groups-tabs');
-
-    const tabs = state.groups.map(g =>
-        `<button class="group-tab ${state.currentGroup === g.id ? 'active' : ''}" data-group-id="${g.id}">
-            ${escapeHtml(g.name)} <small>(${g.bookmark_count})</small>
-        </button>`
-    ).join('');
-
-    container.innerHTML = `
-        <button class="group-tab ${state.currentGroup === null ? 'active' : ''}" data-group-id="">${i18n.t('actions.all')}</button>
-        ${tabs}
-    `;
-
-    // Bind tab click events
-    container.querySelectorAll('.group-tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-            const groupId = tab.dataset.groupId;
-            state.currentGroup = groupId ? parseInt(groupId) : null;
-            renderGroups();
-            loadBookmarks();
-        });
-    });
+    container.style.display = 'none';
 }
 
 function updateGroupSelect() {
@@ -228,11 +234,8 @@ function updateGroupSelect() {
 // ===================================
 async function loadBookmarks() {
     try {
-        const url = state.currentGroup !== null
-            ? `${API}/bookmarks?group_id=${state.currentGroup}`
-            : `${API}/bookmarks`;
-
-        const res = await fetch(url);
+        // 加载所有书签，不再按分组过滤
+        const res = await apiRequest(`${API}/bookmarks`);
         state.bookmarks = await res.json();
         renderBookmarks();
     } catch (err) {
@@ -248,9 +251,68 @@ function renderBookmarks() {
         return;
     }
 
-    container.innerHTML = state.bookmarks.map(b => `
+    // 按分组分组书签，保持分组的排序顺序
+    const groupedBookmarks = {};
+    const ungroupedBookmarks = [];
+
+    // 初始化所有分组（按 sort_order 排序）
+    const sortedGroups = [...state.groups].sort((a, b) => a.sort_order - b.sort_order);
+    sortedGroups.forEach(g => {
+        groupedBookmarks[g.id] = [];
+    });
+
+    // 分配书签到对应分组
+    state.bookmarks.forEach(b => {
+        if (b.group_id) {
+            if (groupedBookmarks[b.group_id]) {
+                groupedBookmarks[b.group_id].push(b);
+            }
+        } else {
+            ungroupedBookmarks.push(b);
+        }
+    });
+
+    // 渲染 HTML
+    let html = '';
+
+    // 渲染每个分组
+    sortedGroups.forEach(group => {
+        const bookmarks = groupedBookmarks[group.id];
+        if (bookmarks && bookmarks.length > 0) {
+            html += `
+                <div class="bookmark-group">
+                    <h3 class="group-title">${escapeHtml(group.name)}</h3>
+                    <div class="group-bookmarks">
+                        ${bookmarks.map(b => renderBookmarkCard(b)).join('')}
+                    </div>
+                </div>
+            `;
+        }
+    });
+
+    // 渲染未分组书签
+    if (ungroupedBookmarks.length > 0) {
+        html += `
+            <div class="bookmark-group">
+                <h3 class="group-title">${i18n.t('group.ungrouped')}</h3>
+                <div class="group-bookmarks">
+                    ${ungroupedBookmarks.map(b => renderBookmarkCard(b)).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    container.innerHTML = html;
+
+    // Apply bookmark size and bind drag events
+    applyBookmarkSize();
+    initDragAndDrop();
+}
+
+function renderBookmarkCard(b) {
+    return `
         <div class="bookmark-card" draggable="true" data-id="${b.id}">
-            <img src="${b.icon_path || b.icon_url || getFavicon(b.url)}"
+            <img src="${getFavicon(b.url, b.icon_path || b.icon_url)}"
                  class="bookmark-icon"
                  onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌐</text></svg>'">
             <div class="bookmark-content">
@@ -273,11 +335,7 @@ function renderBookmarks() {
                 </button>
             </div>
         </div>
-    `).join('');
-
-    // Apply bookmark size and bind drag events
-    applyBookmarkSize();
-    initDragAndDrop();
+    `;
 }
 
 // Drag and drop sorting
@@ -324,9 +382,8 @@ async function saveBookmarkOrder() {
     }));
 
     try {
-        await fetch(`${API}/bookmarks/reorder`, {
+        await apiRequest(`${API}/bookmarks/reorder`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(items)
         });
     } catch (err) {
@@ -367,7 +424,7 @@ function showBookmarkModal(bookmark = null) {
         document.getElementById('bookmarkUrl').value = bookmark.url;
         document.getElementById('bookmarkTitle').value = bookmark.title;
         document.getElementById('bookmarkIcon').value = bookmark.icon_path || bookmark.icon_url || '';
-        document.getElementById('bookmarkGroup').value = bookmark.group_id || '';
+        document.getElementById('bookmarkGroup').value = bookmark.group_id !== null && bookmark.group_id !== undefined ? bookmark.group_id : '';
         document.getElementById('bookmarkDesc').value = bookmark.description || '';
 
         // Show icon preview
@@ -431,7 +488,7 @@ async function uploadIcon(file) {
     formData.append('icon', file);
 
     try {
-        const response = await fetch(`${API}/upload-icon`, {
+        const response = await apiRequest(`${API}/upload-icon`, {
             method: 'POST',
             body: formData
         });
@@ -465,7 +522,7 @@ async function deleteBookmark(id) {
     if (!confirm(i18n.t('bookmark.deleteConfirm'))) return;
 
     try {
-        await fetch(`${API}/bookmark/${id}`, { method: 'DELETE' });
+        await apiRequest(`${API}/bookmark/${id}`, { method: 'DELETE' });
         await loadBookmarks();
         await loadGroups();
     } catch (err) {
@@ -505,7 +562,7 @@ async function deleteGroup(id) {
     if (!confirm(i18n.t('group.deleteConfirm'))) return;
 
     try {
-        await fetch(`${API}/group/${id}`, { method: 'DELETE' });
+        await apiRequest(`${API}/group/${id}`, { method: 'DELETE' });
         await loadGroups();
         renderSettingsGroups();
     } catch (err) {
@@ -517,7 +574,7 @@ async function deleteGroup(id) {
 function renderSettingsGroups() {
     const container = document.getElementById('groupsList');
     container.innerHTML = state.groups.map(g => `
-        <div class="settings-item">
+        <div class="settings-item" draggable="true" data-id="${g.id}">
             <div class="settings-item-info">
                 <div class="settings-item-name">${escapeHtml(g.name)}</div>
                 <div class="settings-item-url">${g.bookmark_count} ${i18n.t('group.bookmarks')}</div>
@@ -528,6 +585,65 @@ function renderSettingsGroups() {
             </div>
         </div>
     `).join('');
+
+    // 绑定拖拽事件
+    initGroupDragAndDrop();
+}
+
+// 分组拖拽排序
+function initGroupDragAndDrop() {
+    const items = document.querySelectorAll('#groupsList .settings-item');
+
+    items.forEach(item => {
+        item.addEventListener('dragstart', (e) => {
+            state.draggedItem = item;
+            item.classList.add('dragging');
+        });
+
+        item.addEventListener('dragend', () => {
+            item.classList.remove('dragging');
+            state.draggedItem = null;
+        });
+
+        item.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            const dragging = document.querySelector('#groupsList .dragging');
+            if (dragging && dragging !== item) {
+                const rect = item.getBoundingClientRect();
+                const midpoint = rect.y + rect.height / 2;
+                if (e.clientY < midpoint) {
+                    item.parentNode.insertBefore(dragging, item);
+                } else {
+                    item.parentNode.insertBefore(dragging, item.nextSibling);
+                }
+            }
+        });
+
+        item.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            await saveGroupOrder();
+        });
+    });
+}
+
+async function saveGroupOrder() {
+    const items = document.querySelectorAll('#groupsList .settings-item');
+    const groupItems = Array.from(items).map((item, index) => ({
+        id: parseInt(item.dataset.id),
+        sort_order: index
+    }));
+
+    try {
+        await apiRequest(`${API}/groups/reorder`, {
+            method: 'POST',
+            body: JSON.stringify(groupItems)
+        });
+        // 重新加载分组以获取更新后的排序
+        await loadGroups();
+    } catch (err) {
+        console.error(i18n.t('errors.saveOrderFailed'), err);
+        alert(i18n.t('errors.saveOrderFailed'));
+    }
 }
 
 // ===================================
@@ -564,7 +680,7 @@ async function deleteEngine(id) {
     if (!confirm(i18n.t('searchEngine.deleteConfirm'))) return;
 
     try {
-        await fetch(`${API}/search-engine/${id}`, { method: 'DELETE' });
+        await apiRequest(`${API}/search-engine/${id}`, { method: 'DELETE' });
         await loadSearchEngines();
         renderSettingsEngines();
     } catch (err) {
@@ -616,7 +732,7 @@ async function importBookmarks() {
     formData.append('file', fileInput.files[0]);
 
     try {
-        const res = await fetch(`${API}/bookmarks/import`, {
+        const res = await apiRequest(`${API}/bookmarks/import`, {
             method: 'POST',
             body: formData
         });
@@ -639,7 +755,7 @@ async function importBookmarks() {
 
 async function exportBookmarks() {
     try {
-        const res = await fetch(`${API}/bookmarks/export`);
+        const res = await apiRequest(`${API}/bookmarks/export`);
         const blob = await res.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -723,6 +839,9 @@ function initEventListeners() {
     // Group management button
     document.getElementById('addGroupBtn').addEventListener('click', () => showGroupModal());
 
+    // Add bookmark button
+    document.getElementById('addBookmarkBtn').addEventListener('click', () => showBookmarkModal());
+
     // Search engine management button
     document.getElementById('addEngineBtn').addEventListener('click', () => showEngineModal());
 
@@ -776,25 +895,24 @@ function initEventListeners() {
         e.preventDefault();
 
         const id = document.getElementById('bookmarkId').value;
+        const groupValue = document.getElementById('bookmarkGroup').value;
         const data = {
             url: document.getElementById('bookmarkUrl').value,
             title: document.getElementById('bookmarkTitle').value,
             icon_url: document.getElementById('bookmarkIcon').value,
-            group_id: document.getElementById('bookmarkGroup').value || null,
+            group_id: groupValue === '' || groupValue === null || groupValue === undefined ? null : parseInt(groupValue, 10),
             description: document.getElementById('bookmarkDesc').value
         };
 
         try {
             if (id) {
-                await fetch(`${API}/bookmark/${id}`, {
+                await apiRequest(`${API}/bookmark/${id}`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
             } else {
-                await fetch(`${API}/bookmarks`, {
+                await apiRequest(`${API}/bookmarks`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
             }
@@ -819,15 +937,13 @@ function initEventListeners() {
 
         try {
             if (id) {
-                await fetch(`${API}/group/${id}`, {
+                await apiRequest(`${API}/group/${id}`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
             } else {
-                await fetch(`${API}/groups`, {
+                await apiRequest(`${API}/groups`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
             }
@@ -854,15 +970,13 @@ function initEventListeners() {
 
         try {
             if (id) {
-                await fetch(`${API}/search-engine/${id}`, {
+                await apiRequest(`${API}/search-engine/${id}`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
             } else {
-                await fetch(`${API}/search-engines`, {
+                await apiRequest(`${API}/search-engines`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
             }

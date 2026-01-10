@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 
 	"ntp/handlers"
+	"ntp/i18n"
+	"ntp/middleware"
 	"ntp/models"
 	"ntp/services"
 
@@ -23,7 +25,7 @@ func main() {
 	}
 
 	// 确保图标目录存在
-	iconDir := filepath.Join("static", "icons")
+	iconDir := filepath.Join(dataDir, "icons")
 	if err := os.MkdirAll(iconDir, 0755); err != nil {
 		log.Fatalf("创建图标目录失败: %v", err)
 	}
@@ -41,7 +43,7 @@ func main() {
 	searchEngineRepo := models.NewSearchEngineRepository(models.DB)
 
 	// 初始化 services
-	iconService := services.NewIconService(iconDir, "/static/icons")
+	iconService := services.NewIconService(iconDir, "/data/icons")
 
 	// 初始化 handlers
 	bookmarkHandler := handlers.NewBookmarkHandler(bookmarkRepo, groupRepo, iconService)
@@ -49,11 +51,17 @@ func main() {
 	searchEngineHandler := handlers.NewSearchEngineHandler(searchEngineRepo)
 	fetchHandler := handlers.NewFetchHandler()
 
+	// 加载国际化翻译文件
+	if err := i18n.LoadTranslations("i18n"); err != nil {
+		log.Fatalf("加载翻译文件失败: %v", err)
+	}
+
 	// 设置路由
 	mux := http.NewServeMux()
 
 	// 静态文件服务
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
+	mux.Handle("/data/icons/", http.StripPrefix("/data/icons/", http.FileServer(http.Dir(iconDir))))
 	mux.Handle("/", http.FileServer(http.Dir("static")))
 
 	// API 路由 - 使用明确的路径避免冲突
@@ -232,7 +240,11 @@ func main() {
 
 	addr := "0.0.0.0:" + port
 	log.Printf("服务器启动在 http://0.0.0.0:%s", port)
-	if err := http.ListenAndServe(addr, enableCORS(mux)); err != nil {
+
+	// 应用中间件
+	handler := middleware.LocaleMiddleware(enableCORS(mux))
+
+	if err := http.ListenAndServe(addr, handler); err != nil {
 		log.Fatalf("服务器启动失败: %v", err)
 	}
 }

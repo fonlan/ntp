@@ -12,8 +12,13 @@ import (
 // LocaleMiddleware adds locale information to the request context
 func LocaleMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Get locale from Accept-Language header
-		locale := getLocaleFromRequest(r)
+		// Get locale from custom header (frontend language setting)
+		locale := r.Header.Get("X-Locale")
+
+		// Fallback to Accept-Language header
+		if locale == "" {
+			locale = getLocaleFromRequest(r)
+		}
 
 		// Store translator in request context
 		translator := i18n.GetTranslator(locale)

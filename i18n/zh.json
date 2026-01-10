@@ -9,16 +9,7 @@
     "deleteSuccess": "删除成功",
     "reorderSuccess": "排序成功",
     "reorderFailed": "排序失败",
-    "missingKeyword": "缺少搜索关键词",
-    "searchFailed": "搜索失败",
-    "parseFormFailed": "解析表单失败",
-    "getFileFailed": "获取文件失败",
-    "readFileFailed": "读取文件失败",
-    "parseBookmarkFailed": "解析书签失败",
-    "getBookmarkFailed": "获取书签失败",
-    "getGroupFailed": "获取分组失败",
-    "fileSizeLimit": "文件大小不能超过 512KB",
-    "saveIconFailed": "保存图标失败"
+    "searchFailed": "搜索失败"
   },
   "group": {
     "listFailed": "获取分组列表失败",
@@ -26,41 +17,42 @@
     "notFound": "分组不存在",
     "updateFailed": "更新分组失败",
     "deleteFailed": "删除分组失败",
+    "deleteSuccess": "删除成功",
+    "deleteInUse": "无法删除包含书签的分组",
+    "reorderSuccess": "排序成功",
     "reorderFailed": "排序失败"
   },
   "searchEngine": {
     "listFailed": "获取搜索引擎列表失败",
-    "createFailed": "创建搜索引擎失败",
     "notFound": "搜索引擎不存在",
-    "cannotDeleteLast": "不能删除最后一个搜索引擎",
+    "createFailed": "创建搜索引擎失败",
+    "updateFailed": "更新搜索引擎失败",
     "deleteFailed": "删除搜索引擎失败",
+    "deleteSuccess": "删除成功",
+    "cannotDeleteLast": "不能删除最后一个搜索引擎",
     "setDefaultFailed": "设置默认引擎失败",
     "setDefaultSuccess": "设置成功",
+    "reorderSuccess": "排序成功",
     "reorderFailed": "排序失败"
   },
+  "common": {
+    "invalidRequest": "无效的请求格式",
+    "internalError": "内部服务器错误",
+    "notFound": "资源不存在",
+    "methodNotAllowed": "不允许的请求方法",
+    "invalidPath": "无效的路径",
+    "invalidID": "无效的 ID"
+  },
+  "import": {
+    "parseFailed": "解析书签失败",
+    "fileRequired": "需要提供文件",
+    "invalidFileType": "无效的文件类型"
+  },
+  "upload": {
+    "fileSizeLimit": "文件大小不能超过 512KB",
+    "uploadFailed": "上传图标失败"
+  },
   "fetch": {
-    "fetchFailed": "获取失败",
-    "requestFailed": "请求失败",
-    "invalidStatusCode": "HTTP 状态码",
-    "readResponseFailed": "读取响应失败",
-    "parseHTMLFailed": "解析 HTML 失败"
-  },
-  "database": {
-    "openFailed": "打开数据库失败",
-    "setPragmaFailed": "设置 SQLite 模式失败",
-    "readSchemaFailed": "读取 schema 失败",
-    "executeSchemaFailed": "执行 schema 失败",
-    "initSuccess": "数据库初始化成功"
-  },
-  "icon": {
-    "downloadFailed": "下载图标失败",
-    "invalidStatusCode": "下载图标失败",
-    "readDataFailed": "读取图标数据失败",
-    "createDirFailed": "创建图标目录失败",
-    "saveFailed": "保存图标失败",
-    "parseURLFailed": "解析 URL 失败",
-    "allSourcesFailed": "所有 favicon 源都下载失败",
-    "unsupportedFormat": "不支持的文件格式",
-    "deleteFailed": "删除图标失败"
+    "fetchFailed": "获取失败"
   }
 }

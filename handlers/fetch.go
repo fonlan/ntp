@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"ntp/middleware"
 )
 
 // FetchHandler 自动获取网站元数据
@@ -32,15 +33,17 @@ type FetchResponse struct {
 
 // FetchMetadata 获取网站元数据
 func (h *FetchHandler) FetchMetadata(w http.ResponseWriter, r *http.Request) {
+	translator := middleware.TranslatorFromContext(r.Context())
+
 	var req FetchRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "无效的请求格式")
+		respondError(w, http.StatusBadRequest, translator.T("common.invalidRequest"))
 		return
 	}
 
 	title, iconURL, err := FetchMetadataFromURL(req.URL)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "获取失败: "+err.Error())
+		respondError(w, http.StatusInternalServerError, translator.T("fetch.fetchFailed")+": "+err.Error())
 		return
 	}
 

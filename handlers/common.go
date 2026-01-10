@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"ntp/middleware"
 	"ntp/models"
 )
 
@@ -22,6 +23,12 @@ func respondJSON(w http.ResponseWriter, status int, data interface{}) {
 // respondError 返回错误响应
 func respondError(w http.ResponseWriter, status int, message string) {
 	respondJSON(w, status, map[string]string{"error": message})
+}
+
+// respondErrorI18n 返回国际化错误响应
+func respondErrorI18N(w http.ResponseWriter, r *http.Request, status int, key string) {
+	translator := middleware.TranslatorFromContext(r.Context())
+	respondError(w, status, translator.T(key))
 }
 
 // extractPathID 从路径中提取 ID (格式: /prefix/ID 或 /prefix/ID/action)

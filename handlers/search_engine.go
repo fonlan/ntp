@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"ntp/models"
+	"ntp/middleware"
 )
 
 // SearchEngineHandler 搜索引擎处理器
@@ -42,9 +43,11 @@ type SearchEngineReorderRequest []models.ReorderItem
 
 // List 获取搜索引擎列表
 func (h *SearchEngineHandler) List(w http.ResponseWriter, r *http.Request) {
+	translator := middleware.TranslatorFromContext(r.Context())
+
 	engines, err := h.searchEngineRepo.GetAll()
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "获取搜索引擎列表失败: "+err.Error())
+		respondError(w, http.StatusInternalServerError, translator.T("searchEngine.listFailed")+": "+err.Error())
 		return
 	}
 
@@ -53,9 +56,11 @@ func (h *SearchEngineHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // Create 创建搜索引擎
 func (h *SearchEngineHandler) Create(w http.ResponseWriter, r *http.Request) {
+	translator := middleware.TranslatorFromContext(r.Context())
+
 	var req SearchEngineCreateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "无效的请求格式")
+		respondError(w, http.StatusBadRequest, translator.T("common.invalidRequest"))
 		return
 	}
 
@@ -73,7 +78,7 @@ func (h *SearchEngineHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.searchEngineRepo.Create(engine); err != nil {
-		respondError(w, http.StatusInternalServerError, "创建搜索引擎失败: "+err.Error())
+		respondError(w, http.StatusInternalServerError, translator.T("searchEngine.createFailed")+": "+err.Error())
 		return
 	}
 
@@ -82,17 +87,18 @@ func (h *SearchEngineHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Update 更新搜索引擎
 func (h *SearchEngineHandler) Update(w http.ResponseWriter, r *http.Request) {
-	id := extractPathID(r, "/api/search-engines/")
+	translator := middleware.TranslatorFromContext(r.Context())
+	id := extractPathID(r, "/api/search-engine/")
 
 	engine, err := h.searchEngineRepo.GetByID(id)
 	if err != nil || engine == nil {
-		respondError(w, http.StatusNotFound, "搜索引擎不存在")
+		respondError(w, http.StatusNotFound, translator.T("searchEngine.notFound"))
 		return
 	}
 
 	var req SearchEngineUpdateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "无效的请求格式")
+		respondError(w, http.StatusBadRequest, translator.T("common.invalidRequest"))
 		return
 	}
 
@@ -116,7 +122,7 @@ func (h *SearchEngineHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.searchEngineRepo.Update(engine); err != nil {
-		respondError(w, http.StatusInternalServerError, "更新搜索引擎失败: "+err.Error())
+		respondError(w, http.StatusInternalServerError, translator.T("searchEngine.updateFailed")+": "+err.Error())
 		return
 	}
 
@@ -125,49 +131,54 @@ func (h *SearchEngineHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Delete 删除搜索引擎
 func (h *SearchEngineHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	id := extractPathID(r, "/api/search-engines/")
+	translator := middleware.TranslatorFromContext(r.Context())
+	id := extractPathID(r, "/api/search-engine/")
 
 	if err := h.searchEngineRepo.Delete(id); err != nil {
 		if err.Error() == "sql: transaction is already closed" || err.Error() == "sql: Tx is closed" {
-			respondError(w, http.StatusBadRequest, "不能删除最后一个搜索引擎")
+			respondError(w, http.StatusBadRequest, translator.T("searchEngine.cannotDeleteLast"))
 		} else {
-			respondError(w, http.StatusInternalServerError, "删除搜索引擎失败: "+err.Error())
+			respondError(w, http.StatusInternalServerError, translator.T("searchEngine.deleteFailed")+": "+err.Error())
 		}
 		return
 	}
 
-	respondJSON(w, http.StatusOK, map[string]string{"message": "删除成功"})
+	respondJSON(w, http.StatusOK, map[string]string{"message": translator.T("searchEngine.deleteSuccess")})
 }
 
 // SetDefault 设置默认引擎
 func (h *SearchEngineHandler) SetDefault(w http.ResponseWriter, r *http.Request) {
+	translator := middleware.TranslatorFromContext(r.Context())
+
 	// 路径格式: /api/search-engines/:id/set-default
 	path := strings.TrimPrefix(r.URL.Path, "/api/search-engines/")
 	parts := strings.Split(path, "/")
 	if len(parts) < 2 {
-		respondError(w, http.StatusBadRequest, "无效的路径")
+		respondError(w, http.StatusBadRequest, translator.T("common.invalidPath"))
 		return
 	}
 
 	id, err := strconv.ParseInt(parts[0], 10, 64)
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "无效的 ID")
+		respondError(w, http.StatusBadRequest, translator.T("common.invalidID"))
 		return
 	}
 
 	if err := h.searchEngineRepo.SetDefault(id); err != nil {
-		respondError(w, http.StatusInternalServerError, "设置默认引擎失败: "+err.Error())
+		respondError(w, http.StatusInternalServerError, translator.T("searchEngine.setDefaultFailed")+": "+err.Error())
 		return
 	}
 
-	respondJSON(w, http.StatusOK, map[string]string{"message": "设置成功"})
+	respondJSON(w, http.StatusOK, map[string]string{"message": translator.T("searchEngine.setDefaultSuccess")})
 }
 
 // Reorder 批量排序
 func (h *SearchEngineHandler) Reorder(w http.ResponseWriter, r *http.Request) {
+	translator := middleware.TranslatorFromContext(r.Context())
+
 	var req SearchEngineReorderRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "无效的请求格式")
+		respondError(w, http.StatusBadRequest, translator.T("common.invalidRequest"))
 		return
 	}
 
@@ -179,9 +190,9 @@ func (h *SearchEngineHandler) Reorder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.searchEngineRepo.BatchReorder(items); err != nil {
-		respondError(w, http.StatusInternalServerError, "排序失败: "+err.Error())
+		respondError(w, http.StatusInternalServerError, translator.T("searchEngine.reorderFailed")+": "+err.Error())
 		return
 	}
 
-	respondJSON(w, http.StatusOK, map[string]string{"message": "排序成功"})
+	respondJSON(w, http.StatusOK, map[string]string{"message": translator.T("searchEngine.reorderSuccess")})
 }

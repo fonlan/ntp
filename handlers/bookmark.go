@@ -10,6 +10,7 @@ import (
 
 	"ntp/models"
 	"ntp/services"
+	"ntp/middleware"
 )
 
 // BookmarkHandler 书签处理器
@@ -44,12 +45,12 @@ type BookmarkCreateRequest struct {
 
 // BookmarkUpdateRequest 更新请求
 type BookmarkUpdateRequest struct {
-	URL         string `json:"url,omitempty"`
-	Title       string `json:"title,omitempty"`
-	IconURL     string `json:"icon_url,omitempty"`
-	Description string `json:"description,omitempty"`
-	GroupID     *int64 `json:"group_id,omitempty"`
-	SortOrder   *int   `json:"sort_order,omitempty"`
+	URL         *string `json:"url,omitempty"`
+	Title       *string `json:"title,omitempty"`
+	IconURL     *string `json:"icon_url,omitempty"`
+	Description *string `json:"description,omitempty"`
+	GroupID     *int64  `json:"group_id"`
+	SortOrder   *int    `json:"sort_order,omitempty"`
 }
 
 // BookmarkReorderRequest 排序请求
@@ -57,6 +58,8 @@ type BookmarkReorderRequest []models.ReorderItem
 
 // List 获取书签列表
 func (h *BookmarkHandler) List(w http.ResponseWriter, r *http.Request) {
+	translator := middleware.TranslatorFromContext(r.Context())
+
 	var req ListRequest
 	groupIDStr := r.URL.Query().Get("group_id")
 
@@ -69,7 +72,7 @@ func (h *BookmarkHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	bookmarks, err := h.bookmarkRepo.GetAll(req.GroupID)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "获取书签列表失败: "+err.Error())
+		respondError(w, http.StatusInternalServerError, translator.T("bookmark.listFailed")+": "+err.Error())
 		return
 	}
 
@@ -78,9 +81,11 @@ func (h *BookmarkHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // Create 创建书签
 func (h *BookmarkHandler) Create(w http.ResponseWriter, r *http.Request) {
+	translator := middleware.TranslatorFromContext(r.Context())
+
 	var req BookmarkCreateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "无效的请求格式")
+		respondError(w, http.StatusBadRequest, translator.T("common.invalidRequest"))
 		return
 	}
 
@@ -129,7 +134,7 @@ func (h *BookmarkHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.bookmarkRepo.Create(bookmark); err != nil {
-		respondError(w, http.StatusInternalServerError, "创建书签失败: "+err.Error())
+		respondError(w, http.StatusInternalServerError, translator.T("bookmark.createFailed")+": "+err.Error())
 		return
 	}
 
@@ -138,30 +143,31 @@ func (h *BookmarkHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Update 更新书签
 func (h *BookmarkHandler) Update(w http.ResponseWriter, r *http.Request) {
-	id := extractPathID(r, "/api/bookmarks/")
+	translator := middleware.TranslatorFromContext(r.Context())
+	id := extractPathID(r, "/api/bookmark/")
 
 	bookmark, err := h.bookmarkRepo.GetByID(id)
 	if err != nil || bookmark == nil {
-		respondError(w, http.StatusNotFound, "书签不存在")
+		respondError(w, http.StatusNotFound, translator.T("bookmark.notFound"))
 		return
 	}
 
 	var req BookmarkUpdateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "无效的请求格式")
+		respondError(w, http.StatusBadRequest, translator.T("common.invalidRequest"))
 		return
 	}
 
-	if req.Title != "" {
-		bookmark.Title = req.Title
+	if req.Title != nil {
+		bookmark.Title = *req.Title
 	}
-	if req.URL != "" {
-		bookmark.URL = req.URL
+	if req.URL != nil {
+		bookmark.URL = *req.URL
 	}
-	if req.IconURL != "" {
-		bookmark.IconURL = &req.IconURL
+	if req.IconURL != nil {
+		bookmark.IconURL = req.IconURL
 		// 下载新图标
-		iconPath, err := h.iconService.DownloadIcon(req.IconURL)
+		iconPath, err := h.iconService.DownloadIcon(*req.IconURL)
 		if err == nil {
 			// 删除旧图标
 			if bookmark.IconPath != nil && *bookmark.IconPath != "" {
@@ -170,18 +176,17 @@ func (h *BookmarkHandler) Update(w http.ResponseWriter, r *http.Request) {
 			bookmark.IconPath = &iconPath
 		}
 	}
-	if req.Description != "" {
-		bookmark.Description = &req.Description
+	if req.Description != nil {
+		bookmark.Description = req.Description
 	}
-	if req.GroupID != nil {
-		bookmark.GroupID = req.GroupID
-	}
+	// GroupID 总是更新（因为移除了 omitempty）
+	bookmark.GroupID = req.GroupID
 	if req.SortOrder != nil {
 		bookmark.SortOrder = *req.SortOrder
 	}
 
 	if err := h.bookmarkRepo.Update(bookmark); err != nil {
-		respondError(w, http.StatusInternalServerError, "更新书签失败: "+err.Error())
+		respondError(w, http.StatusInternalServerError, translator.T("bookmark.updateFailed")+": "+err.Error())
 		return
 	}
 
@@ -190,10 +195,11 @@ func (h *BookmarkHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Delete 删除书签
 func (h *BookmarkHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	id := extractPathID(r, "/api/bookmarks/")
+	id := extractPathID(r, "/api/bookmark/")
+	translator := middleware.TranslatorFromContext(r.Context())
 
 	if err := h.bookmarkRepo.Delete(id); err != nil {
-		respondError(w, http.StatusInternalServerError, "删除书签失败: "+err.Error())
+		respondError(w, http.StatusInternalServerError, translator.T("bookmark.deleteFailed")+": "+err.Error())
 		return
 	}
 
@@ -203,8 +209,9 @@ func (h *BookmarkHandler) Delete(w http.ResponseWriter, r *http.Request) {
 // Reorder 批量排序
 func (h *BookmarkHandler) Reorder(w http.ResponseWriter, r *http.Request) {
 	var req BookmarkReorderRequest
+	translator := middleware.TranslatorFromContext(r.Context())
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "无效的请求格式")
+		respondError(w, http.StatusBadRequest, translator.T("common.invalidRequest"))
 		return
 	}
 
@@ -216,7 +223,7 @@ func (h *BookmarkHandler) Reorder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.bookmarkRepo.BatchReorder(items); err != nil {
-		respondError(w, http.StatusInternalServerError, "排序失败: "+err.Error())
+		respondError(w, http.StatusInternalServerError, translator.T("bookmark.reorderFailed")+": "+err.Error())
 		return
 	}
 
@@ -226,14 +233,15 @@ func (h *BookmarkHandler) Reorder(w http.ResponseWriter, r *http.Request) {
 // Search 搜索书签
 func (h *BookmarkHandler) Search(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
+	translator := middleware.TranslatorFromContext(r.Context())
 	if query == "" {
-		respondError(w, http.StatusBadRequest, "缺少搜索关键词")
+		respondError(w, http.StatusBadRequest, "Missing search keyword")
 		return
 	}
 
 	bookmarks, err := h.bookmarkRepo.Search(query)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "搜索失败: "+err.Error())
+		respondError(w, http.StatusInternalServerError, translator.T("bookmark.searchFailed")+": "+err.Error())
 		return
 	}
 
@@ -242,29 +250,31 @@ func (h *BookmarkHandler) Search(w http.ResponseWriter, r *http.Request) {
 
 // Import 导入书签
 func (h *BookmarkHandler) Import(w http.ResponseWriter, r *http.Request) {
+	translator := middleware.TranslatorFromContext(r.Context())
+
 	// 解析 multipart 表单
 	if err := r.ParseMultipartForm(32 << 20); err != nil { // 32MB
-		respondError(w, http.StatusBadRequest, "解析表单失败")
+		respondError(w, http.StatusBadRequest, translator.T("common.invalidRequest"))
 		return
 	}
 
 	file, _, err := r.FormFile("file")
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "获取文件失败")
+		respondError(w, http.StatusBadRequest, translator.T("import.fileRequired"))
 		return
 	}
 	defer file.Close()
 
 	content, err := io.ReadAll(file)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "读取文件失败")
+		respondError(w, http.StatusInternalServerError, translator.T("upload.uploadFailed"))
 		return
 	}
 
 	// 解析 HTML 书签格式
 	bookmarks, err := parseNetscapeBookmarks(string(content))
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "解析书签失败: "+err.Error())
+		respondError(w, http.StatusBadRequest, translator.T("import.parseFailed")+": "+err.Error())
 		return
 	}
 
@@ -291,15 +301,17 @@ func (h *BookmarkHandler) Import(w http.ResponseWriter, r *http.Request) {
 
 // Export 导出书签
 func (h *BookmarkHandler) Export(w http.ResponseWriter, r *http.Request) {
+	translator := middleware.TranslatorFromContext(r.Context())
+
 	bookmarks, err := h.bookmarkRepo.GetAll(nil)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "获取书签失败")
+		respondError(w, http.StatusInternalServerError, translator.T("bookmark.listFailed"))
 		return
 	}
 
 	groups, err := h.groupRepo.GetAll()
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "获取分组失败")
+		respondError(w, http.StatusInternalServerError, translator.T("group.listFailed"))
 		return
 	}
 
@@ -411,15 +423,17 @@ func generateNetscapeBookmarks(bookmarks []models.Bookmark, groups []models.Grou
 
 // UploadIcon 上传图标
 func (h *BookmarkHandler) UploadIcon(w http.ResponseWriter, r *http.Request) {
+	translator := middleware.TranslatorFromContext(r.Context())
+
 	// 解析 multipart 表单
 	if err := r.ParseMultipartForm(5 << 20); err != nil { // 5MB
-		respondError(w, http.StatusBadRequest, "解析表单失败")
+		respondError(w, http.StatusBadRequest, translator.T("common.invalidRequest"))
 		return
 	}
 
 	file, header, err := r.FormFile("icon")
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "获取文件失败")
+		respondError(w, http.StatusBadRequest, translator.T("import.fileRequired"))
 		return
 	}
 	defer file.Close()
@@ -427,7 +441,7 @@ func (h *BookmarkHandler) UploadIcon(w http.ResponseWriter, r *http.Request) {
 	// 读取文件数据
 	data, err := io.ReadAll(file)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "读取文件失败")
+		respondError(w, http.StatusInternalServerError, translator.T("upload.uploadFailed"))
 		return
 	}
 

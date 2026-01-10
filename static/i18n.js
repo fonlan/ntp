@@ -137,6 +137,13 @@ class I18n {
   isReady() {
     return this.ready;
   }
+
+  // Returns the headers to include in API requests for language detection
+  getRequestHeaders() {
+    return {
+      'X-Locale': this.currentLocale
+    };
+  }
 }
 
 // Create global i18n instance

@@ -85,13 +85,12 @@ body {
     align-items: center;
     justify-content: center;
     margin-bottom: 24px;
-    padding-right: 60px; /* 为右上角齿轮按钮留出空间 */
+    padding-right: 0;
 }
 
 .search-container {
     flex: 1;
     position: relative;
-    max-width: 700px;
     width: 100%;
 }
 
@@ -252,11 +251,18 @@ body {
     color: var(--text-primary);
 }
 
-/* 设置按钮 - 绝对定位到右上角 */
-.settings-btn {
+/* 设置按钮 - 固定定位到右上角 */
+.top-right-buttons {
     position: fixed;
     top: 24px;
     right: 24px;
+    display: flex;
+    gap: 8px;
+    z-index: 100;
+}
+
+.add-bookmark-btn,
+.settings-btn {
     width: 44px;
     height: 44px;
     background: var(--bg-card);
@@ -269,7 +275,13 @@ body {
     justify-content: center;
     transition: all 0.2s ease;
     box-shadow: var(--shadow-sm);
-    z-index: 100;
+}
+
+.add-bookmark-btn:hover {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+    transform: scale(1.1);
 }
 
 .settings-btn:hover {
@@ -316,17 +328,37 @@ body {
 .group-tab.active {
     background: var(--primary);
     color: white;
-    border-color: var(--primary);
 }
 
 /* ===================================
-   书签网格 - 图标在右侧
+   书签网格 - 按分组显示
    =================================== */
 .bookmarks-container {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+    min-height: 200px;
+}
+
+.bookmark-group {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.group-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--border);
+}
+
+.group-bookmarks {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 16px;
-    min-height: 200px;
 }
 
 .bookmark-card {
@@ -749,11 +781,16 @@ body {
     margin-bottom: 8px;
     background: var(--bg-card);
     transition: all 0.2s ease;
+    cursor: move;
 }
 
 .settings-item:hover {
     border-color: var(--secondary);
     box-shadow: var(--shadow-sm);
+}
+
+.settings-item.dragging {
+    opacity: 0.5;
 }
 
 .settings-item-info {
@@ -1036,6 +1073,11 @@ body {
     .top-bar {
         flex-direction: column;
         align-items: stretch;
+    }
+
+    .top-right-buttons {
+        top: 16px;
+        right: 16px;
     }
 
     .search-container {
