@@ -132,6 +132,7 @@
     "password": "Password",
     "submit": "Login",
     "logging": "Logging in...",
+    "success": "Success!",
     "invalidCredentials": "Invalid username or password",
     "failed": "Login failed, please try again"
   }

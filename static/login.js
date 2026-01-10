@@ -97,8 +97,13 @@ async function handleLogin(event) {
         const data = await response.json();
 
         if (data.success) {
-            // Login successful, redirect to home
-            window.location.href = '/';
+            // Login successful, show success message and redirect
+            loginBtn.innerHTML = '<span data-i18n="login.success">Success!</span>';
+
+            // Wait a short delay to ensure cookie is set before redirect
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 200);
         } else {
             // Login failed, show error
             errorDiv.textContent = data.message;

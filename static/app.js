@@ -44,7 +44,13 @@ let state = {
 document.addEventListener('DOMContentLoaded', async () => {
     await i18n.init();
     loadSettings();
-    Promise.all([loadSearchEngines(), loadGroups(), loadBookmarks()]);
+    try {
+        await Promise.all([loadSearchEngines(), loadGroups(), loadBookmarks()]);
+    } catch (error) {
+        console.error('Failed to load initial data:', error);
+        // 如果是因为未授权导致的错误，会在 apiRequest 中处理重定向
+        // 这里只记录其他类型的错误
+    }
     initEventListeners();
 });
 
@@ -66,7 +72,11 @@ async function loadData(url, errorMsg) {
         const data = await res.json();
         return ensureArray(data);
     } catch (err) {
-        console.error(errorMsg, err);
+        // 如果是未授权错误，说明会话可能已过期
+        // apiRequest 会处理重定向，这里只记录其他错误
+        if (err.message !== 'Unauthorized') {
+            console.error(errorMsg, err);
+        }
         return [];
     }
 }
