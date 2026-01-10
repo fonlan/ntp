@@ -39,7 +39,11 @@
     "dataManagement": "Data Management",
     "language": "Language",
     "importBookmarks": "Import Bookmarks",
-    "exportBookmarks": "Export Bookmarks"
+    "exportBookmarks": "Export Bookmarks",
+    "account": "Account",
+    "logout": "Logout",
+    "logoutConfirm": "Are you sure you want to logout?",
+    "logoutFailed": "Logout failed, please try again"
   },
   "group": {
     "add": "Add Group",

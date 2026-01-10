@@ -129,10 +129,14 @@ func (h *AuthHandler) CheckAuth(w http.ResponseWriter, r *http.Request) {
 		response.Authenticated = false
 	} else {
 		// Check for session cookie
-		_, err := r.Cookie("session")
+		sessionCookie, err := r.Cookie("session")
 		if err == nil {
-			// Session exists, user is authenticated
-			response.Authenticated = true
+			// Verify session is valid (exists and not expired)
+			session := middleware.GetSession(sessionCookie.Value)
+			if session != nil {
+				response.Authenticated = true
+				response.Username = session.Username
+			}
 		}
 	}
 

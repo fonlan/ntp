@@ -26,8 +26,8 @@ var (
 )
 
 type sessionInfo struct {
-	username   string
-	expiresAt  time.Time
+	Username   string
+	ExpiresAt  time.Time
 }
 
 // GetAuthConfig returns the authentication configuration (lazy loaded)
@@ -88,7 +88,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		session, exists := sessionStore[sessionCookie.Value]
 		sessionMutex.RUnlock()
 
-		if !exists || time.Now().After(session.expiresAt) {
+		if !exists || time.Now().After(session.ExpiresAt) {
 			// Session expired or invalid
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
@@ -122,7 +122,7 @@ func APIAuthMiddleware(next http.Handler) http.Handler {
 		session, exists := sessionStore[sessionCookie.Value]
 		sessionMutex.RUnlock()
 
-		if !exists || time.Now().After(session.expiresAt) {
+		if !exists || time.Now().After(session.ExpiresAt) {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -144,8 +144,8 @@ func CreateSession(username string) (string, error) {
 	// Store session (24 hour expiration)
 	sessionMutex.Lock()
 	sessionStore[sessionID] = &sessionInfo{
-		username:  username,
-		expiresAt: time.Now().Add(24 * time.Hour),
+		Username:  username,
+		ExpiresAt: time.Now().Add(24 * time.Hour),
 	}
 	sessionMutex.Unlock()
 
@@ -162,6 +162,18 @@ func DeleteSession(sessionID string) {
 	sessionMutex.Unlock()
 }
 
+// GetSession retrieves a session by ID
+func GetSession(sessionID string) *sessionInfo {
+	sessionMutex.RLock()
+	defer sessionMutex.RUnlock()
+
+	session := sessionStore[sessionID]
+	if session == nil || time.Now().After(session.ExpiresAt) {
+		return nil
+	}
+	return session
+}
+
 // cleanupExpiredSessions removes expired sessions from the store
 func cleanupExpiredSessions() {
 	sessionMutex.Lock()
@@ -169,7 +181,7 @@ func cleanupExpiredSessions() {
 
 	now := time.Now()
 	for id, session := range sessionStore {
-		if now.After(session.expiresAt) {
+		if now.After(session.ExpiresAt) {
 			delete(sessionStore, id)
 		}
 	}

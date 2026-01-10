@@ -782,6 +782,57 @@ async function exportBookmarks() {
 }
 
 // ===================================
+// Authentication
+// ===================================
+
+// Check authentication status
+async function checkAuthStatus() {
+    try {
+        const response = await apiRequest('/api/auth/check');
+        const data = await response.json();
+
+        // Show account section only if authentication is enabled and user is authenticated
+        const accountSection = document.getElementById('accountSection');
+        if (accountSection) {
+            const shouldShow = data.enabled && data.authenticated;
+            accountSection.style.display = shouldShow ? 'block' : 'none';
+        }
+    } catch (error) {
+        console.error('Failed to check auth status:', error);
+        // Hide account section on error
+        const accountSection = document.getElementById('accountSection');
+        if (accountSection) {
+            accountSection.style.display = 'none';
+        }
+    }
+}
+
+// Handle logout
+async function handleLogout() {
+    if (!confirm(i18n.t('settings.logoutConfirm'))) {
+        return;
+    }
+
+    try {
+        const response = await apiRequest('/api/logout', {
+            method: 'POST'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Redirect to login page
+            window.location.href = '/login.html';
+        } else {
+            alert(i18n.t('settings.logoutFailed'));
+        }
+    } catch (error) {
+        console.error('Logout error:', error);
+        alert(i18n.t('settings.logoutFailed'));
+    }
+}
+
+// ===================================
 // Event Listeners Initialization
 // ===================================
 function initEventListeners() {
@@ -806,7 +857,8 @@ function initEventListeners() {
     });
 
     // Settings button
-    document.getElementById('settingsBtn').addEventListener('click', () => {
+    document.getElementById('settingsBtn').addEventListener('click', async () => {
+        await checkAuthStatus();
         renderSettingsEngines();
         i18n.updatePage();
         document.getElementById('settingsModal').classList.add('show');
@@ -911,6 +963,9 @@ function initEventListeners() {
     document.getElementById('importBtn').addEventListener('click', showImportModal);
     document.getElementById('importSubmitBtn').addEventListener('click', importBookmarks);
     document.getElementById('exportBtn').addEventListener('click', exportBookmarks);
+
+    // Logout button
+    document.getElementById('logoutBtn').addEventListener('click', handleLogout);
 
     // Bookmark form submit
     document.getElementById('bookmarkForm').addEventListener('submit', async (e) => {

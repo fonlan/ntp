@@ -134,15 +134,15 @@ function initLanguageSelector() {
 }
 
 // Initialize page
-document.addEventListener('DOMContentLoaded', () => {
-    // Check authentication status
-    checkAuth();
+document.addEventListener('DOMContentLoaded', async () => {
+    // Initialize language selector first (to load saved language preference)
+    initLanguageSelector();
 
     // Apply translations
-    applyTranslations();
+    await applyTranslations();
 
-    // Initialize language selector
-    initLanguageSelector();
+    // Check authentication status
+    await checkAuth();
 
     // Setup form submission
     document.getElementById('loginForm').addEventListener('submit', handleLogin);
