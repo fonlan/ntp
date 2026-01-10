@@ -6,12 +6,13 @@ import (
 
 // SearchEngine 搜索引擎
 type SearchEngine struct {
-	ID          int64  `json:"id"`
-	Name        string `json:"name"`
-	URL         string `json:"url"`
-	Placeholder string `json:"placeholder"`
-	IsDefault   bool   `json:"is_default"`
-	SortOrder   int    `json:"sort_order"`
+	ID          int64   `json:"id"`
+	Name        string  `json:"name"`
+	URL         string  `json:"url"`
+	Placeholder string  `json:"placeholder"`
+	IconPath    *string `json:"icon_path"`
+	IsDefault   bool    `json:"is_default"`
+	SortOrder   int     `json:"sort_order"`
 }
 
 // SearchEngineRepository 搜索引擎数据访问层
@@ -27,8 +28,8 @@ func NewSearchEngineRepository(db *sql.DB) *SearchEngineRepository {
 // Create 创建搜索引擎
 func (r *SearchEngineRepository) Create(engine *SearchEngine) error {
 	result, err := r.db.Exec(
-		"INSERT INTO search_engines (name, url, placeholder, is_default, sort_order) VALUES (?, ?, ?, ?, ?)",
-		engine.Name, engine.URL, engine.Placeholder, engine.IsDefault, engine.SortOrder,
+		"INSERT INTO search_engines (name, url, placeholder, icon_path, is_default, sort_order) VALUES (?, ?, ?, ?, ?, ?)",
+		engine.Name, engine.URL, engine.Placeholder, engine.IconPath, engine.IsDefault, engine.SortOrder,
 	)
 	if err != nil {
 		return err
@@ -47,9 +48,9 @@ func (r *SearchEngineRepository) Create(engine *SearchEngine) error {
 func (r *SearchEngineRepository) GetByID(id int64) (*SearchEngine, error) {
 	engine := &SearchEngine{}
 	err := r.db.QueryRow(
-		"SELECT id, name, url, placeholder, is_default, sort_order FROM search_engines WHERE id = ?",
+		"SELECT id, name, url, placeholder, icon_path, is_default, sort_order FROM search_engines WHERE id = ?",
 		id,
-	).Scan(&engine.ID, &engine.Name, &engine.URL, &engine.Placeholder, &engine.IsDefault, &engine.SortOrder)
+	).Scan(&engine.ID, &engine.Name, &engine.URL, &engine.Placeholder, &engine.IconPath, &engine.IsDefault, &engine.SortOrder)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -61,8 +62,8 @@ func (r *SearchEngineRepository) GetByID(id int64) (*SearchEngine, error) {
 func (r *SearchEngineRepository) GetDefault() (*SearchEngine, error) {
 	engine := &SearchEngine{}
 	err := r.db.QueryRow(
-		"SELECT id, name, url, placeholder, is_default, sort_order FROM search_engines WHERE is_default = 1 LIMIT 1",
-	).Scan(&engine.ID, &engine.Name, &engine.URL, &engine.Placeholder, &engine.IsDefault, &engine.SortOrder)
+		"SELECT id, name, url, placeholder, icon_path, is_default, sort_order FROM search_engines WHERE is_default = 1 LIMIT 1",
+	).Scan(&engine.ID, &engine.Name, &engine.URL, &engine.Placeholder, &engine.IconPath, &engine.IsDefault, &engine.SortOrder)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -73,7 +74,7 @@ func (r *SearchEngineRepository) GetDefault() (*SearchEngine, error) {
 // GetAll 获取所有搜索引擎
 func (r *SearchEngineRepository) GetAll() ([]SearchEngine, error) {
 	rows, err := r.db.Query(
-		"SELECT id, name, url, placeholder, is_default, sort_order FROM search_engines ORDER BY sort_order ASC",
+		"SELECT id, name, url, placeholder, icon_path, is_default, sort_order FROM search_engines ORDER BY sort_order ASC",
 	)
 	if err != nil {
 		return nil, err
@@ -83,7 +84,7 @@ func (r *SearchEngineRepository) GetAll() ([]SearchEngine, error) {
 	engines := []SearchEngine{}
 	for rows.Next() {
 		var e SearchEngine
-		if err := rows.Scan(&e.ID, &e.Name, &e.URL, &e.Placeholder, &e.IsDefault, &e.SortOrder); err != nil {
+		if err := rows.Scan(&e.ID, &e.Name, &e.URL, &e.Placeholder, &e.IconPath, &e.IsDefault, &e.SortOrder); err != nil {
 			return nil, err
 		}
 		engines = append(engines, e)
@@ -95,8 +96,8 @@ func (r *SearchEngineRepository) GetAll() ([]SearchEngine, error) {
 // Update 更新搜索引擎
 func (r *SearchEngineRepository) Update(engine *SearchEngine) error {
 	_, err := r.db.Exec(
-		"UPDATE search_engines SET name = ?, url = ?, placeholder = ?, is_default = ?, sort_order = ? WHERE id = ?",
-		engine.Name, engine.URL, engine.Placeholder, engine.IsDefault, engine.SortOrder, engine.ID,
+		"UPDATE search_engines SET name = ?, url = ?, placeholder = ?, icon_path = ?, is_default = ?, sort_order = ? WHERE id = ?",
+		engine.Name, engine.URL, engine.Placeholder, engine.IconPath, engine.IsDefault, engine.SortOrder, engine.ID,
 	)
 	return err
 }

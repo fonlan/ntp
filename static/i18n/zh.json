@@ -116,5 +116,15 @@
     "saveFailed": "保存失败",
     "saveOrderFailed": "保存排序失败:",
     "noFileSelected": "请选择文件"
+  },
+  "login": {
+    "title": "登录 - NTP",
+    "subtitle": "请登录以继续",
+    "username": "用户名",
+    "password": "密码",
+    "submit": "登录",
+    "logging": "登录中...",
+    "invalidCredentials": "用户名或密码错误",
+    "failed": "登录失败，请重试"
   }
 }

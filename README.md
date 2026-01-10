@@ -9,6 +9,7 @@ NTP 是一个轻量的书签导航（Start Page）服务：支持书签分组管
 - 🤖 **自动获取网站信息**：添加书签时自动抓取标题与图标；支持上传自定义图标
 - 📥 **导入/导出**：兼容浏览器书签 HTML（Netscape Bookmark File）
 - 💾 **SQLite 存储**：单文件数据库，无需额外数据库服务
+- 🔐 **登录认证**：可选的用户认证功能，保护书签数据安全
 
 ## 技术栈
 
@@ -116,6 +117,31 @@ CGO_ENABLED=1 go build -o ntp .
 ## 配置
 
 - `PORT`：服务端口（默认：`8080`）
+- `AUTH_USERNAME`：登录用户名（可选，与 `AUTH_PASSWORD` 同时设置时启用认证）
+- `AUTH_PASSWORD`：登录密码（可选，与 `AUTH_USERNAME` 同时设置时启用认证）
+- `SESSION_SECRET`：Session 加密密钥（可选，不设置时自动生成）
+
+**认证配置说明**：
+- 如果设置了 `AUTH_USERNAME` 和 `AUTH_PASSWORD`，访问首页和 API 需要先登录
+- 如果不设置这两个环境变量，认证将被禁用（公开访问，无需登录）
+- 建议在生产环境中设置强密码并使用 `SESSION_SECRET` 增强 Session 安全性
+
+**Docker Compose 配置示例**：
+
+```yaml
+services:
+  ntp:
+    image: ntp
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/root/data
+    environment:
+      - PORT=8080
+      - AUTH_USERNAME=admin
+      - AUTH_PASSWORD=your_secure_password_here
+      - SESSION_SECRET=your_random_secret_string_here
+```
 
 ## 数据与持久化
 
@@ -147,6 +173,14 @@ CGO_ENABLED=1 go build -o ntp .
 ## HTTP API（可选）
 
 项目提供一组 JSON API 供二次集成（默认启用 CORS）。
+
+**注意**：如果启用了认证（设置了 `AUTH_USERNAME` 和 `AUTH_PASSWORD`），所有 API 接口（除了登录/登出接口）都需要先登录才能访问。
+
+### Authentication
+
+- `POST /api/login`：登录（`{username, password}`，返回 session cookie）
+- `POST /api/logout`：登出（清除 session cookie）
+- `GET /api/auth/check`：检查登录状态（返回 `{authenticated, enabled}`）
 
 ### Bookmarks
 

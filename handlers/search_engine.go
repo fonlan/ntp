@@ -8,16 +8,18 @@ import (
 
 	"ntp/models"
 	"ntp/middleware"
+	"ntp/services"
 )
 
 // SearchEngineHandler 搜索引擎处理器
 type SearchEngineHandler struct {
 	searchEngineRepo *models.SearchEngineRepository
+	iconService      *services.IconService
 }
 
 // NewSearchEngineHandler 创建搜索引擎处理器
-func NewSearchEngineHandler(ser *models.SearchEngineRepository) *SearchEngineHandler {
-	return &SearchEngineHandler{searchEngineRepo: ser}
+func NewSearchEngineHandler(ser *models.SearchEngineRepository, is *services.IconService) *SearchEngineHandler {
+	return &SearchEngineHandler{searchEngineRepo: ser, iconService: is}
 }
 
 // SearchEngineCreateRequest 创建请求
@@ -64,10 +66,18 @@ func (h *SearchEngineHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 自动下载图标
+	iconPath, _ := h.iconService.DownloadFavicon(req.URL)
+	var iconPathPtr *string
+	if iconPath != "" {
+		iconPathPtr = &iconPath
+	}
+
 	engine := &models.SearchEngine{
 		Name:        req.Name,
 		URL:         req.URL,
 		Placeholder: req.Placeholder,
+		IconPath:    iconPathPtr,
 		IsDefault:   req.IsDefault,
 		SortOrder:   req.SortOrder,
 	}
@@ -107,6 +117,11 @@ func (h *SearchEngineHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.URL != nil {
 		engine.URL = *req.URL
+		// 如果 URL 改变，重新下载图标
+		iconPath, _ := h.iconService.DownloadFavicon(engine.URL)
+		if iconPath != "" {
+			engine.IconPath = &iconPath
+		}
 	}
 	if req.Placeholder != nil {
 		engine.Placeholder = *req.Placeholder

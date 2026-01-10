@@ -116,5 +116,15 @@
     "saveFailed": "Save failed",
     "saveOrderFailed": "Failed to save order:",
     "noFileSelected": "Please select a file"
+  },
+  "login": {
+    "title": "Login - NTP",
+    "subtitle": "Please login to continue",
+    "username": "Username",
+    "password": "Password",
+    "submit": "Login",
+    "logging": "Logging in...",
+    "invalidCredentials": "Invalid username or password",
+    "failed": "Login failed, please try again"
   }
 }

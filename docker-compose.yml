@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   ntp:
-    build: .
+    image: ghcr.io/fonlan/ntp:latest
     container_name: ntp
     ports:
       - "8080:8080"
@@ -11,3 +11,8 @@ services:
     restart: unless-stopped
     environment:
       - PORT=8080
+      # 认证配置（可选）
+      # - AUTH_USERNAME=admin
+      # - AUTH_PASSWORD=your_password_here
+      # - SESSION_SECRET=your_random_secret_here
+    # 如果不设置 AUTH_USERNAME 和 AUTH_PASSWORD，认证将被禁用（公开访问）

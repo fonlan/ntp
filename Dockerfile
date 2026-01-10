@@ -1,5 +1,5 @@
 # 多阶段构建
-FROM golang:1.19-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 # 安装构建依赖
 RUN apk add --no-cache gcc musl-dev sqlite-dev
