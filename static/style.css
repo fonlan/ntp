@@ -1155,6 +1155,32 @@ body {
         max-width: 100%;
     }
 
+    /* 移动端搜索框样式优化 */
+    .search-box {
+        padding: 6px 8px;
+        gap: 4px;
+    }
+
+    .search-engine-selector {
+        padding: 6px 8px;
+        gap: 4px;
+    }
+
+    .search-input {
+        padding: 6px;
+        font-size: 14px;
+    }
+
+    .search-submit-btn {
+        padding: 6px;
+        flex-shrink: 0;
+    }
+
+    .search-submit-btn svg {
+        width: 18px;
+        height: 18px;
+    }
+
     /* 移动端按钮固定定位到页面底部居中 */
     .top-right-buttons {
         position: fixed;
