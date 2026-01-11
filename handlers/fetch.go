@@ -152,7 +152,14 @@ func FetchMetadataFromURL(inputURL string) (string, []IconOption, error) {
 			}
 			iconURL = protocol + iconURL
 		} else if !strings.HasPrefix(iconURL, "http://") && !strings.HasPrefix(iconURL, "https://") {
-			iconURL = baseURL + iconURL
+			// 处理相对路径
+			if strings.HasPrefix(iconURL, "/") {
+				// 绝对路径: /assets/favicon.png
+				iconURL = baseURL + iconURL
+			} else {
+				// 相对路径: assets/favicon.png
+				iconURL = baseURL + "/" + iconURL
+			}
 		}
 
 		// 获取图标属性

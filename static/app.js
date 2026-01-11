@@ -692,7 +692,18 @@ async function fetchIcon() {
         });
 
         if (!response.ok) {
-            throw new Error('Failed to fetch metadata');
+            // 尝试读取服务器返回的错误信息
+            let errorMsg = 'Failed to fetch metadata';
+            try {
+                const errorData = await response.json();
+                if (errorData.error) {
+                    errorMsg = errorData.error;
+                }
+            } catch (e) {
+                // 如果无法解析 JSON，使用状态码作为错误信息
+                errorMsg = `HTTP ${response.status}: ${response.statusText}`;
+            }
+            throw new Error(errorMsg);
         }
 
         const data = await response.json();
