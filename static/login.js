@@ -125,7 +125,7 @@ function initLanguageSelector() {
     const languageSelect = document.getElementById('languageSelect');
 
     // Load saved language preference
-    const savedLang = localStorage.getItem('ntp_language');
+    const savedLang = localStorage.getItem('ntp-language');
     if (savedLang) {
         currentLocale = savedLang;
         languageSelect.value = savedLang;
@@ -133,7 +133,7 @@ function initLanguageSelector() {
 
     languageSelect.addEventListener('change', (e) => {
         currentLocale = e.target.value;
-        localStorage.setItem('ntp_language', currentLocale);
+        localStorage.setItem('ntp-language', currentLocale);
         applyTranslations();
     });
 }

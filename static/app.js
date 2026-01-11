@@ -350,6 +350,15 @@ function updateGroupSelect() {
 // ===================================
 async function loadBookmarks() {
     state.bookmarks = await loadData(`${API}/bookmarks`, i18n.t('errors.loadBookmarkFailed'));
+
+    // 确保分组数据已加载后再渲染书签（避免竞态条件）
+    // 如果分组还未加载，等待最多 100ms
+    let attempts = 0;
+    while (state.groups.length === 0 && attempts < 10) {
+        await new Promise(resolve => setTimeout(resolve, 10));
+        attempts++;
+    }
+
     renderBookmarks();
 }
 
@@ -411,19 +420,113 @@ function renderBookmarks() {
 // 初始化书签卡片点击事件
 function initBookmarkClickHandlers() {
     const cards = document.querySelectorAll('.bookmark-card');
+    const contextMenu = document.getElementById('contextMenu');
+    let currentBookmarkId = null;
+
+    // 右键菜单处理
     cards.forEach(card => {
+        // 右键菜单事件
+        card.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            showContextMenu(e, card);
+        });
+
+        // 点击事件 - 打开书签
         card.addEventListener('click', (e) => {
-            // 如果点击的是按钮，不处理
-            if (e.target.closest('.bookmark-actions')) {
-                return;
-            }
             const url = card.dataset.url;
             const target = card.dataset.target || '_blank';
             if (url) {
                 window.open(url, target);
             }
         });
+
+        // 触摸设备长按处理
+        let touchTimer = null;
+        let isLongPress = false;
+
+        card.addEventListener('touchstart', (e) => {
+            isLongPress = false;
+            touchTimer = setTimeout(() => {
+                isLongPress = true;
+                // 触发触觉反馈（如果支持）
+                if (navigator.vibrate) {
+                    navigator.vibrate(50);
+                }
+                // 显示菜单
+                const touch = e.touches[0];
+                const mockEvent = {
+                    preventDefault: () => {},
+                    clientX: touch.clientX,
+                    clientY: touch.clientY,
+                    target: card
+                };
+                showContextMenu(mockEvent, card);
+            }, 500); // 500ms 长按
+        }, { passive: true });
+
+        card.addEventListener('touchend', (e) => {
+            clearTimeout(touchTimer);
+            // 如果不是长按，处理点击
+            if (!isLongPress) {
+                const url = card.dataset.url;
+                const target = card.dataset.target || '_blank';
+                if (url) {
+                    window.open(url, target);
+                }
+            }
+        });
+
+        card.addEventListener('touchmove', () => {
+            clearTimeout(touchTimer);
+        });
     });
+
+    // 显示右键菜单
+    function showContextMenu(e, card) {
+        currentBookmarkId = parseInt(card.dataset.id);
+
+        // 更新菜单项的国际化文本
+        i18n.updateElement(contextMenu);
+
+        // 定位菜单
+        const x = e.clientX;
+        const y = e.clientY;
+
+        // 确保菜单不会超出视口
+        const menuWidth = 180;
+        const menuHeight = 100;
+        const offsetX = x + menuWidth > window.innerWidth ? window.innerWidth - menuWidth - 10 : x;
+        const offsetY = y + menuHeight > window.innerHeight ? window.innerHeight - menuHeight - 10 : y;
+
+        contextMenu.style.left = offsetX + 'px';
+        contextMenu.style.top = offsetY + 'px';
+        contextMenu.style.display = 'block';
+    }
+
+    // 点击菜单项
+    contextMenu.querySelectorAll('.context-menu-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            const action = item.dataset.action;
+            if (action === 'edit') {
+                editBookmark(currentBookmarkId);
+            } else if (action === 'delete') {
+                deleteBookmark(currentBookmarkId);
+            }
+            hideContextMenu();
+        });
+    });
+
+    // 点击其他地方隐藏菜单
+    document.addEventListener('click', (e) => {
+        if (!contextMenu.contains(e.target)) {
+            hideContextMenu();
+        }
+    });
+
+    function hideContextMenu() {
+        contextMenu.style.display = 'none';
+        currentBookmarkId = null;
+    }
 }
 
 function renderBookmarkCard(b) {
@@ -437,20 +540,6 @@ function renderBookmarkCard(b) {
                 <div class="bookmark-title">${escapeHtml(b.title)}</div>
                 ${b.description ? `<div class="bookmark-desc">${escapeHtml(b.description)}</div>` : ''}
                 <div class="bookmark-url">${escapeHtml(b.url)}</div>
-            </div>
-            <div class="bookmark-actions">
-                <button class="action-icon-btn" onclick="event.stopPropagation(); editBookmark(${b.id})" data-i18n-title="actions.edit" title="Edit">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
-                        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                    </svg>
-                </button>
-                <button class="action-icon-btn delete" onclick="event.stopPropagation(); deleteBookmark(${b.id})" data-i18n-title="actions.delete" title="Delete">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="3 6 5 6 21 6"/>
-                        <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
-                    </svg>
-                </button>
             </div>
         </div>
     `;
@@ -967,9 +1056,16 @@ function initEventListeners() {
     });
 
     // Click outside modal to close
+    // 记录鼠标按下时的位置，确保点击和释放在同一位置才关闭弹框
+    let mouseDownTarget = null;
+    document.addEventListener('mousedown', (e) => {
+        mouseDownTarget = e.target;
+    });
+
     document.querySelectorAll('.modal').forEach(modal => {
         modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
+            // 只有当鼠标按下和释放在同一个元素上，且点击的是遮罩层时才关闭
+            if (e.target === modal && mouseDownTarget === modal) {
                 modal.classList.remove('show');
             }
         });

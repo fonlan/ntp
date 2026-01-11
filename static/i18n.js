@@ -118,6 +118,35 @@ class I18n {
     }
   }
 
+  // Update only a specific element and its children
+  updateElement(element) {
+    if (!element) return;
+
+    // Update all elements with data-i18n attribute within the element
+    element.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      const translation = this.t(key);
+
+      if (el.tagName === 'INPUT' && el.hasAttribute('placeholder')) {
+        el.placeholder = translation;
+      } else {
+        el.textContent = translation;
+      }
+    });
+
+    // Update all elements with data-i18n-placeholder attribute within the element
+    element.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+      const key = el.getAttribute('data-i18n-placeholder');
+      el.placeholder = this.t(key);
+    });
+
+    // Update all elements with data-i18n-title attribute within the element
+    element.querySelectorAll('[data-i18n-title]').forEach(el => {
+      const key = el.getAttribute('data-i18n-title');
+      el.title = this.t(key);
+    });
+  }
+
   getCurrentLocale() {
     return this.currentLocale;
   }

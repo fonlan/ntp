@@ -441,49 +441,6 @@ body {
     flex-shrink: 0;
 }
 
-/* 悬停操作按钮 - 右上角 */
-.bookmark-actions {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    display: flex;
-    gap: 4px;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-    z-index: 10;
-}
-
-.bookmark-card:hover .bookmark-actions {
-    opacity: 1;
-}
-
-.action-icon-btn {
-    width: 28px;
-    height: 28px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    color: var(--text-secondary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-    padding: 4px;
-}
-
-.action-icon-btn:hover {
-    background: var(--bg-hover);
-    border-color: var(--secondary);
-    color: var(--primary);
-    transform: scale(1.1);
-}
-
-.action-icon-btn.delete:hover {
-    border-color: var(--danger);
-    color: var(--danger);
-}
-
 /* 状态样式 */
 .loading, .empty-state {
     grid-column: 1 / -1;
@@ -1062,16 +1019,6 @@ body {
     font-size: 24px;
 }
 
-.bookmark-preview .bookmark-actions {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    display: flex;
-    gap: 4px;
-    opacity: 0.5;
-    pointer-events: none;
-}
-
 /* ===================================
    导入结果
    =================================== */
@@ -1274,8 +1221,7 @@ body {
    =================================== */
 @media print {
     .top-bar,
-    .groups-tabs,
-    .bookmark-actions {
+    .groups-tabs {
         display: none;
     }
 
@@ -1284,4 +1230,51 @@ body {
         box-shadow: none;
         border: 1px solid var(--border);
     }
+}
+
+/* ===================================
+   右键菜单样式
+   =================================== */
+.context-menu {
+    position: fixed;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    z-index: 10000;
+    min-width: 160px;
+    padding: 6px;
+    animation: fadeIn 0.15s ease;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.context-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+    user-select: none;
+}
+
+.context-menu-item:hover {
+    background: var(--bg-hover);
+}
+
+.context-menu-item.danger {
+    color: var(--danger);
+}
+
+.context-menu-item.danger:hover {
+    background: #FEF2F2;
+}
+
+.context-menu-item svg {
+    flex-shrink: 0;
 }
