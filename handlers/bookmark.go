@@ -91,11 +91,18 @@ func (h *BookmarkHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 获取分组中最大的 sort_order 值，新书签放在最后
+	maxSortOrder, err := h.bookmarkRepo.GetMaxSortOrder(req.GroupID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, translator.T("bookmark.createFailed")+": "+err.Error())
+		return
+	}
+
 	bookmark := &models.Bookmark{
 		URL:         req.URL,
 		Title:       req.Title,
 		GroupID:     req.GroupID,
-		SortOrder:   0,
+		SortOrder:   maxSortOrder + 1,
 		IsNewWindow: req.IsNewWindow,
 	}
 

@@ -152,6 +152,29 @@ func (r *BookmarkRepository) BatchReorder(items []ReorderItem) error {
 	return tx.Commit()
 }
 
+// GetMaxSortOrder 获取分组中最大的 sort_order 值
+func (r *BookmarkRepository) GetMaxSortOrder(groupID *int64) (int, error) {
+	var maxSortOrder int
+	var err error
+
+	if groupID == nil {
+		err = r.db.QueryRow(
+			"SELECT COALESCE(MAX(sort_order), -1) FROM bookmarks WHERE group_id IS NULL",
+		).Scan(&maxSortOrder)
+	} else {
+		err = r.db.QueryRow(
+			"SELECT COALESCE(MAX(sort_order), -1) FROM bookmarks WHERE group_id = ?",
+			*groupID,
+		).Scan(&maxSortOrder)
+	}
+
+	if err != nil {
+		return 0, err
+	}
+
+	return maxSortOrder, nil
+}
+
 // Search 搜索书签
 func (r *BookmarkRepository) Search(query string) ([]Bookmark, error) {
 	rows, err := r.db.Query(
