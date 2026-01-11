@@ -12,10 +12,26 @@ import (
 	"strings"
 )
 
+// validImageExts 支持的图片扩展名
+var validImageExts = map[string]bool{
+	".png":  true,
+	".jpg":  true,
+	".jpeg": true,
+	".gif":  true,
+	".svg":  true,
+	".ico":  true,
+	".webp": true,
+}
+
+const (
+	localIconPrefix = "/data/icons/"
+	defaultIconExt  = ".png"
+)
+
 // IconService 图标服务
 type IconService struct {
-	iconDir  string
-	baseURL  string
+	iconDir string
+	baseURL string
 }
 
 // NewIconService 创建图标服务
@@ -29,7 +45,7 @@ func NewIconService(iconDir, baseURL string) *IconService {
 // DownloadIcon 下载图标并保存到本地
 func (s *IconService) DownloadIcon(iconURL string) (string, error) {
 	// 如果是本地路径，直接返回
-	if strings.HasPrefix(iconURL, "/data/icons/") {
+	if strings.HasPrefix(iconURL, localIconPrefix) {
 		return iconURL, nil
 	}
 
@@ -50,38 +66,59 @@ func (s *IconService) DownloadIcon(iconURL string) (string, error) {
 		return "", fmt.Errorf("读取图标数据失败: %w", err)
 	}
 
-	// 从 URL 中提取文件扩展名
-	ext := ".png" // 默认使用 PNG
+	// 保存图标
+	return s.saveIcon(iconURL, data, extractExtFromURL(iconURL))
+}
+
+// extractExtFromURL 从 URL 中提取文件扩展名
+func extractExtFromURL(iconURL string) string {
 	u, err := url.Parse(iconURL)
-	if err == nil {
-		path := u.Path
-		if idx := strings.LastIndex(path, "."); idx != -1 {
-			potentialExt := strings.ToLower(path[idx:])
-			// 只接受常见的图片格式
-			switch potentialExt {
-			case ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".webp":
-				ext = potentialExt
-			}
-		}
+	if err != nil {
+		return defaultIconExt
 	}
 
-	// 生成文件名（使用URL的hash）
-	hash := sha256.Sum256([]byte(iconURL))
-	filename := hex.EncodeToString(hash[:]) + ext
-	filePath := filepath.Join(s.iconDir, filename)
+	path := u.Path
+	idx := strings.LastIndex(path, ".")
+	if idx == -1 {
+		return defaultIconExt
+	}
 
-	// 确保目录存在
-	if err := os.MkdirAll(s.iconDir, 0755); err != nil {
+	ext := strings.ToLower(path[idx:])
+	if validImageExts[ext] {
+		return ext
+	}
+	return defaultIconExt
+}
+
+// ensureIconDir 确保图标目录存在
+func (s *IconService) ensureIconDir() error {
+	return os.MkdirAll(s.iconDir, 0755)
+}
+
+// generateIconPath 生成图标文件路径
+func (s *IconService) generateIconPath(key string, ext string) string {
+	hash := sha256.Sum256([]byte(key))
+	filename := hex.EncodeToString(hash[:]) + ext
+	return filepath.Join(s.iconDir, filename)
+}
+
+// saveIcon 保存图标数据到本地
+func (s *IconService) saveIcon(key string, data []byte, ext string) (string, error) {
+	if !validImageExts[ext] {
+		return "", fmt.Errorf("不支持的文件格式: %s", ext)
+	}
+
+	filePath := s.generateIconPath(key, ext)
+
+	if err := s.ensureIconDir(); err != nil {
 		return "", fmt.Errorf("创建图标目录失败: %w", err)
 	}
 
-	// 保存文件
 	if err := os.WriteFile(filePath, data, 0644); err != nil {
 		return "", fmt.Errorf("保存图标失败: %w", err)
 	}
 
-	// 返回URL路径
-	return "/data/icons/" + filename, nil
+	return localIconPrefix + filepath.Base(filePath), nil
 }
 
 // DownloadFavicon 从网站域名下载favicon
@@ -113,46 +150,21 @@ func (s *IconService) DownloadFavicon(websiteURL string) (string, error) {
 
 // SaveUploadedIcon 保存上传的图标
 func (s *IconService) SaveUploadedIcon(filename string, data []byte) (string, error) {
-	// 验证文件扩展名
 	ext := strings.ToLower(filepath.Ext(filename))
-	if ext != ".png" && ext != ".jpg" && ext != ".jpeg" && ext != ".gif" && ext != ".ico" && ext != ".svg" {
-		return "", fmt.Errorf("不支持的文件格式: %s", ext)
-	}
-
-	// 生成唯一文件名
-	hash := sha256.Sum256(data)
-	newFilename := hex.EncodeToString(hash[:]) + ext
-	filePath := filepath.Join(s.iconDir, newFilename)
-
-	// 确保目录存在
-	if err := os.MkdirAll(s.iconDir, 0755); err != nil {
-		return "", fmt.Errorf("创建图标目录失败: %w", err)
-	}
-
-	// 保存文件
-	if err := os.WriteFile(filePath, data, 0644); err != nil {
-		return "", fmt.Errorf("保存图标失败: %w", err)
-	}
-
-	// 返回URL路径
-	return "/data/icons/" + newFilename, nil
+	return s.saveIcon(filename, data, ext)
 }
 
 // DeleteIcon 删除本地图标文件
 func (s *IconService) DeleteIcon(iconPath string) error {
-	if !strings.HasPrefix(iconPath, "/data/icons/") {
+	if !strings.HasPrefix(iconPath, localIconPrefix) {
 		return nil // 不是本地文件，不删除
 	}
 
-	// 提取文件名
-	filename := strings.TrimPrefix(iconPath, "/data/icons/")
-	filePath := filepath.Join(s.iconDir, filename)
+	filePath := filepath.Join(s.iconDir, strings.TrimPrefix(iconPath, localIconPrefix))
 
-	// 检查文件是否存在
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		return nil // 文件不存在，无需删除
 	}
 
-	// 删除文件
 	return os.Remove(filePath)
 }

@@ -421,7 +421,6 @@ function renderBookmarks() {
 function initBookmarkClickHandlers() {
     const cards = document.querySelectorAll('.bookmark-card');
     const contextMenu = document.getElementById('contextMenu');
-    let currentBookmarkId = null;
 
     // 右键菜单处理
     cards.forEach(card => {
@@ -482,7 +481,8 @@ function initBookmarkClickHandlers() {
 
     // 显示右键菜单
     function showContextMenu(e, card) {
-        currentBookmarkId = parseInt(card.dataset.id);
+        // 将当前书签ID存储在 contextMenu 元素上
+        contextMenu.dataset.currentBookmarkId = card.dataset.id;
 
         // 更新菜单项的国际化文本
         i18n.updateElement(contextMenu);
@@ -508,10 +508,11 @@ function initBookmarkClickHandlers() {
             const item = e.target.closest('.context-menu-item');
             if (!item) return;
             const action = item.dataset.action;
+            const bookmarkId = parseInt(contextMenu.dataset.currentBookmarkId);
             if (action === 'edit') {
-                editBookmark(currentBookmarkId);
+                editBookmark(bookmarkId);
             } else if (action === 'delete') {
-                deleteBookmark(currentBookmarkId);
+                deleteBookmark(bookmarkId);
             }
             hideContextMenu();
         });
@@ -530,7 +531,7 @@ function initBookmarkClickHandlers() {
 
     function hideContextMenu() {
         contextMenu.style.display = 'none';
-        currentBookmarkId = null;
+        contextMenu.dataset.currentBookmarkId = null;
     }
 }
 
@@ -723,68 +724,109 @@ async function fetchIcon() {
     }
 }
 
+// 格式化图标尺寸信息
+function formatIconSize(icon) {
+    if (icon.sizes) {
+        return icon.sizes.split(' ').map(s => s.replace('x', '×')).join(', ');
+    }
+    if (icon.is_favicon) {
+        return 'favicon.ico';
+    }
+    return i18n.t('icon.unknownSize');
+}
+
+// 从URL获取图标类型（根据文件后缀）
+function getIconTypeFromUrl(url) {
+    if (!url) return '';
+    try {
+        const urlObj = new URL(url);
+        const pathname = urlObj.pathname.toLowerCase();
+        const extMap = {
+            '.png': 'PNG',
+            '.jpg': 'JPG',
+            '.jpeg': 'JPG',
+            '.gif': 'GIF',
+            '.svg': 'SVG',
+            '.ico': 'ICO',
+            '.webp': 'WEBP',
+            '.bmp': 'BMP'
+        };
+        for (const [ext, type] of Object.entries(extMap)) {
+            if (pathname.endsWith(ext)) {
+                return type;
+            }
+        }
+    } catch (e) {
+        // URL解析失败，返回空
+    }
+    return '';
+}
+
+// 格式化图标类型信息
+function formatIconType(icon) {
+    // 优先从URL后缀判断类型
+    const urlType = getIconTypeFromUrl(icon.url);
+    if (urlType) return urlType;
+
+    // 其次使用MIME type
+    if (icon.type) {
+        const parts = icon.type.split('/');
+        return parts[1]?.toUpperCase() || '';
+    }
+
+    return '';
+}
+
+// 生成图标选项 HTML
+function createIconOptionHtml(icon, index) {
+    const sizeText = formatIconSize(icon);
+    const typeText = formatIconType(icon);
+    const escapedUrl = escapeHtml(icon.url);
+
+    return `
+        <div class="icon-option" data-icon-url="${escapedUrl}" data-index="${index}" title="${escapedUrl}">
+            <img src="${escapedUrl}" alt="Icon ${index + 1}"
+                 onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>❌</text></svg>'">
+            <div class="icon-option-info">
+                <div class="icon-option-size">${sizeText}</div>
+                ${typeText ? `<div class="icon-option-type">${typeText}</div>` : ''}
+            </div>
+        </div>
+    `;
+}
+
 function showIconSelection(iconOptions, websiteUrl) {
     const container = document.getElementById('iconSelectionContainer');
     const list = document.getElementById('iconSelectionList');
 
     // 生成图标选项列表
-    list.innerHTML = iconOptions.map((icon, index) => {
-        // 解析尺寸信息
-        let sizeText = '';
-        if (icon.sizes) {
-            const sizes = icon.sizes.split(' ').map(s => s.replace('x', '×'));
-            sizeText = sizes.join(', ');
-        } else if (icon.is_favicon) {
-            sizeText = 'favicon.ico';
-        } else {
-            sizeText = i18n.t('icon.unknownSize');
-        }
-
-        // 解析类型信息
-        let typeText = '';
-        if (icon.type) {
-            typeText = icon.type.split('/')[1]?.toUpperCase() || '';
-        }
-
-        return `
-            <div class="icon-option" data-icon-url="${escapeHtml(icon.url)}" data-index="${index}">
-                <img src="${escapeHtml(icon.url)}" alt="Icon ${index + 1}"
-                     onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>❌</text></svg>'">
-                <div class="icon-option-info">
-                    <div class="icon-option-size">${sizeText}</div>
-                    ${typeText ? `<div class="icon-option-type">${typeText}</div>` : ''}
-                </div>
-            </div>
-        `;
-    }).join('');
-
-    // 显示选择界面
+    list.innerHTML = iconOptions.map((icon, index) => createIconOptionHtml(icon, index)).join('');
     container.style.display = 'block';
 
-    // 绑定点击事件
-    list.querySelectorAll('.icon-option').forEach(option => {
-        option.addEventListener('click', () => {
-            // 移除其他选项的选中状态
-            list.querySelectorAll('.icon-option').forEach(o => o.classList.remove('selected'));
-            // 添加选中状态
-            option.classList.add('selected');
-            // 设置图标URL
-            const iconUrl = option.dataset.iconUrl;
-            document.getElementById('bookmarkIcon').value = iconUrl;
-            showIconPreview(iconUrl);
-            // 隐藏选择界面
-            container.style.display = 'none';
-        });
-    });
+    // 使用事件委托处理图标点击
+    list.addEventListener('click', (e) => {
+        const option = e.target.closest('.icon-option');
+        if (!option) return;
+
+        // 移除其他选项的选中状态
+        list.querySelectorAll('.icon-option').forEach(o => o.classList.remove('selected'));
+        option.classList.add('selected');
+
+        // 设置图标URL并隐藏选择界面
+        const iconUrl = option.dataset.iconUrl;
+        selectIcon(iconUrl);
+    }, { once: true });
 
     // 绑定"使用 Google 图标"按钮事件
     const googleBtn = document.getElementById('useGoogleIconBtn');
-    googleBtn.onclick = () => {
-        const googleIconUrl = getFavicon(websiteUrl);
-        document.getElementById('bookmarkIcon').value = googleIconUrl;
-        showIconPreview(googleIconUrl);
-        container.style.display = 'none';
-    };
+    googleBtn.onclick = () => selectIcon(getFavicon(websiteUrl));
+}
+
+// 选择图标并隐藏选择界面
+function selectIcon(iconUrl) {
+    document.getElementById('bookmarkIcon').value = iconUrl;
+    showIconPreview(iconUrl);
+    document.getElementById('iconSelectionContainer').style.display = 'none';
 }
 
 async function uploadIcon(file) {

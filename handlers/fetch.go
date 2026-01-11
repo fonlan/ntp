@@ -63,6 +63,57 @@ func (h *FetchHandler) FetchMetadata(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// iconRelTypes 图标相关的 rel 类型
+var iconRelTypes = map[string]bool{
+	"icon":                       true,
+	"shortcut icon":              true,
+	"apple-touch-icon":           true,
+	"apple-touch-icon-precomposed": true,
+	"fluid-icon":                 true,
+	"mask-icon":                  true,
+}
+
+// buildBaseURL 从完整 URL 构建基础 URL
+func buildBaseURL(fullURL string) string {
+	start := 8 // https://
+	if strings.HasPrefix(fullURL, "http://") {
+		start = 7 // http://
+	}
+	if idx := strings.Index(fullURL[start:], "/"); idx != -1 {
+		return fullURL[:start+idx]
+	}
+	return fullURL
+}
+
+// normalizeIconURL 将图标 URL 转换为完整的绝对 URL
+func normalizeIconURL(iconURL, baseURL, pageURL string) string {
+	if strings.HasPrefix(iconURL, "//") {
+		protocol := "https:"
+		if strings.HasPrefix(pageURL, "http://") {
+			protocol = "http:"
+		}
+		return protocol + iconURL
+	}
+	if strings.HasPrefix(iconURL, "http://") || strings.HasPrefix(iconURL, "https://") {
+		return iconURL
+	}
+	if strings.HasPrefix(iconURL, "/") {
+		return baseURL + iconURL
+	}
+	return baseURL + "/" + iconURL
+}
+
+// isIconLink 检查 link 标签是否是图标相关的
+func isIconLink(rel string) bool {
+	relLower := strings.ToLower(rel)
+	for iconRel := range iconRelTypes {
+		if relLower == iconRel || strings.Contains(relLower, iconRel) {
+			return true
+		}
+	}
+	return false
+}
+
 // FetchMetadataFromURL 从 URL 获取标题和所有图标
 func FetchMetadataFromURL(inputURL string) (string, []IconOption, error) {
 	// 确保URL有协议前缀
@@ -72,9 +123,7 @@ func FetchMetadataFromURL(inputURL string) (string, []IconOption, error) {
 	}
 
 	// 创建 HTTP 客户端，设置超时
-	client := &http.Client{
-		Timeout: 8 * time.Second,
-	}
+	client := &http.Client{Timeout: 8 * time.Second}
 
 	// 发送 GET 请求
 	resp, err := client.Get(url)
@@ -83,7 +132,6 @@ func FetchMetadataFromURL(inputURL string) (string, []IconOption, error) {
 	}
 	defer resp.Body.Close()
 
-	// 检查响应状态码
 	if resp.StatusCode != http.StatusOK {
 		return "", nil, fmt.Errorf("HTTP 状态码: %d", resp.StatusCode)
 	}
@@ -106,82 +154,42 @@ func FetchMetadataFromURL(inputURL string) (string, []IconOption, error) {
 		title = inputURL
 	}
 
-	// 提取所有图标链接
-	var iconOptions []IconOption
-	baseURL := url
-	start := 8 // https://
-	if strings.HasPrefix(url, "http://") {
-		start = 7 // http://
-	}
-	if idx := strings.Index(url[start:], "/"); idx != -1 {
-		baseURL = url[:start+idx]
-	}
-
-	// 收集所有图标相关的 link 标签
-	iconRels := []string{
-		"icon", "shortcut icon", "apple-touch-icon", "apple-touch-icon-precomposed",
-		"fluid-icon", "mask-icon", "icon shortcut-icon",
-	}
-
-	doc.Find("link").Each(func(i int, s *goquery.Selection) {
-		rel, _ := s.Attr("rel")
-		href, exists := s.Attr("href")
-		if !exists || href == "" {
-			return
-		}
-
-		// 检查是否是图标相关的 link
-		relLower := strings.ToLower(rel)
-		isIcon := false
-		for _, iconRel := range iconRels {
-			if relLower == iconRel || strings.Contains(relLower, iconRel) {
-				isIcon = true
-				break
-			}
-		}
-		if !isIcon {
-			return
-		}
-
-		// 构建完整的 URL
-		iconURL := href
-		if strings.HasPrefix(iconURL, "//") {
-			protocol := "https:"
-			if strings.HasPrefix(url, "http://") {
-				protocol = "http:"
-			}
-			iconURL = protocol + iconURL
-		} else if !strings.HasPrefix(iconURL, "http://") && !strings.HasPrefix(iconURL, "https://") {
-			// 处理相对路径
-			if strings.HasPrefix(iconURL, "/") {
-				// 绝对路径: /assets/favicon.png
-				iconURL = baseURL + iconURL
-			} else {
-				// 相对路径: assets/favicon.png
-				iconURL = baseURL + "/" + iconURL
-			}
-		}
-
-		// 获取图标属性
-		iconType, _ := s.Attr("type")
-		sizes, _ := s.Attr("sizes")
-
-		iconOptions = append(iconOptions, IconOption{
-			URL:        iconURL,
-			Type:       iconType,
-			Sizes:      sizes,
-			Rel:        rel,
-			IsFavicon:  false,
-		})
-	})
+	baseURL := buildBaseURL(url)
+	iconOptions := extractIconOptions(doc, url, baseURL)
 
 	// 如果没有找到任何图标，添加 /favicon.ico
 	if len(iconOptions) == 0 {
 		iconOptions = append(iconOptions, IconOption{
-			URL:        baseURL + "/favicon.ico",
-			IsFavicon:  true,
+			URL:       baseURL + "/favicon.ico",
+			IsFavicon: true,
 		})
 	}
 
 	return strings.TrimSpace(title), iconOptions, nil
+}
+
+// extractIconOptions 从 HTML 文档中提取所有图标选项
+func extractIconOptions(doc *goquery.Document, pageURL, baseURL string) []IconOption {
+	var options []IconOption
+
+	doc.Find("link").Each(func(_ int, s *goquery.Selection) {
+		rel, _ := s.Attr("rel")
+		href, exists := s.Attr("href")
+		if !exists || href == "" || !isIconLink(rel) {
+			return
+		}
+
+		iconType, _ := s.Attr("type")
+		sizes, _ := s.Attr("sizes")
+
+		options = append(options, IconOption{
+			URL:       normalizeIconURL(href, baseURL, pageURL),
+			Type:      iconType,
+			Sizes:     sizes,
+			Rel:       rel,
+			IsFavicon: false,
+		})
+	})
+
+	return options
 }
