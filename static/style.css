@@ -1158,7 +1158,9 @@ body {
     /* 移动端按钮固定定位到页面底部居中 */
     .top-right-buttons {
         position: fixed;
+        top: auto !important;
         bottom: 16px;
+        right: auto !important;
         left: 50%;
         transform: translateX(-50%);
         display: flex;
@@ -1280,6 +1282,8 @@ body {
         bottom: 12px;
         padding: 10px 16px;
         gap: 12px;
+        top: auto !important;
+        right: auto !important;
     }
 
     .add-bookmark-btn,
