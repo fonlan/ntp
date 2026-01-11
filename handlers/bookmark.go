@@ -109,11 +109,13 @@ func (h *BookmarkHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	// 如果没有提供标题，尝试从 URL 自动获取
 	if bookmark.Title == "" {
-		title, iconURL, err := FetchMetadataFromURL(bookmark.URL)
+		title, iconOptions, err := FetchMetadataFromURL(bookmark.URL)
 		if err == nil {
 			bookmark.Title = title
-			if bookmark.IconURL == nil && iconURL != "" {
-				bookmark.IconURL = &iconURL
+			// 如果没有提供图标且找到了图标选项，使用第一个图标
+			if bookmark.IconURL == nil && len(iconOptions) > 0 {
+				firstIconURL := iconOptions[0].URL
+				bookmark.IconURL = &firstIconURL
 			}
 		} else {
 			bookmark.Title = bookmark.URL

@@ -83,6 +83,8 @@
     "fetchIcon": "Fetch Icon",
     "uploadIcon": "Upload Icon",
     "iconPreview": "Icon Preview:",
+    "selectIcon": "Select Icon:",
+    "useGoogleIcon": "Use Google Icon",
     "group": "Group",
     "description": "Description",
     "descriptionPlaceholder": "Optional notes",
@@ -123,7 +125,14 @@
     "deleteFailed": "Delete failed",
     "saveFailed": "Save failed",
     "saveOrderFailed": "Failed to save order:",
-    "noFileSelected": "Please select a file"
+    "noFileSelected": "Please select a file",
+    "fetchFailed": "Failed to fetch website metadata"
+  },
+  "fetch": {
+    "fetchFailed": "Failed to fetch website metadata"
+  },
+  "icon": {
+    "unknownSize": "Unknown Size"
   },
   "login": {
     "title": "Login - NTP",

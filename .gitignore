@@ -50,5 +50,7 @@ temp/
 *.backup
 
 .spec-workflow/
+.serena/
+.github/
 .claude/
 CLAUDE.md

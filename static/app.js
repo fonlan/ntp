@@ -443,9 +443,11 @@ function initBookmarkClickHandlers() {
         // 触摸设备长按处理
         let touchTimer = null;
         let isLongPress = false;
+        let hasMoved = false;
 
         card.addEventListener('touchstart', (e) => {
             isLongPress = false;
+            hasMoved = false;
             touchTimer = setTimeout(() => {
                 isLongPress = true;
                 // 触发触觉反馈（如果支持）
@@ -466,17 +468,14 @@ function initBookmarkClickHandlers() {
 
         card.addEventListener('touchend', (e) => {
             clearTimeout(touchTimer);
-            // 如果不是长按，处理点击
-            if (!isLongPress) {
-                const url = card.dataset.url;
-                const target = card.dataset.target || '_blank';
-                if (url) {
-                    window.open(url, target);
-                }
+            // 长按时阻止 click 事件触发
+            if (isLongPress) {
+                e.preventDefault();
             }
         });
 
         card.addEventListener('touchmove', () => {
+            hasMoved = true;
             clearTimeout(touchTimer);
         });
     });
@@ -503,9 +502,11 @@ function initBookmarkClickHandlers() {
         contextMenu.style.display = 'block';
     }
 
-    // 点击菜单项
-    contextMenu.querySelectorAll('.context-menu-item').forEach(item => {
-        item.addEventListener('click', (e) => {
+    // 点击菜单项（使用事件委托，只绑定一次）
+    if (!contextMenu.dataset.menuListenerAdded) {
+        contextMenu.addEventListener('click', (e) => {
+            const item = e.target.closest('.context-menu-item');
+            if (!item) return;
             const action = item.dataset.action;
             if (action === 'edit') {
                 editBookmark(currentBookmarkId);
@@ -514,14 +515,18 @@ function initBookmarkClickHandlers() {
             }
             hideContextMenu();
         });
-    });
+        contextMenu.dataset.menuListenerAdded = 'true';
+    }
 
-    // 点击其他地方隐藏菜单
-    document.addEventListener('click', (e) => {
-        if (!contextMenu.contains(e.target)) {
-            hideContextMenu();
-        }
-    });
+    // 点击其他地方隐藏菜单（只绑定一次）
+    if (!contextMenu.dataset.docListenerAdded) {
+        document.addEventListener('click', (e) => {
+            if (!contextMenu.contains(e.target)) {
+                hideContextMenu();
+            }
+        });
+        contextMenu.dataset.docListenerAdded = 'true';
+    }
 
     function hideContextMenu() {
         contextMenu.style.display = 'none';
@@ -676,9 +681,96 @@ async function fetchIcon() {
         return;
     }
 
-    const favicon = getFavicon(url);
-    document.getElementById('bookmarkIcon').value = favicon;
-    showIconPreview(favicon);
+    try {
+        // 调用新的 API 获取网站元数据（包括所有图标）
+        const response = await apiRequest(`${API}/fetch-metadata`, {
+            method: 'POST',
+            body: JSON.stringify({ url })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch metadata');
+        }
+
+        const data = await response.json();
+
+        // 如果有图标选项，显示选择界面
+        if (data.icon_options && data.icon_options.length > 0) {
+            showIconSelection(data.icon_options, url);
+
+            // 自动填充标题
+            if (data.title) {
+                document.getElementById('bookmarkTitle').value = data.title;
+            }
+        }
+    } catch (err) {
+        console.error('Failed to fetch icons:', err);
+        alert(i18n.t('fetch.fetchFailed') + ': ' + err.message);
+    }
+}
+
+function showIconSelection(iconOptions, websiteUrl) {
+    const container = document.getElementById('iconSelectionContainer');
+    const list = document.getElementById('iconSelectionList');
+
+    // 生成图标选项列表
+    list.innerHTML = iconOptions.map((icon, index) => {
+        // 解析尺寸信息
+        let sizeText = '';
+        if (icon.sizes) {
+            const sizes = icon.sizes.split(' ').map(s => s.replace('x', '×'));
+            sizeText = sizes.join(', ');
+        } else if (icon.is_favicon) {
+            sizeText = 'favicon.ico';
+        } else {
+            sizeText = i18n.t('icon.unknownSize');
+        }
+
+        // 解析类型信息
+        let typeText = '';
+        if (icon.type) {
+            typeText = icon.type.split('/')[1]?.toUpperCase() || '';
+        }
+
+        return `
+            <div class="icon-option" data-icon-url="${escapeHtml(icon.url)}" data-index="${index}">
+                <img src="${escapeHtml(icon.url)}" alt="Icon ${index + 1}"
+                     onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>❌</text></svg>'">
+                <div class="icon-option-info">
+                    <div class="icon-option-size">${sizeText}</div>
+                    ${typeText ? `<div class="icon-option-type">${typeText}</div>` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // 显示选择界面
+    container.style.display = 'block';
+
+    // 绑定点击事件
+    list.querySelectorAll('.icon-option').forEach(option => {
+        option.addEventListener('click', () => {
+            // 移除其他选项的选中状态
+            list.querySelectorAll('.icon-option').forEach(o => o.classList.remove('selected'));
+            // 添加选中状态
+            option.classList.add('selected');
+            // 设置图标URL
+            const iconUrl = option.dataset.iconUrl;
+            document.getElementById('bookmarkIcon').value = iconUrl;
+            showIconPreview(iconUrl);
+            // 隐藏选择界面
+            container.style.display = 'none';
+        });
+    });
+
+    // 绑定"使用 Google 图标"按钮事件
+    const googleBtn = document.getElementById('useGoogleIconBtn');
+    googleBtn.onclick = () => {
+        const googleIconUrl = getFavicon(websiteUrl);
+        document.getElementById('bookmarkIcon').value = googleIconUrl;
+        showIconPreview(googleIconUrl);
+        container.style.display = 'none';
+    };
 }
 
 async function uploadIcon(file) {

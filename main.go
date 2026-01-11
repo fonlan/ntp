@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"ntp/handlers"
 	"ntp/i18n"
@@ -227,8 +228,23 @@ func initializeSearchEngineIcons(repo *models.SearchEngineRepository, iconServic
 	}
 
 	for _, engine := range engines {
-		// 如果 icon_path 为空，则下载图标
+		needDownload := false
+
+		// 检查是否需要下载图标
 		if engine.IconPath == nil {
+			// icon_path 为空，需要下载
+			needDownload = true
+		} else {
+			// icon_path 不为空，检查文件是否存在
+			iconFilePath := filepath.Join("data/icons", strings.TrimPrefix(*engine.IconPath, "/data/icons/"))
+			if _, err := os.Stat(iconFilePath); os.IsNotExist(err) {
+				// 文件不存在，需要重新下载
+				log.Printf("搜索引擎 %s 的图标文件不存在，需要重新下载", engine.Name)
+				needDownload = true
+			}
+		}
+
+		if needDownload {
 			iconPath, err := iconService.DownloadFavicon(engine.URL)
 			if err != nil {
 				log.Printf("下载搜索引擎 %s 图标失败: %v", engine.Name, err)

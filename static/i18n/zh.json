@@ -83,6 +83,8 @@
     "fetchIcon": "获取图标",
     "uploadIcon": "上传图标",
     "iconPreview": "图标预览:",
+    "selectIcon": "选择图标:",
+    "useGoogleIcon": "使用 Google 图标",
     "group": "分组",
     "description": "描述",
     "descriptionPlaceholder": "可选备注信息",
@@ -123,7 +125,14 @@
     "deleteFailed": "删除失败",
     "saveFailed": "保存失败",
     "saveOrderFailed": "保存排序失败:",
-    "noFileSelected": "请选择文件"
+    "noFileSelected": "请选择文件",
+    "fetchFailed": "获取网站信息失败"
+  },
+  "fetch": {
+    "fetchFailed": "获取网站信息失败"
+  },
+  "icon": {
+    "unknownSize": "未知尺寸"
   },
   "login": {
     "title": "登录 - NTP",

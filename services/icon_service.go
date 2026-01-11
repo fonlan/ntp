@@ -50,9 +50,24 @@ func (s *IconService) DownloadIcon(iconURL string) (string, error) {
 		return "", fmt.Errorf("读取图标数据失败: %w", err)
 	}
 
+	// 从 URL 中提取文件扩展名
+	ext := ".png" // 默认使用 PNG
+	u, err := url.Parse(iconURL)
+	if err == nil {
+		path := u.Path
+		if idx := strings.LastIndex(path, "."); idx != -1 {
+			potentialExt := strings.ToLower(path[idx:])
+			// 只接受常见的图片格式
+			switch potentialExt {
+			case ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".webp":
+				ext = potentialExt
+			}
+		}
+	}
+
 	// 生成文件名（使用URL的hash）
 	hash := sha256.Sum256([]byte(iconURL))
-	filename := hex.EncodeToString(hash[:]) + ".png"
+	filename := hex.EncodeToString(hash[:]) + ext
 	filePath := filepath.Join(s.iconDir, filename)
 
 	// 确保目录存在
