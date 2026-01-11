@@ -632,6 +632,9 @@ function showBookmarkModal(bookmark = null) {
     const modal = document.getElementById('bookmarkModal');
     const title = document.getElementById('bookmarkModalTitle');
 
+    // 隐藏图标选择容器
+    document.getElementById('iconSelectionContainer').style.display = 'none';
+
     if (bookmark) {
         title.textContent = i18n.t('bookmark.edit');
         document.getElementById('bookmarkId').value = bookmark.id;
