@@ -87,46 +87,23 @@ class I18n {
   }
 
   updatePage() {
-    // Update all elements with data-i18n attribute
-    document.querySelectorAll('[data-i18n]').forEach(element => {
-      const key = element.getAttribute('data-i18n');
-      const translation = this.t(key);
-
-      if (element.tagName === 'INPUT' && element.hasAttribute('placeholder')) {
-        element.placeholder = translation;
-      } else {
-        element.textContent = translation;
-      }
-    });
-
-    // Update all elements with data-i18n-placeholder attribute
-    document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
-      const key = element.getAttribute('data-i18n-placeholder');
-      element.placeholder = this.t(key);
-    });
-
-    // Update all elements with data-i18n-title attribute
-    document.querySelectorAll('[data-i18n-title]').forEach(element => {
-      const key = element.getAttribute('data-i18n-title');
-      element.title = this.t(key);
-    });
-
+    this._updateElements(document);
     // Update document title
-    const titleKey = document.querySelector('title').getAttribute('data-i18n');
-    if (titleKey) {
-      document.title = this.t(titleKey);
-    }
+    const titleKey = document.querySelector('title')?.getAttribute('data-i18n');
+    if (titleKey) document.title = this.t(titleKey);
   }
 
   // Update only a specific element and its children
   updateElement(element) {
     if (!element) return;
+    this._updateElements(element);
+  }
 
-    // Update all elements with data-i18n attribute within the element
-    element.querySelectorAll('[data-i18n]').forEach(el => {
-      const key = el.getAttribute('data-i18n');
-      const translation = this.t(key);
-
+  // Internal method to update all i18n attributes within a container
+  _updateElements(container) {
+    // Update data-i18n elements
+    container.querySelectorAll('[data-i18n]').forEach(el => {
+      const translation = this.t(el.getAttribute('data-i18n'));
       if (el.tagName === 'INPUT' && el.hasAttribute('placeholder')) {
         el.placeholder = translation;
       } else {
@@ -134,16 +111,14 @@ class I18n {
       }
     });
 
-    // Update all elements with data-i18n-placeholder attribute within the element
-    element.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
-      const key = el.getAttribute('data-i18n-placeholder');
-      el.placeholder = this.t(key);
+    // Update data-i18n-placeholder elements
+    container.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+      el.placeholder = this.t(el.getAttribute('data-i18n-placeholder'));
     });
 
-    // Update all elements with data-i18n-title attribute within the element
-    element.querySelectorAll('[data-i18n-title]').forEach(el => {
-      const key = el.getAttribute('data-i18n-title');
-      el.title = this.t(key);
+    // Update data-i18n-title elements
+    container.querySelectorAll('[data-i18n-title]').forEach(el => {
+      el.title = this.t(el.getAttribute('data-i18n-title'));
     });
   }
 

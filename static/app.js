@@ -27,7 +27,7 @@ async function apiRequest(url, options = {}) {
 }
 
 // Global state
-let state = {
+const state = {
     bookmarks: [],
     groups: [],
     engines: [],
@@ -38,6 +38,98 @@ let state = {
     bookmarkColumns: 0,
     mobileColumns: 2,
     cardOpacity: 95
+};
+
+// ===================================
+// 滚动性能优化
+// ===================================
+// 使用 requestAnimationFrame 优化滚动事件
+const scrollOptimizer = {
+    ticking: false,
+    callbacks: new Set(),
+
+    update() {
+        this.ticking = false;
+        this.callbacks.forEach(callback => callback());
+    },
+
+    request(callback) {
+        this.callbacks.add(callback);
+        if (!this.ticking) {
+            requestAnimationFrame(() => this.update());
+            this.ticking = true;
+        }
+    },
+
+    remove(callback) {
+        this.callbacks.delete(callback);
+    }
+};
+
+// 优化 passive event listeners 以提升滚动性能
+document.addEventListener('touchstart', function() {}, { passive: true });
+document.addEventListener('touchmove', function() {}, { passive: true });
+
+// 防抖函数 - 用于优化滚动和 resize 事件
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// 节流函数 - 用于优化高频滚动事件
+function throttle(func, limit) {
+    let inThrottle;
+    return function(...args) {
+        if (!inThrottle) {
+            func.apply(this, args);
+            inThrottle = true;
+            setTimeout(() => inThrottle = false, limit);
+        }
+    };
+}
+
+// Cache for frequently accessed DOM elements
+const dom = {
+    // Lazy getter pattern - elements are fetched on first access
+    get searchInput() { return this._searchInput ||= document.getElementById('searchInput'); },
+    get engineDropdown() { return this._engineDropdown ||= document.getElementById('engineDropdown'); },
+    get currentEngineIcon() { return this._currentEngineIcon ||= document.getElementById('currentEngineIcon'); },
+    get currentEngineName() { return this._currentEngineName ||= document.getElementById('currentEngineName'); },
+    get bookmarksContainer() { return this._bookmarksContainer ||= document.getElementById('bookmarksContainer'); },
+    get settingsModal() { return this._settingsModal ||= document.getElementById('settingsModal'); },
+    get bookmarkModal() { return this._bookmarkModal ||= document.getElementById('bookmarkModal'); },
+    get groupModal() { return this._groupModal ||= document.getElementById('groupModal'); },
+    get engineEditModal() { return this._engineEditModal ||= document.getElementById('engineEditModal'); },
+    get importModal() { return this._importModal ||= document.getElementById('importModal'); },
+    get contextMenu() { return this._contextMenu ||= document.getElementById('contextMenu'); },
+    get bookmarkGroupSelect() { return this._bookmarkGroupSelect ||= document.getElementById('bookmarkGroup'); },
+    get groupsList() { return this._groupsList ||= document.getElementById('groupsList'); },
+    get enginesList() { return this._enginesList ||= document.getElementById('enginesList'); },
+
+    // Reset cache when DOM changes significantly
+    clear() {
+        this._searchInput = null;
+        this._engineDropdown = null;
+        this._currentEngineIcon = null;
+        this._currentEngineName = null;
+        this._bookmarksContainer = null;
+        this._settingsModal = null;
+        this._bookmarkModal = null;
+        this._groupModal = null;
+        this._engineEditModal = null;
+        this._importModal = null;
+        this._contextMenu = null;
+        this._bookmarkGroupSelect = null;
+        this._groupsList = null;
+        this._enginesList = null;
+    }
 };
 
 // Initialize
@@ -265,26 +357,17 @@ async function loadSearchEngines() {
 }
 
 function renderCurrentEngine() {
-    const iconEl = document.getElementById('currentEngineIcon');
-    const nameEl = document.getElementById('currentEngineName');
-
-    if (!iconEl || !nameEl) return;
-
-    if (state.currentEngine) {
-        // 优先使用本地缓存图标，否则使用 Google favicon
-        iconEl.src = getFavicon(state.currentEngine.url, state.currentEngine.icon_path);
-        nameEl.textContent = state.currentEngine.name;
-    } else {
-        // Show loading text in current language
-        nameEl.textContent = i18n.t('app.loading');
+    if (!state.currentEngine) {
+        dom.currentEngineName.textContent = i18n.t('app.loading');
+        return;
     }
+
+    dom.currentEngineIcon.src = getFavicon(state.currentEngine.url, state.currentEngine.icon_path);
+    dom.currentEngineName.textContent = state.currentEngine.name;
 }
 
 function renderEngineDropdown() {
-    const dropdown = document.getElementById('engineDropdown');
-    if (!dropdown) return;
-
-    dropdown.innerHTML = state.engines.map(e => `
+    dom.engineDropdown.innerHTML = state.engines.map(e => `
         <div class="engine-dropdown-item ${state.currentEngine?.id === e.id ? 'active' : ''}"
              data-engine-id="${e.id}">
             <img src="${getFavicon(e.url, e.icon_path)}" alt="" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔍</text></svg>'">
@@ -292,14 +375,14 @@ function renderEngineDropdown() {
         </div>
     `).join('');
 
-    // Bind click events
-    dropdown.querySelectorAll('.engine-dropdown-item').forEach(item => {
+    // Bind click events using event delegation would be better, but keeping current pattern for consistency
+    dom.engineDropdown.querySelectorAll('.engine-dropdown-item').forEach(item => {
         item.addEventListener('click', () => {
             const engineId = parseInt(item.dataset.engineId);
             state.currentEngine = state.engines.find(e => e.id === engineId);
             renderCurrentEngine();
             renderEngineDropdown();
-            dropdown.classList.remove('show');
+            dom.engineDropdown.classList.remove('show');
         });
     });
 }
@@ -340,8 +423,7 @@ function renderGroups() {
 }
 
 function updateGroupSelect() {
-    const select = document.getElementById('bookmarkGroup');
-    select.innerHTML = `<option value="">${i18n.t('group.ungrouped')}</option>` +
+    dom.bookmarkGroupSelect.innerHTML = `<option value="">${i18n.t('group.ungrouped')}</option>` +
         state.groups.map(g => `<option value="${g.id}">${escapeHtml(g.name)}</option>`).join('');
 }
 
@@ -363,10 +445,8 @@ async function loadBookmarks() {
 }
 
 function renderBookmarks() {
-    const container = document.getElementById('bookmarksContainer');
-
     if (state.bookmarks.length === 0) {
-        container.innerHTML = `<div class="empty-state">${i18n.t('bookmark.empty')}</div>`;
+        dom.bookmarksContainer.innerHTML = `<div class="empty-state">${i18n.t('bookmark.empty')}</div>`;
         return;
     }
 
@@ -385,33 +465,27 @@ function renderBookmarks() {
     });
 
     // 渲染 HTML
-    let html = '';
-    sortedGroups.forEach(group => {
-        const bookmarks = groupedBookmarks[group.id];
-        if (bookmarks && bookmarks.length > 0) {
-            html += `
-                <div class="bookmark-group">
-                    <h3 class="group-title">${escapeHtml(group.name)}</h3>
-                    <div class="group-bookmarks">
-                        ${bookmarks.map(renderBookmarkCard).join('')}
-                    </div>
-                </div>
-            `;
-        }
-    });
-
-    if (ungroupedBookmarks.length > 0) {
-        html += `
+    const html = sortedGroups
+        .filter(group => groupedBookmarks[group.id]?.length > 0)
+        .map(group => `
             <div class="bookmark-group">
-                <h3 class="group-title">${i18n.t('group.ungrouped')}</h3>
+                <h3 class="group-title">${escapeHtml(group.name)}</h3>
                 <div class="group-bookmarks">
-                    ${ungroupedBookmarks.map(renderBookmarkCard).join('')}
+                    ${groupedBookmarks[group.id].map(renderBookmarkCard).join('')}
                 </div>
             </div>
-        `;
-    }
+        `).join('');
 
-    container.innerHTML = html;
+    const ungroupedHtml = ungroupedBookmarks.length > 0 ? `
+        <div class="bookmark-group">
+            <h3 class="group-title">${i18n.t('group.ungrouped')}</h3>
+            <div class="group-bookmarks">
+                ${ungroupedBookmarks.map(renderBookmarkCard).join('')}
+            </div>
+        </div>
+    ` : '';
+
+    dom.bookmarksContainer.innerHTML = html + ungroupedHtml;
     applyBookmarkSize();
     initDragAndDrop();
     initBookmarkClickHandlers();
@@ -420,119 +494,113 @@ function renderBookmarks() {
 // 初始化书签卡片点击事件
 function initBookmarkClickHandlers() {
     const cards = document.querySelectorAll('.bookmark-card');
-    const contextMenu = document.getElementById('contextMenu');
+    const menu = dom.contextMenu;
 
-    // 右键菜单处理
-    cards.forEach(card => {
-        // 右键菜单事件
-        card.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            showContextMenu(e, card);
-        });
+    // 使用事件委托来处理卡片事件（减少事件监听器数量）
+    const bookmarksContainer = dom.bookmarksContainer;
 
-        // 点击事件 - 打开书签
-        card.addEventListener('click', (e) => {
-            const url = card.dataset.url;
-            const target = card.dataset.target || '_blank';
-            if (url) {
-                window.open(url, target);
-            }
-        });
+    // 移除旧的监听器（如果存在）
+    bookmarksContainer._cardClickHandler?.();
+    bookmarksContainer._cardContextMenuHandler?.();
+    bookmarksContainer._cardTouchStartHandler?.();
+    bookmarksContainer._cardTouchEndHandler?.();
+    bookmarksContainer._cardTouchMoveHandler?.();
 
-        // 触摸设备长按处理
-        let touchTimer = null;
-        let isLongPress = false;
-        let hasMoved = false;
+    // 点击事件 - 打开书签
+    bookmarksContainer._cardClickHandler = onEvent(bookmarksContainer, 'click', '.bookmark-card', (e, card) => {
+        const url = card.dataset.url;
+        const target = card.dataset.target || '_blank';
+        if (url) window.open(url, target);
+    });
 
-        card.addEventListener('touchstart', (e) => {
-            isLongPress = false;
-            hasMoved = false;
-            touchTimer = setTimeout(() => {
-                isLongPress = true;
-                // 触发触觉反馈（如果支持）
-                if (navigator.vibrate) {
-                    navigator.vibrate(50);
-                }
-                // 显示菜单
-                const touch = e.touches[0];
-                const mockEvent = {
-                    preventDefault: () => {},
-                    clientX: touch.clientX,
-                    clientY: touch.clientY,
-                    target: card
-                };
-                showContextMenu(mockEvent, card);
-            }, 500); // 500ms 长按
-        }, { passive: true });
+    // 右键菜单事件
+    bookmarksContainer._cardContextMenuHandler = onEvent(bookmarksContainer, 'contextmenu', '.bookmark-card', (e, card) => {
+        e.preventDefault();
+        showContextMenu(e, card);
+    });
 
-        card.addEventListener('touchend', (e) => {
-            clearTimeout(touchTimer);
-            // 长按时阻止 click 事件触发
-            if (isLongPress) {
-                e.preventDefault();
-            }
-        });
+    // 触摸设备长按处理
+    const touchState = new WeakMap();
+    bookmarksContainer._cardTouchStartHandler = onEvent(bookmarksContainer, 'touchstart', '.bookmark-card', (e, card) => {
+        touchState.set(card, { isLongPress: false, timer: setTimeout(() => {
+            touchState.get(card).isLongPress = true;
+            if (navigator.vibrate) navigator.vibrate(50);
+            const touch = e.touches[0];
+            showContextMenu({ preventDefault: () => {}, clientX: touch.clientX, clientY: touch.clientY, target: card }, card);
+        }, 500) });
+    }, { passive: true });
 
-        card.addEventListener('touchmove', () => {
-            hasMoved = true;
-            clearTimeout(touchTimer);
-        });
+    bookmarksContainer._cardTouchEndHandler = onEvent(bookmarksContainer, 'touchend', '.bookmark-card', (e, card) => {
+        const state = touchState.get(card);
+        if (state) {
+            clearTimeout(state.timer);
+            if (state.isLongPress) e.preventDefault();
+            touchState.delete(card);
+        }
+    });
+
+    bookmarksContainer._cardTouchMoveHandler = onEvent(bookmarksContainer, 'touchmove', '.bookmark-card', (e, card) => {
+        const state = touchState.get(card);
+        if (state) {
+            clearTimeout(state.timer);
+            touchState.delete(card);
+        }
     });
 
     // 显示右键菜单
     function showContextMenu(e, card) {
-        // 将当前书签ID存储在 contextMenu 元素上
-        contextMenu.dataset.currentBookmarkId = card.dataset.id;
+        menu.dataset.currentBookmarkId = card.dataset.id;
+        i18n.updateElement(menu);
 
-        // 更新菜单项的国际化文本
-        i18n.updateElement(contextMenu);
-
-        // 定位菜单
-        const x = e.clientX;
-        const y = e.clientY;
-
-        // 确保菜单不会超出视口
         const menuWidth = 180;
         const menuHeight = 100;
-        const offsetX = x + menuWidth > window.innerWidth ? window.innerWidth - menuWidth - 10 : x;
-        const offsetY = y + menuHeight > window.innerHeight ? window.innerHeight - menuHeight - 10 : y;
+        const offsetX = Math.min(e.clientX, window.innerWidth - menuWidth - 10);
+        const offsetY = Math.min(e.clientY, window.innerHeight - menuHeight - 10);
 
-        contextMenu.style.left = offsetX + 'px';
-        contextMenu.style.top = offsetY + 'px';
-        contextMenu.style.display = 'block';
-    }
-
-    // 点击菜单项（使用事件委托，只绑定一次）
-    if (!contextMenu.dataset.menuListenerAdded) {
-        contextMenu.addEventListener('click', (e) => {
-            const item = e.target.closest('.context-menu-item');
-            if (!item) return;
-            const action = item.dataset.action;
-            const bookmarkId = parseInt(contextMenu.dataset.currentBookmarkId);
-            if (action === 'edit') {
-                editBookmark(bookmarkId);
-            } else if (action === 'delete') {
-                deleteBookmark(bookmarkId);
-            }
-            hideContextMenu();
-        });
-        contextMenu.dataset.menuListenerAdded = 'true';
-    }
-
-    // 点击其他地方隐藏菜单（只绑定一次）
-    if (!contextMenu.dataset.docListenerAdded) {
-        document.addEventListener('click', (e) => {
-            if (!contextMenu.contains(e.target)) {
-                hideContextMenu();
-            }
-        });
-        contextMenu.dataset.docListenerAdded = 'true';
+        menu.style.left = offsetX + 'px';
+        menu.style.top = offsetY + 'px';
+        menu.style.display = 'block';
     }
 
     function hideContextMenu() {
-        contextMenu.style.display = 'none';
-        contextMenu.dataset.currentBookmarkId = null;
+        menu.style.display = 'none';
+        menu.dataset.currentBookmarkId = null;
     }
+
+    // 上下文菜单事件监听器（只绑定一次）
+    if (!menu._menuHandlerAdded) {
+        menu.addEventListener('click', (e) => {
+            const item = e.target.closest('.context-menu-item');
+            if (!item) return;
+            const action = item.dataset.action;
+            const bookmarkId = parseInt(menu.dataset.currentBookmarkId);
+            if (action === 'edit') editBookmark(bookmarkId);
+            else if (action === 'delete') deleteBookmark(bookmarkId);
+            hideContextMenu();
+        });
+        menu._menuHandlerAdded = true;
+    }
+
+    // 点击其他地方隐藏菜单（只绑定一次）
+    if (!menu._docHandlerAdded) {
+        document.addEventListener('click', (e) => {
+            if (!menu.contains(e.target)) hideContextMenu();
+        });
+        menu._docHandlerAdded = true;
+    }
+}
+
+// 事件委托辅助函数
+function onEvent(container, eventType, selector, handler, options) {
+    const wrappedHandler = (e) => {
+        const target = e.target.closest(selector);
+        if (target && container.contains(target)) {
+            handler(e, target);
+        }
+    };
+    container.addEventListener(eventType, wrappedHandler, options);
+    // 返回清理函数
+    return () => container.removeEventListener(eventType, wrappedHandler, options);
 }
 
 function renderBookmarkCard(b) {
@@ -724,63 +792,35 @@ async function fetchIcon() {
     }
 }
 
-// 格式化图标尺寸信息
-function formatIconSize(icon) {
-    if (icon.sizes) {
-        return icon.sizes.split(' ').map(s => s.replace('x', '×')).join(', ');
-    }
-    if (icon.is_favicon) {
-        return 'favicon.ico';
-    }
-    return i18n.t('icon.unknownSize');
-}
+// 图标文件扩展名映射
+const ICON_EXT_MAP = { '.png': 'PNG', '.jpg': 'JPG', '.jpeg': 'JPG', '.gif': 'GIF', '.svg': 'SVG', '.ico': 'ICO', '.webp': 'WEBP', '.bmp': 'BMP' };
 
-// 从URL获取图标类型（根据文件后缀）
-function getIconTypeFromUrl(url) {
-    if (!url) return '';
-    try {
-        const urlObj = new URL(url);
-        const pathname = urlObj.pathname.toLowerCase();
-        const extMap = {
-            '.png': 'PNG',
-            '.jpg': 'JPG',
-            '.jpeg': 'JPG',
-            '.gif': 'GIF',
-            '.svg': 'SVG',
-            '.ico': 'ICO',
-            '.webp': 'WEBP',
-            '.bmp': 'BMP'
-        };
-        for (const [ext, type] of Object.entries(extMap)) {
-            if (pathname.endsWith(ext)) {
-                return type;
-            }
-        }
-    } catch (e) {
-        // URL解析失败，返回空
+// 格式化图标信息（尺寸和类型）
+function formatIconInfo(icon) {
+    // 尺寸信息
+    let sizeInfo = '';
+    if (icon.sizes) sizeInfo = icon.sizes.split(' ').map(s => s.replace('x', '×')).join(', ');
+    else if (icon.is_favicon) sizeInfo = 'favicon.ico';
+    else sizeInfo = i18n.t('icon.unknownSize');
+
+    // 类型信息 - 从 URL 后缀或 MIME type
+    let typeInfo = '';
+    if (icon.url) {
+        try {
+            const ext = '.' + new URL(icon.url).pathname.toLowerCase().split('.').pop();
+            typeInfo = ICON_EXT_MAP[ext] || '';
+        } catch { }
     }
-    return '';
-}
-
-// 格式化图标类型信息
-function formatIconType(icon) {
-    // 优先从URL后缀判断类型
-    const urlType = getIconTypeFromUrl(icon.url);
-    if (urlType) return urlType;
-
-    // 其次使用MIME type
-    if (icon.type) {
-        const parts = icon.type.split('/');
-        return parts[1]?.toUpperCase() || '';
+    if (!typeInfo && icon.type) {
+        typeInfo = icon.type.split('/')?.[1]?.toUpperCase() || '';
     }
 
-    return '';
+    return { sizeInfo, typeInfo };
 }
 
 // 生成图标选项 HTML
 function createIconOptionHtml(icon, index) {
-    const sizeText = formatIconSize(icon);
-    const typeText = formatIconType(icon);
+    const { sizeInfo, typeInfo } = formatIconInfo(icon);
     const escapedUrl = escapeHtml(icon.url);
 
     return `
@@ -788,8 +828,8 @@ function createIconOptionHtml(icon, index) {
             <img src="${escapedUrl}" alt="Icon ${index + 1}"
                  onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>❌</text></svg>'">
             <div class="icon-option-info">
-                <div class="icon-option-size">${sizeText}</div>
-                ${typeText ? `<div class="icon-option-type">${typeText}</div>` : ''}
+                <div class="icon-option-size">${sizeInfo}</div>
+                ${typeInfo ? `<div class="icon-option-type">${typeInfo}</div>` : ''}
             </div>
         </div>
     `;
@@ -799,7 +839,6 @@ function showIconSelection(iconOptions, websiteUrl) {
     const container = document.getElementById('iconSelectionContainer');
     const list = document.getElementById('iconSelectionList');
 
-    // 生成图标选项列表
     list.innerHTML = iconOptions.map((icon, index) => createIconOptionHtml(icon, index)).join('');
     container.style.display = 'block';
 
@@ -808,18 +847,13 @@ function showIconSelection(iconOptions, websiteUrl) {
         const option = e.target.closest('.icon-option');
         if (!option) return;
 
-        // 移除其他选项的选中状态
         list.querySelectorAll('.icon-option').forEach(o => o.classList.remove('selected'));
         option.classList.add('selected');
-
-        // 设置图标URL并隐藏选择界面
-        const iconUrl = option.dataset.iconUrl;
-        selectIcon(iconUrl);
+        selectIcon(option.dataset.iconUrl);
     }, { once: true });
 
     // 绑定"使用 Google 图标"按钮事件
-    const googleBtn = document.getElementById('useGoogleIconBtn');
-    googleBtn.onclick = () => selectIcon(getFavicon(websiteUrl));
+    document.getElementById('useGoogleIconBtn').onclick = () => selectIcon(getFavicon(websiteUrl));
 }
 
 // 选择图标并隐藏选择界面
@@ -1281,102 +1315,33 @@ function initEventListeners() {
     // Bookmark form submit
     document.getElementById('bookmarkForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-
-        const id = document.getElementById('bookmarkId').value;
-        const groupValue = document.getElementById('bookmarkGroup').value;
-        const data = {
+        await saveForm('bookmark', {
             url: document.getElementById('bookmarkUrl').value,
             title: document.getElementById('bookmarkTitle').value,
             icon_url: document.getElementById('bookmarkIcon').value,
-            group_id: groupValue === '' || groupValue === null || groupValue === undefined ? null : parseInt(groupValue, 10),
+            group_id: parseGroupId(document.getElementById('bookmarkGroup').value),
             description: document.getElementById('bookmarkDesc').value,
             is_new_window: document.getElementById('bookmarkNewWindow').checked
-        };
-
-        try {
-            if (id) {
-                await apiRequest(`${API}/bookmark/${id}`, {
-                    method: 'PUT',
-                    body: JSON.stringify(data)
-                });
-            } else {
-                await apiRequest(`${API}/bookmarks`, {
-                    method: 'POST',
-                    body: JSON.stringify(data)
-                });
-            }
-
-            document.getElementById('bookmarkModal').classList.remove('show');
-            await loadBookmarks();
-            await loadGroups();
-        } catch (err) {
-            console.error(i18n.t('errors.saveFailed'), err);
-            alert(i18n.t('errors.saveFailed'));
-        }
+        }, () => Promise.all([loadBookmarks(), loadGroups()]));
     });
 
     // Group form submit
     document.getElementById('groupForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-
-        const id = document.getElementById('groupId').value;
-        const data = {
+        await saveForm('group', {
             name: document.getElementById('groupName').value
-        };
-
-        try {
-            if (id) {
-                await apiRequest(`${API}/group/${id}`, {
-                    method: 'PUT',
-                    body: JSON.stringify(data)
-                });
-            } else {
-                await apiRequest(`${API}/groups`, {
-                    method: 'POST',
-                    body: JSON.stringify(data)
-                });
-            }
-
-            document.getElementById('groupModal').classList.remove('show');
-            await loadGroups();
-        } catch (err) {
-            console.error(i18n.t('errors.saveFailed'), err);
-            alert(i18n.t('errors.saveFailed'));
-        }
+        }, () => loadGroups());
     });
 
     // Search engine form submit
     document.getElementById('engineEditForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-
-        const id = document.getElementById('engineId').value;
-        const data = {
+        await saveForm('search-engine', {
             name: document.getElementById('engineName').value,
             url: document.getElementById('engineUrl').value,
             placeholder: document.getElementById('enginePlaceholder').value,
             is_default: document.getElementById('engineDefault').checked
-        };
-
-        try {
-            if (id) {
-                await apiRequest(`${API}/search-engine/${id}`, {
-                    method: 'PUT',
-                    body: JSON.stringify(data)
-                });
-            } else {
-                await apiRequest(`${API}/search-engines`, {
-                    method: 'POST',
-                    body: JSON.stringify(data)
-                });
-            }
-
-            document.getElementById('engineEditModal').classList.remove('show');
-            await loadSearchEngines();
-            renderSettingsEngines();
-        } catch (err) {
-            console.error(i18n.t('errors.saveFailed'), err);
-            alert(i18n.t('errors.saveFailed'));
-        }
+        }, async () => { await loadSearchEngines(); renderSettingsEngines(); });
     });
 
     // Window resize - 重新应用书签尺寸设置以适配桌面/移动端切换
@@ -1394,4 +1359,27 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// 统一的表单保存函数
+async function saveForm(resource, data, afterSave) {
+    const id = document.getElementById(`${resource}Id`).value;
+    const url = id ? `${API}/${resource}/${id}` : `${API}/${resource}s`;
+    const method = id ? 'PUT' : 'POST';
+    const modalMap = { 'bookmark': 'bookmarkModal', 'group': 'groupModal', 'search-engine': 'engineEditModal' };
+    const modal = document.getElementById(modalMap[resource]);
+
+    try {
+        await apiRequest(url, { method, body: JSON.stringify(data) });
+        modal.classList.remove('show');
+        await afterSave();
+    } catch (err) {
+        console.error(i18n.t('errors.saveFailed'), err);
+        alert(i18n.t('errors.saveFailed'));
+    }
+}
+
+// 解析分组ID，处理空值
+function parseGroupId(value) {
+    return value === '' || value == null ? null : parseInt(value, 10);
 }
