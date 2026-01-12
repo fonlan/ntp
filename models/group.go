@@ -124,3 +124,9 @@ func (r *GroupRepository) BatchReorder(items []ReorderItem) error {
 
 	return tx.Commit()
 }
+
+// DeleteAll 删除所有分组
+func (r *GroupRepository) DeleteAll() error {
+	_, err := r.db.Exec("DELETE FROM groups")
+	return err
+}

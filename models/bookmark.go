@@ -205,3 +205,28 @@ func (r *BookmarkRepository) Search(query string) ([]Bookmark, error) {
 
 	return bookmarks, nil
 }
+
+// GetByURL 根据 URL 获取书签
+func (r *BookmarkRepository) GetByURL(url string) (*Bookmark, error) {
+	bookmark := &Bookmark{}
+	err := r.db.QueryRow(
+		`SELECT id, title, url, icon_url, icon_path, description, group_id, sort_order, is_new_window, created_at, updated_at
+		 FROM bookmarks WHERE url = ?`,
+		url,
+	).Scan(
+		&bookmark.ID, &bookmark.Title, &bookmark.URL, &bookmark.IconURL, &bookmark.IconPath,
+		&bookmark.Description, &bookmark.GroupID, &bookmark.SortOrder, &bookmark.IsNewWindow,
+		&bookmark.CreatedAt, &bookmark.UpdatedAt,
+	)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	return bookmark, err
+}
+
+// DeleteAll 删除所有书签
+func (r *BookmarkRepository) DeleteAll() error {
+	_, err := r.db.Exec("DELETE FROM bookmarks")
+	return err
+}

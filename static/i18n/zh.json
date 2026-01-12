@@ -111,6 +111,12 @@
   "import": {
     "title": "导入书签",
     "selectFile": "选择 HTML 书签文件",
+    "selectMode": "导入模式",
+    "mode": {
+      "append": "追加（添加新书签，保留现有书签）",
+      "overwrite": "覆盖（删除所有现有书签，仅保留导入的书签）",
+      "merge": "合并（根据 URL 合并，更新已存在的书签）"
+    },
     "submit": "导入",
     "success": "导入成功！<br>已导入: ${imported}<br>失败: ${failed}",
     "failed": "导入失败: "

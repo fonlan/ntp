@@ -297,6 +297,12 @@ func (h *BookmarkHandler) Import(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 获取导入模式（追加、覆盖、合并）
+	mode := r.FormValue("mode")
+	if mode == "" {
+		mode = "append" // 默认追加模式
+	}
+
 	file, _, err := r.FormFile("file")
 	if err != nil {
 		respondError(w, http.StatusBadRequest, translator.T("import.fileRequired"))
@@ -308,6 +314,14 @@ func (h *BookmarkHandler) Import(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, translator.T("upload.uploadFailed"))
 		return
+	}
+
+	// 覆盖模式：先删除所有现有书签和分组
+	if mode == "overwrite" {
+		// 删除所有书签
+		h.bookmarkRepo.DeleteAll()
+		// 删除所有分组
+		h.groupRepo.DeleteAll()
 	}
 
 	// 解析 HTML 书签格式，同时解析书签及其所属分组
@@ -410,7 +424,38 @@ func (h *BookmarkHandler) Import(w http.ResponseWriter, r *http.Request) {
 		maxSortOrder, _ := h.bookmarkRepo.GetMaxSortOrder(bookmark.GroupID)
 		bookmark.SortOrder = maxSortOrder + 1
 
-		// 插入书签
+		// 合并模式：检查 URL 是否已存在
+		if mode == "merge" {
+			existingBookmark, err := h.bookmarkRepo.GetByURL(bookmark.URL)
+			if err == nil && existingBookmark != nil {
+				// URL 已存在，更新现有书签
+				existingBookmark.Title = bookmark.Title
+				existingBookmark.Description = bookmark.Description
+				existingBookmark.GroupID = bookmark.GroupID
+				existingBookmark.SortOrder = bookmark.SortOrder
+				existingBookmark.IsNewWindow = bookmark.IsNewWindow
+				// 更新图标（如果有新图标）
+				if bookmark.IconPath != nil {
+					// 删除旧图标
+					if existingBookmark.IconPath != nil && *existingBookmark.IconPath != "" {
+						h.iconService.DeleteIcon(*existingBookmark.IconPath)
+					}
+					existingBookmark.IconPath = bookmark.IconPath
+				}
+				if bookmark.IconURL != nil {
+					existingBookmark.IconURL = bookmark.IconURL
+				}
+				if err := h.bookmarkRepo.Update(existingBookmark); err != nil {
+					failed++
+					errors = append(errors, fmt.Sprintf("%s: %s", bookmark.Title, err.Error()))
+				} else {
+					imported++
+				}
+				continue
+			}
+		}
+
+		// 插入新书签（追加模式或合并模式中 URL 不存在的情况）
 		if err := h.bookmarkRepo.Create(bookmark); err != nil {
 			failed++
 			errors = append(errors, fmt.Sprintf("%s: %s", bookmark.Title, err.Error()))

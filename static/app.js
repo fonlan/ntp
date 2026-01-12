@@ -1079,6 +1079,8 @@ function showImportModal() {
     document.getElementById('importFile').value = '';
     document.getElementById('importResult').className = 'import-result';
     document.getElementById('importResult').style.display = 'none';
+    // 重置导入模式为追加模式
+    document.querySelector('input[name="importMode"][value="append"]').checked = true;
     modal.classList.add('show');
 }
 
@@ -1091,8 +1093,12 @@ async function importBookmarks() {
         return;
     }
 
+    // 获取选择的导入模式
+    const mode = document.querySelector('input[name="importMode"]:checked').value;
+
     const formData = new FormData();
     formData.append('file', fileInput.files[0]);
+    formData.append('mode', mode);
 
     try {
         const res = await apiRequest(`${API}/bookmarks/import`, {

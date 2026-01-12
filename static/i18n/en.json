@@ -111,6 +111,12 @@
   "import": {
     "title": "Import Bookmarks",
     "selectFile": "Select HTML bookmark file",
+    "selectMode": "Import Mode",
+    "mode": {
+      "append": "Append (Add new bookmarks, keep existing)",
+      "overwrite": "Overwrite (Delete all existing, keep only imported)",
+      "merge": "Merge (Merge by URL, update existing)"
+    },
     "submit": "Import",
     "success": "Import successful!<br>Imported: ${imported}<br>Failed: ${failed}",
     "failed": "Import failed: "

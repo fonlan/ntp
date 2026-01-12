@@ -365,6 +365,23 @@
                     <label for="importFile" data-i18n="import.selectFile">Select HTML bookmark file</label>
                     <input type="file" id="importFile" accept=".html,.htm" required>
                 </div>
+                <div class="form-group">
+                    <label data-i18n="import.selectMode">Import Mode</label>
+                    <div class="import-mode-options">
+                        <label class="import-mode-option">
+                            <span class="mode-label" data-i18n="import.mode.append">Append (Add new bookmarks, keep existing)</span>
+                            <input type="radio" name="importMode" value="append" checked>
+                        </label>
+                        <label class="import-mode-option">
+                            <span class="mode-label" data-i18n="import.mode.merge">Merge (Merge by URL, update existing)</span>
+                            <input type="radio" name="importMode" value="merge">
+                        </label>
+                        <label class="import-mode-option">
+                            <span class="mode-label" data-i18n="import.mode.overwrite">Overwrite (Delete all existing, keep only imported)</span>
+                            <input type="radio" name="importMode" value="overwrite">
+                        </label>
+                    </div>
+                </div>
                 <div id="importResult" class="import-result"></div>
                 <div class="modal-footer">
                     <button id="importSubmitBtn" class="btn btn-primary" data-i18n="import.submit">Import</button>

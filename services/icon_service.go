@@ -132,7 +132,9 @@ func (s *IconService) DownloadFavicon(websiteURL string) (string, error) {
 	domain := u.Hostname()
 
 	// 使用多个favicon源
+	// 注意：URL 参数使用书签原始 URL 的协议（http 或 https），与书签保持一致
 	faviconURLs := []string{
+		fmt.Sprintf("https://t0.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=%s&size=128", websiteURL),
 		fmt.Sprintf("https://www.google.com/s2/favicons?domain=%s&sz=128", domain),
 		fmt.Sprintf("https://favicon.yandex.net/favicon/%s", domain),
 	}
