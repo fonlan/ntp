@@ -80,7 +80,10 @@ class I18n {
 
     // Replace parameters like ${param}
     if (typeof value === 'string') {
-      return value.replace(/\$\{(\w+)\}/g, (match, param) => params[param] || match);
+      return value.replace(/\$\{(\w+)\}/g, (match, param) => {
+        // Use param value if it exists (including 0, false, empty string), otherwise keep the placeholder
+        return Object.prototype.hasOwnProperty.call(params, param) ? params[param] : match;
+      });
     }
 
     return value;

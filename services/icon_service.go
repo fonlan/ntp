@@ -168,3 +168,8 @@ func (s *IconService) DeleteIcon(iconPath string) error {
 
 	return os.Remove(filePath)
 }
+
+// GetIconDir 获取图标目录路径
+func (s *IconService) GetIconDir() string {
+	return s.iconDir
+}

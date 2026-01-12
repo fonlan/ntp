@@ -1,10 +1,13 @@
 package handlers
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -307,20 +310,108 @@ func (h *BookmarkHandler) Import(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 解析 HTML 书签格式
-	bookmarks, err := parseNetscapeBookmarks(string(content))
+	// 解析 HTML 书签格式，同时解析书签及其所属分组
+	bookmarks, groupNames, groupNameToIndex, err := parseNetscapeBookmarksWithGroups(string(content))
 	if err != nil {
 		respondError(w, http.StatusBadRequest, translator.T("import.parseFailed")+": "+err.Error())
 		return
 	}
 
-	// 批量插入
+	// 创建或获取分组
+	groupMap := make(map[string]int64) // 分组名 -> 分组ID
+	existingGroups, _ := h.groupRepo.GetAll()
+
+	// 先构建已存在分组的映射
+	for _, g := range existingGroups {
+		groupMap[g.Name] = g.ID
+	}
+
+	// 为新分组创建映射
+	maxOrder := 0
+	for _, g := range existingGroups {
+		if g.SortOrder > maxOrder {
+			maxOrder = g.SortOrder
+		}
+	}
+
+	for groupName := range groupNames {
+		if _, exists := groupMap[groupName]; !exists {
+			maxOrder++
+			newGroup := &models.Group{
+				Name:      groupName,
+				SortOrder: maxOrder,
+			}
+			if err := h.groupRepo.Create(newGroup); err == nil {
+				groupMap[groupName] = newGroup.ID
+			}
+		}
+	}
+
+	// 批量插入书签
 	imported := 0
 	failed := 0
 	errors := []string{}
 
-	for _, bookmark := range bookmarks {
-		if err := h.bookmarkRepo.Create(&bookmark); err != nil {
+	// 创建一个从临时索引到实际分组 ID 的映射
+	indexToGroupID := make(map[int64]*int64)
+	for name, tempIdx := range groupNameToIndex {
+		if actualGroupID, exists := groupMap[name]; exists {
+			indexToGroupID[tempIdx] = &actualGroupID
+		}
+	}
+
+	for i := range bookmarks {
+		bookmark := &bookmarks[i]
+
+		// 将临时的分组索引映射到实际的分组 ID
+		if bookmark.GroupID != nil {
+			tempID := *bookmark.GroupID
+			if actualGroupID, ok := indexToGroupID[tempID]; ok {
+				bookmark.GroupID = actualGroupID
+			} else {
+				bookmark.GroupID = nil // 分组不存在，设为未分组
+			}
+		}
+
+		// 处理图标
+		if bookmark.IconURL != nil && *bookmark.IconURL != "" {
+			iconURL := *bookmark.IconURL
+
+			// 检查是否是 base64 数据
+			if strings.HasPrefix(iconURL, "data:image/") {
+				// 解析 base64 数据
+				parts := strings.SplitN(iconURL, ",", 2)
+				if len(parts) == 2 {
+					// 解码 base64
+					decoded, err := base64.StdEncoding.DecodeString(parts[1])
+					if err == nil {
+						// 保存图标
+						ext := ".png"
+						if strings.HasPrefix(parts[0], "data:image/jpeg") {
+							ext = ".jpg"
+						} else if strings.HasPrefix(parts[0], "data:image/gif") {
+							ext = ".gif"
+						} else if strings.HasPrefix(parts[0], "data:image/svg+xml") {
+							ext = ".svg"
+						} else if strings.HasPrefix(parts[0], "data:image/webp") {
+							ext = ".webp"
+						}
+						iconPath, err := h.iconService.SaveUploadedIcon("icon"+ext, decoded)
+						if err == nil {
+							bookmark.IconPath = &iconPath
+							bookmark.IconURL = nil
+						}
+					}
+				}
+			}
+		}
+
+		// 获取最大 sort_order
+		maxSortOrder, _ := h.bookmarkRepo.GetMaxSortOrder(bookmark.GroupID)
+		bookmark.SortOrder = maxSortOrder + 1
+
+		// 插入书签
+		if err := h.bookmarkRepo.Create(bookmark); err != nil {
 			failed++
 			errors = append(errors, fmt.Sprintf("%s: %s", bookmark.Title, err.Error()))
 		} else {
@@ -333,6 +424,96 @@ func (h *BookmarkHandler) Import(w http.ResponseWriter, r *http.Request) {
 		"failed":   failed,
 		"errors":   errors,
 	})
+}
+
+// parseNetscapeBookmarksWithGroups 解析 Netscape 书签格式，同时解析分组关联
+func parseNetscapeBookmarksWithGroups(html string) ([]models.Bookmark, map[string]string, map[string]int64, error) {
+	var bookmarks []models.Bookmark
+	groups := make(map[string]string)     // 记录所有出现的分组名
+	groupNameToIndex := make(map[string]int64) // 分组名 -> 临时索引
+	var currentGroupName string
+	groupIndex := int64(1)
+
+	lines := strings.Split(html, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+
+		// 解析分组标题
+		if strings.HasPrefix(line, `<DT><H3`) {
+			start := strings.Index(line, `>`) + 1
+			end := strings.Index(line[start:], `</H3>`)
+			if end != -1 {
+				currentGroupName = line[start : start+end]
+				groups[currentGroupName] = currentGroupName
+				if _, exists := groupNameToIndex[currentGroupName]; !exists {
+					groupNameToIndex[currentGroupName] = groupIndex
+					groupIndex++
+				}
+			}
+		}
+
+		// 分组结束
+		if strings.HasPrefix(line, `</DL><p>`) {
+			currentGroupName = ""
+		}
+
+		// 解析书签
+		if strings.HasPrefix(line, `<DT><A HREF="`) {
+			// 提取 URL
+			urlStart := strings.Index(line, `HREF="`) + 6
+			urlEnd := strings.Index(line[urlStart:], `"`)
+			url := line[urlStart : urlStart+urlEnd]
+
+			// 提取标题
+			titleStart := strings.Index(line[urlStart+urlEnd:], `>`) + urlStart + urlEnd + 1
+			titleEnd := strings.Index(line[titleStart:], `</A>`)
+			title := line[titleStart : titleStart+titleEnd]
+
+			bookmark := models.Bookmark{
+				Title: title,
+				URL:   url,
+			}
+
+			// 提取图标 (支持 base64 数据和 URL)
+			var iconURL string
+			if iconStart := strings.Index(line, `ICON_URI="`); iconStart != -1 {
+				iconStart += 9
+				iconEnd := strings.Index(line[iconStart:], `"`)
+				iconURL = line[iconStart : iconStart+iconEnd]
+				if iconURL != "" {
+					bookmark.IconURL = &iconURL
+				}
+			}
+
+			// 提取描述
+			if descStart := strings.Index(line, `DESC="`); descStart != -1 {
+				descStart += 6
+				descEnd := strings.Index(line[descStart:], `"`)
+				if descEnd != -1 {
+					desc := line[descStart : descStart+descEnd]
+					if desc != "" {
+						bookmark.Description = &desc
+					}
+				}
+			}
+
+			// 设置分组
+			if currentGroupName != "" {
+				// 临时使用 groupIndex 作为 GroupID，后面会替换为实际的分组 ID
+				tempID := groupNameToIndex[currentGroupName]
+				bookmark.GroupID = &tempID
+			}
+
+			// 提取是否在新窗口打开
+			if strings.Contains(line, `NEW_WINDOW="1"`) {
+				bookmark.IsNewWindow = true
+			}
+
+			bookmarks = append(bookmarks, bookmark)
+		}
+	}
+
+	return bookmarks, groups, groupNameToIndex, nil
 }
 
 // Export 导出书签
@@ -352,7 +533,7 @@ func (h *BookmarkHandler) Export(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 生成 Netscape 书签 HTML 格式
-	html := generateNetscapeBookmarks(bookmarks, groups)
+	html := generateNetscapeBookmarks(bookmarks, groups, h.iconService.GetIconDir())
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="bookmarks.html"`)
@@ -360,49 +541,59 @@ func (h *BookmarkHandler) Export(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(html))
 }
 
-// parseNetscapeBookmarks 解析 Netscape 书签格式
-func parseNetscapeBookmarks(html string) ([]models.Bookmark, error) {
-	var bookmarks []models.Bookmark
-
-	// 简单的 HTML 解析（实际项目中应使用 HTML 解析器）
-	lines := strings.Split(html, "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, `<DT><A HREF="`) {
-			// 提取 URL
-			urlStart := strings.Index(line, `HREF="`) + 6
-			urlEnd := strings.Index(line[urlStart:], `"`)
-			url := line[urlStart : urlStart+urlEnd]
-
-			// 提取标题
-			titleStart := strings.Index(line[urlStart+urlEnd:], `>`) + urlStart + urlEnd + 1
-			titleEnd := strings.Index(line[titleStart:], `</A>`)
-			title := line[titleStart : titleStart+titleEnd]
-
-			// 提取图标
-			iconURL := ""
-			if iconStart := strings.Index(line, `ICON_URI="`); iconStart != -1 {
-				iconStart += 9
-				iconEnd := strings.Index(line[iconStart:], `"`)
-				iconURL = line[iconStart : iconStart+iconEnd]
+// 辅助函数：将图标转换为 base64
+func iconToBase64(iconPath *string, iconURL *string, iconDir string) string {
+	// 优先使用本地图标
+	if iconPath != nil && *iconPath != "" {
+		// 读取本地文件
+		filePath := strings.TrimPrefix(*iconPath, "/data/icons/")
+		fullPath := filepath.Join(iconDir, filePath)
+		data, err := os.ReadFile(fullPath)
+		if err == nil {
+			// 根据扩展名确定 MIME 类型
+			mimeType := "image/png"
+			if strings.HasSuffix(filePath, ".jpg") || strings.HasSuffix(filePath, ".jpeg") {
+				mimeType = "image/jpeg"
+			} else if strings.HasSuffix(filePath, ".gif") {
+				mimeType = "image/gif"
+			} else if strings.HasSuffix(filePath, ".svg") {
+				mimeType = "image/svg+xml"
+			} else if strings.HasSuffix(filePath, ".webp") {
+				mimeType = "image/webp"
+			} else if strings.HasSuffix(filePath, ".ico") {
+				mimeType = "image/x-icon"
 			}
-
-			bookmark := models.Bookmark{
-				Title: title,
-				URL:   url,
-			}
-			if iconURL != "" {
-				bookmark.IconURL = &iconURL
-			}
-			bookmarks = append(bookmarks, bookmark)
+			return "data:" + mimeType + ";base64," + base64.StdEncoding.EncodeToString(data)
 		}
 	}
 
-	return bookmarks, nil
+	// 使用 URL
+	if iconURL != nil && *iconURL != "" {
+		return *iconURL
+	}
+
+	return ""
+}
+
+// 辅助函数：转义 HTML 属性
+func escapeHTMLAttr(s string) string {
+	s = strings.ReplaceAll(s, "&", "&amp;")
+	s = strings.ReplaceAll(s, "\"", "&quot;")
+	s = strings.ReplaceAll(s, "<", "&lt;")
+	s = strings.ReplaceAll(s, ">", "&gt;")
+	return s
+}
+
+// 辅助函数：转义 HTML 内容
+func escapeHTMLContent(s string) string {
+	s = strings.ReplaceAll(s, "&", "&amp;")
+	s = strings.ReplaceAll(s, "<", "&lt;")
+	s = strings.ReplaceAll(s, ">", "&gt;")
+	return s
 }
 
 // generateNetscapeBookmarks 生成 Netscape 书签格式
-func generateNetscapeBookmarks(bookmarks []models.Bookmark, groups []models.Group) string {
+func generateNetscapeBookmarks(bookmarks []models.Bookmark, groups []models.Group, iconDir string) string {
 	var sb strings.Builder
 
 	sb.WriteString(`<!DOCTYPE NETSCAPE-Bookmark-file-1>` + "\n")
@@ -421,32 +612,42 @@ func generateNetscapeBookmarks(bookmarks []models.Bookmark, groups []models.Grou
 	}
 
 	// 未分组书签
-	sb.WriteString(`<DT><H3>未分类</H3>` + "\n")
+	sb.WriteString(`<DT><H3 ADD_DATE="0">未分类</H3>` + "\n")
 	sb.WriteString(`<DL><p>` + "\n")
 	for _, b := range bookmarks {
 		if b.GroupID == nil {
-			iconURL := ""
-			if b.IconURL != nil {
-				iconURL = *b.IconURL
+			iconData := iconToBase64(b.IconPath, b.IconURL, iconDir)
+			desc := ""
+			if b.Description != nil {
+				desc = fmt.Sprintf(` DESC="%s"`, escapeHTMLAttr(*b.Description))
 			}
-			sb.WriteString(fmt.Sprintf(`<DT><A HREF="%s" ADD_DATE="%d" ICON_URI="%s">%s</A>`+"\n",
-				b.URL, b.CreatedAt.Unix(), iconURL, b.Title))
+			newWindow := ""
+			if b.IsNewWindow {
+				newWindow = ` NEW_WINDOW="1"`
+			}
+			sb.WriteString(fmt.Sprintf(`<DT><A HREF="%s" ADD_DATE="%d" ICON_URI="%s"%s%s>%s</A>`+"\n",
+				escapeHTMLAttr(b.URL), b.CreatedAt.Unix(), escapeHTMLAttr(iconData), desc, newWindow, escapeHTMLContent(b.Title)))
 		}
 	}
 	sb.WriteString(`</DL><p>` + "\n")
 
 	// 分组书签
 	for _, g := range groups {
-		sb.WriteString(fmt.Sprintf(`<DT><H3>%s</H3>`+"\n", g.Name))
+		sb.WriteString(fmt.Sprintf(`<DT><H3 ADD_DATE="%d">%s</H3>`+"\n", g.CreatedAt.Unix(), escapeHTMLContent(g.Name)))
 		sb.WriteString(`<DL><p>` + "\n")
 		for _, b := range bookmarks {
 			if b.GroupID != nil && *b.GroupID == g.ID {
-				iconURL := ""
-				if b.IconURL != nil {
-					iconURL = *b.IconURL
+				iconData := iconToBase64(b.IconPath, b.IconURL, iconDir)
+				desc := ""
+				if b.Description != nil {
+					desc = fmt.Sprintf(` DESC="%s"`, escapeHTMLAttr(*b.Description))
 				}
-				sb.WriteString(fmt.Sprintf(`<DT><A HREF="%s" ADD_DATE="%d" ICON_URI="%s">%s</A>`+"\n",
-					b.URL, b.CreatedAt.Unix(), iconURL, b.Title))
+				newWindow := ""
+				if b.IsNewWindow {
+					newWindow = ` NEW_WINDOW="1"`
+				}
+				sb.WriteString(fmt.Sprintf(`<DT><A HREF="%s" ADD_DATE="%d" ICON_URI="%s"%s%s>%s</A>`+"\n",
+					escapeHTMLAttr(b.URL), b.CreatedAt.Unix(), escapeHTMLAttr(iconData), desc, newWindow, escapeHTMLContent(b.Title)))
 			}
 		}
 		sb.WriteString(`</DL><p>` + "\n")

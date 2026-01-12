@@ -552,13 +552,26 @@ function initBookmarkClickHandlers() {
         menu.dataset.currentBookmarkId = card.dataset.id;
         i18n.updateElement(menu);
 
+        // 简单的边界检测，使用固定菜单尺寸
         const menuWidth = 180;
         const menuHeight = 100;
-        const offsetX = Math.min(e.clientX, window.innerWidth - menuWidth - 10);
-        const offsetY = Math.min(e.clientY, window.innerHeight - menuHeight - 10);
+        const offset = 5;
 
-        menu.style.left = offsetX + 'px';
-        menu.style.top = offsetY + 'px';
+        let x = e.clientX + offset;
+        let y = e.clientY + offset;
+
+        // 右边界检测
+        if (x + menuWidth > window.innerWidth) {
+            x = Math.max(5, e.clientX - menuWidth - offset);
+        }
+
+        // 下边界检测
+        if (y + menuHeight > window.innerHeight) {
+            y = Math.max(5, e.clientY - menuHeight - offset);
+        }
+
+        menu.style.left = x + 'px';
+        menu.style.top = y + 'px';
         menu.style.display = 'block';
     }
 
