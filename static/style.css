@@ -1249,7 +1249,7 @@ body {
     }
 }
 
-/* 小屏幕（569px - 768px）- 2列 */
+/* 小屏幕（569px - 768px）- 支持自定义列数 */
 @media (max-width: 768px) and (min-width: 569px) {
     .container {
         padding: 16px;
@@ -1257,7 +1257,8 @@ body {
     }
 
     .group-bookmarks {
-        grid-template-columns: repeat(2, 1fr);
+        /* 使用CSS变量，支持1列或2列切换 */
+        grid-template-columns: repeat(var(--mobile-columns, 2), 1fr);
         gap: 12px;
     }
 
