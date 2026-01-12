@@ -218,6 +218,7 @@ func enableCORS(next http.Handler) http.Handler {
 		w.Header().Set("Content-Security-Policy",
 			"frame-ancestors 'self'; "+
 				"default-src 'self'; "+
+				"style-src 'self' 'unsafe-inline'; "+
 				"img-src 'self' data: https: http:; "+
 				"font-src 'self' data:")
 
