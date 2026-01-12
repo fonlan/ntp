@@ -1067,9 +1067,12 @@ async function fetchIcon() {
         if (data.icon_options && data.icon_options.length > 0) {
             showIconSelection(data.icon_options, url);
 
-            // 自动填充标题
+            // 自动填充标题（仅当标题栏为空时）
             if (data.title) {
-                document.getElementById('bookmarkTitle').value = data.title;
+                const titleInput = document.getElementById('bookmarkTitle');
+                if (!titleInput.value.trim()) {
+                    titleInput.value = data.title;
+                }
             }
         }
     } catch (err) {
