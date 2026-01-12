@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -410,13 +412,43 @@ func (h *BookmarkHandler) Import(w http.ResponseWriter, r *http.Request) {
 						} else if strings.HasPrefix(parts[0], "data:image/webp") {
 							ext = ".webp"
 						}
-						iconPath, err := h.iconService.SaveUploadedIcon("icon"+ext, decoded)
+
+						// 使用 base64 数据的 hash 作为文件名（和上传图标相同的规则）
+						hash := sha256.Sum256(decoded)
+						hashStr := hex.EncodeToString(hash[:])
+						uniqueFilename := hashStr + ext
+
+						iconPath, err := h.iconService.SaveUploadedIcon(uniqueFilename, decoded)
 						if err == nil {
 							bookmark.IconPath = &iconPath
 							bookmark.IconURL = nil
+						} else {
+							// 保存失败，清空 IconURL 避免前端显示 base64 字符串
+							bookmark.IconURL = nil
 						}
+					} else {
+						// 解码失败，清空 IconURL
+						bookmark.IconURL = nil
 					}
+				} else {
+					// 格式错误，清空 IconURL
+					bookmark.IconURL = nil
 				}
+			} else if !strings.HasPrefix(iconURL, "/data/icons/") {
+				// 外部 URL，尝试下载并保存到本地
+				iconPath, err := h.iconService.DownloadIcon(iconURL)
+				if err == nil {
+					bookmark.IconPath = &iconPath
+					bookmark.IconURL = nil
+				}
+				// 如果下载失败，清空 IconURL
+				if bookmark.IconURL != nil {
+					bookmark.IconURL = nil
+				}
+			} else {
+				// 已经是本地图标路径，直接使用
+				bookmark.IconPath = &iconURL
+				bookmark.IconURL = nil
 			}
 		}
 
@@ -485,14 +517,22 @@ func parseNetscapeBookmarksWithGroups(html string) ([]models.Bookmark, map[strin
 
 		// 解析分组标题
 		if strings.HasPrefix(line, `<DT><H3`) {
-			start := strings.Index(line, `>`) + 1
-			end := strings.Index(line[start:], `</H3>`)
-			if end != -1 {
-				currentGroupName = line[start : start+end]
-				groups[currentGroupName] = currentGroupName
-				if _, exists := groupNameToIndex[currentGroupName]; !exists {
-					groupNameToIndex[currentGroupName] = groupIndex
-					groupIndex++
+			// 找到 <H3 标签的结束位置（最后一个 >）
+			h3End := strings.Index(line, `<H3`)
+			if h3End != -1 {
+				// 从 <H3 后找第一个 >，这是属性标签的结束
+				attrEnd := strings.Index(line[h3End:], `>`)
+				if attrEnd != -1 {
+					start := h3End + attrEnd + 1
+					end := strings.Index(line[start:], `</H3>`)
+					if end != -1 {
+						currentGroupName = line[start : start+end]
+						groups[currentGroupName] = currentGroupName
+						if _, exists := groupNameToIndex[currentGroupName]; !exists {
+							groupNameToIndex[currentGroupName] = groupIndex
+							groupIndex++
+						}
+					}
 				}
 			}
 		}
@@ -521,10 +561,48 @@ func parseNetscapeBookmarksWithGroups(html string) ([]models.Bookmark, map[strin
 
 			// 提取图标 (支持 base64 数据和 URL)
 			var iconURL string
-			if iconStart := strings.Index(line, `ICON_URI="`); iconStart != -1 {
-				iconStart += 9
-				iconEnd := strings.Index(line[iconStart:], `"`)
-				iconURL = line[iconStart : iconStart+iconEnd]
+			// 优先检查标准 ICON 字段
+			iconTag := `ICON="`
+			if iconStart := strings.Index(line, iconTag); iconStart != -1 {
+				iconStart += len(iconTag)
+				// 找到属性值结束位置：下一个属性开始 或 标签结束
+				iconEnd := len(line)
+				if nextPos := strings.Index(line[iconStart:], ` DESC="`); nextPos != -1 {
+					iconEnd = iconStart + nextPos
+				}
+				if nextPos := strings.Index(line[iconStart:], ` NEW_WINDOW="`); nextPos != -1 && iconStart+nextPos < iconEnd {
+					iconEnd = iconStart + nextPos
+				}
+				if nextPos := strings.Index(line[iconStart:], `>`); nextPos != -1 && iconStart+nextPos < iconEnd {
+					iconEnd = iconStart + nextPos
+				}
+				// 回退到最后一个引号
+				lastQuote := strings.LastIndex(line[iconStart:iconEnd], `"`)
+				if lastQuote != -1 {
+					iconURL = line[iconStart : iconStart+lastQuote]
+				}
+				if iconURL != "" {
+					bookmark.IconURL = &iconURL
+				}
+			} else if iconStart := strings.Index(line, `ICON_URI="`); iconStart != -1 {
+				// 向后兼容 ICON_URI 字段
+				iconStart += 10 // ICON_URI=" 的长度
+				// 找到属性值结束位置：下一个属性开始 或 标签结束
+				iconEnd := len(line)
+				if nextPos := strings.Index(line[iconStart:], ` DESC="`); nextPos != -1 {
+					iconEnd = iconStart + nextPos
+				}
+				if nextPos := strings.Index(line[iconStart:], ` NEW_WINDOW="`); nextPos != -1 && iconStart+nextPos < iconEnd {
+					iconEnd = iconStart + nextPos
+				}
+				if nextPos := strings.Index(line[iconStart:], `>`); nextPos != -1 && iconStart+nextPos < iconEnd {
+					iconEnd = iconStart + nextPos
+				}
+				// 回退到最后一个引号
+				lastQuote := strings.LastIndex(line[iconStart:iconEnd], `"`)
+				if lastQuote != -1 {
+					iconURL = line[iconStart : iconStart+lastQuote]
+				}
 				if iconURL != "" {
 					bookmark.IconURL = &iconURL
 				}
@@ -670,7 +748,7 @@ func generateNetscapeBookmarks(bookmarks []models.Bookmark, groups []models.Grou
 			if b.IsNewWindow {
 				newWindow = ` NEW_WINDOW="1"`
 			}
-			sb.WriteString(fmt.Sprintf(`<DT><A HREF="%s" ADD_DATE="%d" ICON_URI="%s"%s%s>%s</A>`+"\n",
+			sb.WriteString(fmt.Sprintf(`<DT><A HREF="%s" ADD_DATE="%d" ICON="%s"%s%s>%s</A>`+"\n",
 				escapeHTMLAttr(b.URL), b.CreatedAt.Unix(), escapeHTMLAttr(iconData), desc, newWindow, escapeHTMLContent(b.Title)))
 		}
 	}
@@ -691,7 +769,7 @@ func generateNetscapeBookmarks(bookmarks []models.Bookmark, groups []models.Grou
 				if b.IsNewWindow {
 					newWindow = ` NEW_WINDOW="1"`
 				}
-				sb.WriteString(fmt.Sprintf(`<DT><A HREF="%s" ADD_DATE="%d" ICON_URI="%s"%s%s>%s</A>`+"\n",
+				sb.WriteString(fmt.Sprintf(`<DT><A HREF="%s" ADD_DATE="%d" ICON="%s"%s%s>%s</A>`+"\n",
 					escapeHTMLAttr(b.URL), b.CreatedAt.Unix(), escapeHTMLAttr(iconData), desc, newWindow, escapeHTMLContent(b.Title)))
 			}
 		}

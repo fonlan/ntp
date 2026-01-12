@@ -1169,8 +1169,9 @@ async function importBookmarks() {
         result.style.display = 'block';
 
         if (data.imported > 0) {
-            await loadBookmarks();
+            // 先加载分组数据，再加载书签数据并渲染
             await loadGroups();
+            await loadBookmarks();
         }
     } catch (err) {
         result.className = 'import-result error';
