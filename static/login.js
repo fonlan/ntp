@@ -83,7 +83,7 @@ async function handleLogin(event) {
     loginBtn.disabled = true;
     const originalText = loginBtn.innerHTML;
     loginBtn.innerHTML = '<span data-i18n="login.logging">Logging in...</span>';
-    errorDiv.style.display = 'none';
+    errorDiv.classList.remove('show');
 
     try {
         const response = await fetch('/api/login', {
@@ -107,14 +107,14 @@ async function handleLogin(event) {
         } else {
             // Login failed, show error
             errorDiv.textContent = data.message;
-            errorDiv.style.display = 'block';
+            errorDiv.classList.add('show');
             loginBtn.disabled = false;
             loginBtn.innerHTML = originalText;
         }
     } catch (error) {
         console.error('Login error:', error);
         errorDiv.textContent = 'Login failed. Please try again.';
-        errorDiv.style.display = 'block';
+        errorDiv.classList.add('show');
         loginBtn.disabled = false;
         loginBtn.innerHTML = originalText;
     }

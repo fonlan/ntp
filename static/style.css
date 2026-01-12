@@ -495,6 +495,53 @@ body {
     flex-shrink: 0;
 }
 
+/* 字符图标样式 */
+.bookmark-icon-char {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--text-primary);
+    user-select: none;
+    /* 支持中文和emoji */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans SC", sans-serif;
+}
+
+/* 图标类型选项 */
+.icon-type-options {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* 字符图标预览容器 */
+.icon-char-preview {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.icon-char-preview .icon-preview-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.icon-char-preview-box {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-md);
+    background: var(--bg-hover);
+    border: 1px solid var(--border-light);
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
 /* 状态样式 */
 .loading, .empty-state {
     grid-column: 1 / -1;

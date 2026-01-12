@@ -850,12 +850,19 @@ function onEvent(container, eventType, selector, handler, options) {
 
 function renderBookmarkCard(b) {
     const target = b.is_new_window !== false ? '_blank' : '_self';
-    return `
-        <div class="bookmark-card" draggable="true" data-id="${b.id}" data-url="${escapeHtml(b.url)}" data-target="${target}">
-            <img src="${getFavicon(b.url, b.icon_path || b.icon_url)}"
+    // 如果有字符图标，显示字符图标；否则显示图片图标
+    let iconHtml;
+    if (b.icon_char && b.icon_char.trim() !== '') {
+        iconHtml = `<div class="bookmark-icon bookmark-icon-char" title="${escapeHtml(b.title || 'Bookmark')}">${escapeHtml(b.icon_char)}</div>`;
+    } else {
+        iconHtml = `<img src="${getFavicon(b.url, b.icon_path || b.icon_url)}"
                  class="bookmark-icon"
                  alt="${escapeHtml(b.title || 'Bookmark')} icon"
-                 onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌐</text></svg>'">
+                 onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌐</text></svg>'">`;
+    }
+    return `
+        <div class="bookmark-card" draggable="true" data-id="${b.id}" data-url="${escapeHtml(b.url)}" data-target="${target}">
+            ${iconHtml}
             <div class="bookmark-content">
                 <div class="bookmark-title">${escapeHtml(b.title)}</div>
                 ${b.description ? `<div class="bookmark-desc">${escapeHtml(b.description)}</div>` : ''}
@@ -956,13 +963,32 @@ function showBookmarkModal(bookmark = null) {
         document.getElementById('bookmarkUrl').value = bookmark.url;
         document.getElementById('bookmarkTitle').value = bookmark.title;
         document.getElementById('bookmarkIcon').value = bookmark.icon_path || bookmark.icon_url || '';
+        document.getElementById('bookmarkIconChar').value = bookmark.icon_char || '';
         document.getElementById('bookmarkGroup').value = bookmark.group_id !== null && bookmark.group_id !== undefined ? bookmark.group_id : '';
         document.getElementById('bookmarkDesc').value = bookmark.description || '';
         document.getElementById('bookmarkNewWindow').checked = bookmark.is_new_window !== false; // 默认true
 
-        // Show icon preview - use getFavicon to get correct icon
-        const faviconUrl = getFavicon(bookmark.url, bookmark.icon_path || bookmark.icon_url);
-        showIconPreview(faviconUrl);
+        // 根据是否有字符图标设置图标类型
+        const iconTypeRadios = document.querySelectorAll('input[name="iconType"]');
+        if (bookmark.icon_char && bookmark.icon_char.trim() !== '') {
+            // 字符图标模式
+            iconTypeRadios.forEach(radio => {
+                radio.checked = (radio.value === 'char');
+            });
+            document.getElementById('iconCharGroup').style.display = 'block';
+            showCharIconPreview(bookmark.icon_char);
+            hideIconPreview();
+        } else {
+            // 图片图标模式
+            iconTypeRadios.forEach(radio => {
+                radio.checked = (radio.value === 'image');
+            });
+            document.getElementById('iconCharGroup').style.display = 'none';
+            hideCharIconPreview();
+            // Show icon preview - use getFavicon to get correct icon
+            const faviconUrl = getFavicon(bookmark.url, bookmark.icon_path || bookmark.icon_url);
+            showIconPreview(faviconUrl);
+        }
     } else {
         title.textContent = i18n.t('bookmark.add');
         // 先设置默认值，再重置表单
@@ -971,8 +997,11 @@ function showBookmarkModal(bookmark = null) {
         document.getElementById('bookmarkId').value = '';
         document.getElementById('uploadFileName').textContent = '';
         hideIconPreview();
-        // reset() 会重置 checkbox，所以需要再次设置
+        hideCharIconPreview();
+        // reset() 会重置 checkbox 和 radio，所以需要再次设置
         document.getElementById('bookmarkNewWindow').checked = true;
+        document.querySelector('input[name="iconType"][value="image"]').checked = true;
+        document.getElementById('iconCharGroup').style.display = 'none';
     }
 
     modal.classList.add('show');
@@ -990,6 +1019,17 @@ function showIconPreview(iconUrl) {
 
 function hideIconPreview() {
     document.getElementById('iconPreviewContainer').style.display = 'none';
+}
+
+function showCharIconPreview(char) {
+    const container = document.getElementById('iconCharPreview');
+    const preview = document.getElementById('iconCharPreviewBox');
+    preview.textContent = char || 'AB';
+    container.style.display = 'flex';
+}
+
+function hideCharIconPreview() {
+    document.getElementById('iconCharPreview').style.display = 'none';
 }
 
 async function fetchIcon() {
@@ -1546,6 +1586,41 @@ function initEventListeners() {
         }
     });
 
+    // Icon type switching
+    document.querySelectorAll('input[name="iconType"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            const iconCharGroup = document.getElementById('iconCharGroup');
+            if (e.target.value === 'char') {
+                iconCharGroup.style.display = 'block';
+                hideIconPreview();
+                // 自动填充标题的前2个字符作为预览
+                const title = document.getElementById('bookmarkTitle').value.trim();
+                const currentChar = document.getElementById('bookmarkIconChar').value.trim();
+                if (!currentChar && title) {
+                    document.getElementById('bookmarkIconChar').value = title.substring(0, 2);
+                    showCharIconPreview(title.substring(0, 2));
+                }
+            } else {
+                iconCharGroup.style.display = 'none';
+                hideCharIconPreview();
+                const iconUrl = document.getElementById('bookmarkIcon').value;
+                if (iconUrl) {
+                    showIconPreview(iconUrl);
+                }
+            }
+        });
+    });
+
+    // Character icon input - update preview
+    document.getElementById('bookmarkIconChar').addEventListener('input', (e) => {
+        const char = e.target.value.trim();
+        if (char) {
+            showCharIconPreview(char);
+        } else {
+            hideCharIconPreview();
+        }
+    });
+
     // Import/Export buttons
     document.getElementById('importBtn').addEventListener('click', showImportModal);
     document.getElementById('importSubmitBtn').addEventListener('click', importBookmarks);
@@ -1557,10 +1632,24 @@ function initEventListeners() {
     // Bookmark form submit
     document.getElementById('bookmarkForm').addEventListener('submit', async (e) => {
         e.preventDefault();
+        // 获取图标类型
+        const iconType = document.querySelector('input[name="iconType"]:checked').value;
+        let iconChar = '';
+        let iconUrl = document.getElementById('bookmarkIcon').value;
+
+        // 如果选择字符图标
+        if (iconType === 'char') {
+            const charInput = document.getElementById('bookmarkIconChar').value.trim();
+            // 如果用户没有输入，使用标题的前2个字符
+            iconChar = charInput || document.getElementById('bookmarkTitle').value.substring(0, 2);
+            iconUrl = ''; // 清空图片 URL
+        }
+
         await saveForm('bookmark', {
             url: document.getElementById('bookmarkUrl').value,
             title: document.getElementById('bookmarkTitle').value,
-            icon_url: document.getElementById('bookmarkIcon').value,
+            icon_url: iconUrl,
+            icon_char: iconChar,
             group_id: parseGroupId(document.getElementById('bookmarkGroup').value),
             description: document.getElementById('bookmarkDesc').value,
             is_new_window: document.getElementById('bookmarkNewWindow').checked

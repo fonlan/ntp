@@ -41,12 +41,13 @@ type ListRequest struct {
 
 // BookmarkCreateRequest 创建请求
 type BookmarkCreateRequest struct {
-	URL         string `json:"url"`
-	GroupID     *int64 `json:"group_id"`
-	Title       string `json:"title,omitempty"`
-	IconURL     string `json:"icon_url,omitempty"`
-	Description string `json:"description,omitempty"`
-	IsNewWindow bool   `json:"is_new_window"`
+	URL         string  `json:"url"`
+	GroupID     *int64  `json:"group_id"`
+	Title       string  `json:"title,omitempty"`
+	IconURL     string  `json:"icon_url,omitempty"`
+	IconChar    *string `json:"icon_char,omitempty"`
+	Description string  `json:"description,omitempty"`
+	IsNewWindow bool    `json:"is_new_window"`
 }
 
 // BookmarkUpdateRequest 更新请求
@@ -54,6 +55,7 @@ type BookmarkUpdateRequest struct {
 	URL         *string `json:"url,omitempty"`
 	Title       *string `json:"title,omitempty"`
 	IconURL     *string `json:"icon_url,omitempty"`
+	IconChar    *string `json:"icon_char,omitempty"`
 	Description *string `json:"description,omitempty"`
 	GroupID     *int64  `json:"group_id"`
 	SortOrder   *int    `json:"sort_order,omitempty"`
@@ -115,47 +117,58 @@ func (h *BookmarkHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if req.IconURL != "" {
 		bookmark.IconURL = &req.IconURL
 	}
+	if req.IconChar != nil && *req.IconChar != "" {
+		bookmark.IconChar = req.IconChar
+	}
 	if req.Description != "" {
 		bookmark.Description = &req.Description
 	}
 
-	// 如果没有提供标题，尝试从 URL 自动获取
-	if bookmark.Title == "" {
-		title, iconOptions, err := FetchMetadataFromURL(bookmark.URL)
-		if err == nil {
-			bookmark.Title = title
-			// 如果没有提供图标且找到了图标选项，使用第一个图标
-			if bookmark.IconURL == nil && len(iconOptions) > 0 {
-				firstIconURL := iconOptions[0].URL
-				bookmark.IconURL = &firstIconURL
+	// 如果有字符图标，跳过图片图标处理
+	if bookmark.IconChar != nil && *bookmark.IconChar != "" {
+		// 清空图片图标相关字段
+		bookmark.IconURL = nil
+		bookmark.IconPath = nil
+	} else {
+		// 处理图片图标
+		// 如果没有提供标题，尝试从 URL 自动获取
+		if bookmark.Title == "" {
+			title, iconOptions, err := FetchMetadataFromURL(bookmark.URL)
+			if err == nil {
+				bookmark.Title = title
+				// 如果没有提供图标且找到了图标选项，使用第一个图标
+				if bookmark.IconURL == nil && len(iconOptions) > 0 {
+					firstIconURL := iconOptions[0].URL
+					bookmark.IconURL = &firstIconURL
+				}
+			} else {
+				bookmark.Title = bookmark.URL
+			}
+		}
+
+		// 处理图标
+		if bookmark.IconURL != nil && *bookmark.IconURL != "" {
+			iconURL := *bookmark.IconURL
+			// 如果已经是本地图标路径，直接使用
+			if strings.HasPrefix(iconURL, "/data/icons/") {
+				bookmark.IconPath = &iconURL
+				bookmark.IconURL = nil // 使用本地图标后清空URL字段
+			} else {
+				// 外部URL，尝试下载并保存到本地
+				iconPath, err := h.iconService.DownloadIcon(iconURL)
+				if err == nil {
+					bookmark.IconPath = &iconPath
+					bookmark.IconURL = nil // 使用本地图标后清空URL
+				}
+				// 如果下载失败，保留 IconURL 字段作为后备
 			}
 		} else {
-			bookmark.Title = bookmark.URL
-		}
-	}
-
-	// 处理图标
-	if bookmark.IconURL != nil && *bookmark.IconURL != "" {
-		iconURL := *bookmark.IconURL
-		// 如果已经是本地图标路径，直接使用
-		if strings.HasPrefix(iconURL, "/data/icons/") {
-			bookmark.IconPath = &iconURL
-			bookmark.IconURL = nil // 使用本地图标后清空URL字段
-		} else {
-			// 外部URL，尝试下载并保存到本地
-			iconPath, err := h.iconService.DownloadIcon(iconURL)
+			// 尝试自动下载 favicon
+			iconPath, err := h.iconService.DownloadFavicon(bookmark.URL)
 			if err == nil {
 				bookmark.IconPath = &iconPath
 				bookmark.IconURL = nil // 使用本地图标后清空URL
 			}
-			// 如果下载失败，保留 IconURL 字段作为后备
-		}
-	} else {
-		// 尝试自动下载 favicon
-		iconPath, err := h.iconService.DownloadFavicon(bookmark.URL)
-		if err == nil {
-			bookmark.IconPath = &iconPath
-			bookmark.IconURL = nil // 使用本地图标后清空URL
 		}
 	}
 
@@ -190,10 +203,33 @@ func (h *BookmarkHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if req.URL != nil {
 		bookmark.URL = *req.URL
 	}
-	if req.IconURL != nil {
+
+	// 处理图标类型切换
+	// 如果提供了 icon_char，说明要使用字符图标
+	if req.IconChar != nil {
+		iconChar := *req.IconChar
+		if iconChar != "" {
+			// 设置字符图标，清空图片图标
+			bookmark.IconChar = &iconChar
+			// 删除旧图片图标
+			if bookmark.IconPath != nil && *bookmark.IconPath != "" {
+				h.iconService.DeleteIcon(*bookmark.IconPath)
+			}
+			bookmark.IconURL = nil
+			bookmark.IconPath = nil
+		} else {
+			// icon_char 为空字符串，清空字符图标
+			bookmark.IconChar = nil
+		}
+	}
+
+	// 处理图片图标（只有在没有字符图标时才处理）
+	if req.IconURL != nil && bookmark.IconChar == nil {
 		iconURL := *req.IconURL
-		// 如果已经是本地图标路径，直接使用
-		if strings.HasPrefix(iconURL, "/data/icons/") {
+		// 忽略空字符串，保持原有的图片图标
+		if iconURL == "" {
+			// 不做任何更改，保持原有的 icon_path 和 icon_url
+		} else if strings.HasPrefix(iconURL, "/data/icons/") {
 			// 删除旧图标
 			if bookmark.IconPath != nil && *bookmark.IconPath != "" && *bookmark.IconPath != iconURL {
 				h.iconService.DeleteIcon(*bookmark.IconPath)

@@ -424,6 +424,28 @@
                     </div>
                 </div>
                 <div class="form-group">
+                    <label data-i18n="bookmark.iconType">Icon Type</label>
+                    <div class="icon-type-options">
+                        <label style="margin-right: 15px;">
+                            <input type="radio" name="iconType" value="image" checked>
+                            <span data-i18n="bookmark.iconTypeImage">Image</span>
+                        </label>
+                        <label>
+                            <input type="radio" name="iconType" value="char">
+                            <span data-i18n="bookmark.iconTypeChar">Character</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="form-group" id="iconCharGroup" style="display: none;">
+                    <label for="bookmarkIconChar" data-i18n="bookmark.iconChar">Character Icon</label>
+                    <input type="text" id="bookmarkIconChar" maxlength="4" data-i18n-placeholder="bookmark.iconCharPlaceholder" placeholder="Leave empty to use first 2 characters of title">
+                    <small data-i18n="bookmark.iconCharHint">Enter 1-4 characters to display as icon</small>
+                    <div class="icon-char-preview" id="iconCharPreview" style="display: none;">
+                        <span class="icon-preview-label" data-i18n="bookmark.iconCharPreview">Character Preview:</span>
+                        <div class="icon-char-preview-box" id="iconCharPreviewBox">AB</div>
+                    </div>
+                </div>
+                <div class="form-group">
                     <label for="bookmarkGroup" data-i18n="bookmark.group">Group</label>
                     <select id="bookmarkGroup">
                         <option value="" data-i18n="group.ungrouped">No Group</option>
