@@ -403,28 +403,16 @@ function applyBookmarkSize() {
 
     // 对每个分组容器设置列数
     groupBookmarksContainers.forEach(container => {
-        // 桌面端布局 - 只在桌面端设置内联样式
         if (!isMobile) {
+            // 桌面端布局
             if (state.bookmarkColumns > 0) {
                 container.style.gridTemplateColumns = `repeat(${state.bookmarkColumns}, 1fr)`;
             } else {
                 container.style.gridTemplateColumns = `repeat(auto-fill, minmax(${bookmarkWidth}px, 1fr))`;
             }
         } else {
-            // 移动端清除内联样式，让 CSS 变量生效
-            container.style.gridTemplateColumns = '';
-        }
-
-        // 移动端布局（通过 CSS 变量传递）
-        container.style.setProperty('--mobile-columns', state.mobileColumns);
-
-        // 桌面端布局也通过 CSS 变量传递（可选，用于一致性）
-        if (state.bookmarkColumns > 0) {
-            container.style.setProperty('--desktop-columns', state.bookmarkColumns);
-            container.style.setProperty('--desktop-width', bookmarkWidth + 'px');
-        } else {
-            container.style.setProperty('--desktop-columns', 'auto');
-            container.style.setProperty('--desktop-width', bookmarkWidth + 'px');
+            // 移动端布局 - 直接设置内联样式，避免CSS变量和媒体查询的时序问题
+            container.style.gridTemplateColumns = `repeat(${state.mobileColumns}, 1fr)`;
         }
     });
 
