@@ -125,47 +125,102 @@ func FetchMetadataFromURL(inputURL string) (string, []IconOption, error) {
 	// 创建 HTTP 客户端，设置超时
 	client := &http.Client{Timeout: 8 * time.Second}
 
+	// 提取域名用于备用方案
+	domain := extractDomain(url)
+
 	// 发送 GET 请求
 	resp, err := client.Get(url)
-	if err != nil {
-		return "", nil, fmt.Errorf("请求失败: %w", err)
-	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return "", nil, fmt.Errorf("HTTP 状态码: %d", resp.StatusCode)
+	var title string
+	var iconOptions []IconOption
+	var fetchErr error
+
+	// 如果直接访问成功，尝试解析
+	if err == nil && resp.StatusCode == http.StatusOK {
+		defer resp.Body.Close()
+
+		// 读取响应体
+		body, err := io.ReadAll(resp.Body)
+		if err == nil {
+			// 使用 goquery 解析 HTML
+			doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(body)))
+			if err == nil {
+				// 提取标题
+				title = doc.Find("title").First().Text()
+				if title == "" {
+					title = inputURL
+				}
+
+				baseURL := buildBaseURL(url)
+				iconOptions = extractIconOptions(doc, url, baseURL)
+			} else {
+				fetchErr = fmt.Errorf("解析 HTML 失败: %w", err)
+			}
+		} else {
+			fetchErr = fmt.Errorf("读取响应失败: %w", err)
+		}
+	} else {
+		if err != nil {
+			fetchErr = fmt.Errorf("请求失败: %w", err)
+		} else {
+			resp.Body.Close()
+			fetchErr = fmt.Errorf("HTTP 状态码: %d", resp.StatusCode)
+		}
 	}
 
-	// 读取响应体
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", nil, fmt.Errorf("读取响应失败: %w", err)
-	}
-
-	// 使用 goquery 解析 HTML
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(body)))
-	if err != nil {
-		return "", nil, fmt.Errorf("解析 HTML 失败: %w", err)
-	}
-
-	// 提取标题
-	title := doc.Find("title").First().Text()
+	// 使用默认标题
 	if title == "" {
 		title = inputURL
 	}
 
-	baseURL := buildBaseURL(url)
-	iconOptions := extractIconOptions(doc, url, baseURL)
-
-	// 如果没有找到任何图标，添加 /favicon.ico
+	// 如果没有找到任何图标或解析失败，使用备用方案
 	if len(iconOptions) == 0 {
-		iconOptions = append(iconOptions, IconOption{
-			URL:       baseURL + "/favicon.ico",
-			IsFavicon: true,
-		})
+		iconOptions = getFallbackIcons(domain)
+	}
+
+	// 如果完全失败但有备用图标，仍然返回成功
+	if fetchErr != nil && len(iconOptions) > 0 {
+		return strings.TrimSpace(title), iconOptions, nil
+	}
+
+	if fetchErr != nil {
+		return "", nil, fetchErr
 	}
 
 	return strings.TrimSpace(title), iconOptions, nil
+}
+
+// extractDomain 从 URL 中提取域名
+func extractDomain(url string) string {
+	url = strings.TrimPrefix(url, "https://")
+	url = strings.TrimPrefix(url, "http://")
+	if idx := strings.Index(url, "/"); idx != -1 {
+		return url[:idx]
+	}
+	return url
+}
+
+// getFallbackIcons 获取备用图标选项
+func getFallbackIcons(domain string) []IconOption {
+	var options []IconOption
+
+	// Google Favicon Service
+	options = append(options, IconOption{
+		URL:       fmt.Sprintf("https://www.google.com/s2/favicons?domain=%s&sz=128", domain),
+		Type:      "image/png",
+		Rel:       "icon",
+		IsFavicon: false,
+	})
+
+	// DuckDuckGo Icon Service
+	options = append(options, IconOption{
+		URL:       fmt.Sprintf("https://icons.duckduckgo.com/ip3/%s.ico", domain),
+		Type:      "image/x-icon",
+		Rel:       "icon",
+		IsFavicon: false,
+	})
+
+	return options
 }
 
 // extractIconOptions 从 HTML 文档中提取所有图标选项

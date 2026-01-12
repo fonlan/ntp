@@ -704,7 +704,8 @@ function initBookmarkClickHandlers() {
         menu.querySelectorAll('.bookmark-action').forEach(el => {
             el.style.display = isBookmarkCard ? 'flex' : 'none';
         });
-        menu.querySelector('.context-menu-divider').style.display = isBookmarkCard ? 'block' : 'none';
+        // 分割线暂时不使用（菜单分为空白处菜单和书签菜单两种独立场景）
+        menu.querySelector('.context-menu-divider').style.display = 'none';
 
         if (isBookmarkCard) {
             menu.dataset.currentBookmarkId = card.dataset.id;
