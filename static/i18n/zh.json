@@ -5,6 +5,7 @@
   },
   "search": {
     "placeholder": "搜索...",
+    "submit": "搜索",
     "noKeywords": "请输入搜索关键词",
     "noEngine": "没有可用的搜索引擎"
   },

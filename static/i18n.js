@@ -121,7 +121,10 @@ class I18n {
 
     // Update data-i18n-title elements
     container.querySelectorAll('[data-i18n-title]').forEach(el => {
-      el.title = this.t(el.getAttribute('data-i18n-title'));
+      const translation = this.t(el.getAttribute('data-i18n-title'));
+      el.title = translation;
+      // Also set aria-label for better accessibility
+      el.setAttribute('aria-label', translation);
     });
   }
 

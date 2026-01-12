@@ -860,6 +860,7 @@ function renderBookmarkCard(b) {
         <div class="bookmark-card" draggable="true" data-id="${b.id}" data-url="${escapeHtml(b.url)}" data-target="${target}">
             <img src="${getFavicon(b.url, b.icon_path || b.icon_url)}"
                  class="bookmark-icon"
+                 alt="${escapeHtml(b.title || 'Bookmark')} icon"
                  onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌐</text></svg>'">
             <div class="bookmark-content">
                 <div class="bookmark-title">${escapeHtml(b.title)}</div>

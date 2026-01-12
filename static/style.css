@@ -4,6 +4,25 @@
 
 /* 使用系统默认字体，无需引入外部字体 */
 
+/* 屏幕阅读器专用 - 视觉隐藏但可被辅助技术访问 */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* 完全隐藏元素（包括辅助技术） */
+.hidden {
+    display: none !important;
+    visibility: hidden !important;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -149,6 +168,7 @@ body {
     border-radius: var(--radius-md);
     cursor: pointer;
     transition: all 0.2s ease;
+    -webkit-user-select: none;
     user-select: none;
 }
 
@@ -1546,6 +1566,7 @@ body {
     font-size: 14px;
     font-weight: 500;
     color: var(--text-primary);
+    -webkit-user-select: none;
     user-select: none;
 }
 

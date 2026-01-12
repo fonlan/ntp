@@ -81,12 +81,12 @@ func main() {
 		"GET": authHandler.CheckAuth,
 	}))
 
-	// 静态文件服务
-	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
-	mux.Handle("/data/icons/", http.StripPrefix("/data/icons/", http.FileServer(http.Dir(iconDir))))
+	// 静态文件服务（使用 Cache-Control 替代 Expires）
+	mux.Handle("/static/", http.StripPrefix("/static/", cacheControlWrapper(http.FileServer(http.Dir("static")))))
+	mux.Handle("/data/icons/", http.StripPrefix("/data/icons/", cacheControlWrapper(http.FileServer(http.Dir(iconDir)))))
 
 	// 首页和 API 路由（需要认证）
-	mux.Handle("/", middleware.AuthMiddleware(http.FileServer(http.Dir("static"))))
+	mux.Handle("/", middleware.AuthMiddleware(cacheControlWrapper(http.FileServer(http.Dir("static")))))
 	registerAPIRoutes(mux, bookmarkHandler, groupHandler, searchEngineHandler, fetchHandler)
 
 	// 搜索跳转
@@ -210,6 +210,17 @@ func enableCORS(next http.Handler) http.Handler {
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
+		// 安全响应头
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+
+		// Content-Security-Policy 替代 X-Frame-Options
+		// frame-ancestors 'self' 只允许同源页面嵌入（等同于 X-Frame-Options: SAMEORIGIN）
+		w.Header().Set("Content-Security-Policy",
+			"frame-ancestors 'self'; "+
+				"default-src 'self'; "+
+				"img-src 'self' data: https: http:; "+
+				"font-src 'self' data:")
+
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
@@ -217,6 +228,51 @@ func enableCORS(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+// cacheControlWrapper 为静态文件添加缓存控制头，替代 Expires
+func cacheControlWrapper(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// 使用响应包装器来覆盖默认的 Expires 头
+		wrapper := &cacheControlResponseWriter{ResponseWriter: w, Request: r}
+		h.ServeHTTP(wrapper, r)
+	})
+}
+
+// cacheControlResponseWriter 包装 ResponseWriter 以控制缓存头
+type cacheControlResponseWriter struct {
+	http.ResponseWriter
+	Request    *http.Request
+	headersSet bool
+}
+
+func (w *cacheControlResponseWriter) WriteHeader(statusCode int) {
+	if !w.headersSet {
+		// 根据文件类型设置不同的缓存策略
+		path := w.Request.URL.Path
+
+		var cacheControl string
+		if strings.HasSuffix(path, ".html") {
+			// HTML 文件：不缓存，确保始终获取最新版本
+			cacheControl = "no-cache, no-store, must-revalidate"
+		} else if strings.HasSuffix(path, ".css") || strings.HasSuffix(path, ".js") ||
+			strings.HasSuffix(path, ".png") || strings.HasSuffix(path, ".jpg") ||
+			strings.HasSuffix(path, ".jpeg") || strings.HasSuffix(path, ".gif") ||
+			strings.HasSuffix(path, ".svg") || strings.HasSuffix(path, ".ico") ||
+			strings.HasSuffix(path, ".woff") || strings.HasSuffix(path, ".woff2") {
+			// 静态资源：长期缓存（1 年）
+			cacheControl = "public, max-age=31536000, immutable"
+		} else {
+			// 其他文件：默认缓存策略（1 天）
+			cacheControl = "public, max-age=86400"
+		}
+
+		// 设置 Cache-Control，移除 Expires
+		w.Header().Set("Cache-Control", cacheControl)
+		w.Header().Del("Expires")
+		w.headersSet = true
+	}
+	w.ResponseWriter.WriteHeader(statusCode)
 }
 
 // initializeSearchEngineIcons 为现有搜索引擎初始化图标

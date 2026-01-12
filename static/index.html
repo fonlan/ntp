@@ -16,14 +16,14 @@
             <div class="search-container">
                 <div class="search-box">
                     <div class="search-engine-selector" id="searchEngineSelector">
-                        <img id="currentEngineIcon" src="" alt="" class="engine-icon">
+                        <img id="currentEngineIcon" src="" alt="Search engine icon" class="engine-icon">
                         <span id="currentEngineName">Loading...</span>
                         <svg class="dropdown-arrow" width="12" height="12" viewBox="0 0 12 12" fill="none">
                             <path d="M2 4L6 8L10 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
                     </div>
                     <input type="text" id="searchInput" class="search-input" data-i18n-placeholder="search.placeholder" placeholder="Search...">
-                    <button id="searchBtn" class="search-submit-btn">
+                    <button id="searchBtn" class="search-submit-btn" data-i18n-title="search.submit" title="Search">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="11" cy="11" r="8"/>
                             <path d="M21 21l-4.35-4.35"/>
@@ -206,7 +206,7 @@
                     <div class="settings-section">
                         <h3 data-i18n="settings.containerWidth">Container Width</h3>
                         <div class="size-control-group">
-                            <label><span class="label-text" data-i18n="settings.containerWidth">Container Width</span> <span id="containerWidthValue">1400</span>px</label>
+                            <label for="containerWidth"><span class="label-text" data-i18n="settings.containerWidth">Container Width</span> <span id="containerWidthValue">1400</span>px</label>
                             <input type="range" id="containerWidth" min="800" max="2000" value="1400" step="50">
                         </div>
                     </div>
@@ -216,11 +216,11 @@
                         <h3 data-i18n="settings.bookmarkSize">Bookmark Size</h3>
                         <div class="bookmark-size-controls">
                             <div class="size-control-group">
-                                <label><span class="label-text" data-i18n="settings.height">Height</span> <span id="heightValue">80</span>px</label>
+                                <label for="bookmarkHeight"><span class="label-text" data-i18n="settings.height">Height</span> <span id="heightValue">80</span>px</label>
                                 <input type="range" id="bookmarkHeight" min="60" max="150" value="80" step="5">
                             </div>
                             <div class="size-control-group">
-                                <label><span class="label-text" data-i18n="settings.columns">Columns per row</span> <span id="columnsValue" data-i18n="settings.auto">Auto</span></label>
+                                <label for="bookmarkColumns"><span class="label-text" data-i18n="settings.columns">Columns per row</span> <span id="columnsValue" data-i18n="settings.auto">Auto</span></label>
                                 <select id="bookmarkColumns">
                                     <option value="0" data-i18n="settings.auto">Auto</option>
                                     <option value="2">2</option>
@@ -231,14 +231,14 @@
                                 </select>
                             </div>
                             <div class="size-control-group">
-                                <label><span class="label-text" data-i18n="settings.mobileColumns">Mobile columns</span> <span id="mobileColumnsValue">2</span></label>
+                                <label for="mobileColumns"><span class="label-text" data-i18n="settings.mobileColumns">Mobile columns</span> <span id="mobileColumnsValue">2</span></label>
                                 <select id="mobileColumns">
                                     <option value="1">1</option>
                                     <option value="2" selected>2</option>
                                 </select>
                             </div>
                             <div class="size-control-group">
-                                <label><span class="label-text" data-i18n="settings.cardOpacity">Card Opacity</span> <span id="opacityValue">95</span>%</label>
+                                <label for="cardOpacity"><span class="label-text" data-i18n="settings.cardOpacity">Card Opacity</span> <span id="opacityValue">95</span>%</label>
                                 <input type="range" id="cardOpacity" min="50" max="100" value="95" step="5">
                             </div>
                         </div>
@@ -258,6 +258,7 @@
                     <!-- Language settings -->
                     <div class="settings-section">
                         <h3 data-i18n="settings.language">Language</h3>
+                        <label for="languageSelect" class="sr-only" data-i18n="settings.language">Language</label>
                         <select id="languageSelect" class="language-select">
                             <option value="en">English</option>
                             <option value="zh">简体中文</option>
@@ -408,12 +409,13 @@
                                 <line x1="12" y1="3" x2="12" y2="15"/>
                             </svg>
                         </button>
-                        <input type="file" id="iconUpload" accept="image/png,image/jpeg,image/gif,image/svg+xml,image/x-icon" style="display: none;">
+                        <label for="iconUpload" class="sr-only" data-i18n="bookmark.uploadIcon">Upload Icon</label>
+                        <input type="file" id="iconUpload" class="hidden" accept="image/png,image/jpeg,image/gif,image/svg+xml,image/x-icon" aria-hidden="true">
                     </div>
                     <span id="uploadFileName" style="font-size: 12px; color: var(--text-secondary); margin-top: 4px; display: block;"></span>
                     <div class="icon-preview-container" id="iconPreviewContainer" style="display: none;">
                         <span class="icon-preview-label" data-i18n="bookmark.iconPreview">Icon Preview:</span>
-                        <img id="iconPreview" class="icon-preview-image" src="" alt="">
+                        <img id="iconPreview" class="icon-preview-image" src="" alt="Bookmark icon preview">
                     </div>
                     <div class="icon-selection-container" id="iconSelectionContainer" style="display: none;">
                         <span class="icon-selection-label" data-i18n="bookmark.selectIcon">Select an icon:</span>

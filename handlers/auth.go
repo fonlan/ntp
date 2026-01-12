@@ -61,6 +61,9 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Determine if the connection is secure (HTTPS)
+		isSecure := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
+
 		// Set session cookie
 		http.SetCookie(w, &http.Cookie{
 			Name:     "session",
@@ -69,6 +72,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			Expires:  time.Now().Add(24 * time.Hour),
 			HttpOnly: true,
 			SameSite: http.SameSiteStrictMode,
+			Secure:   isSecure,
 		})
 
 		// Return success
@@ -98,6 +102,9 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		middleware.DeleteSession(sessionCookie.Value)
 	}
 
+	// Determine if the connection is secure (HTTPS)
+	isSecure := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
+
 	// Clear session cookie
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session",
@@ -106,6 +113,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		Expires:  time.Unix(0, 0),
 		HttpOnly: true,
 		SameSite: http.SameSiteStrictMode,
+		Secure:   isSecure,
 	})
 
 	// Return success

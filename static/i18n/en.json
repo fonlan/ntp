@@ -5,6 +5,7 @@
   },
   "search": {
     "placeholder": "Search...",
+    "submit": "Search",
     "noKeywords": "Please enter search keywords",
     "noEngine": "No search engine available"
   },
