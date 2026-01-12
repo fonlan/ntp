@@ -1249,7 +1249,7 @@ body {
     }
 }
 
-/* 小屏幕（569px - 768px）- 支持自定义列数 */
+/* 小屏幕（569px - 768px）- 移动端样式 */
 @media (max-width: 768px) and (min-width: 569px) {
     .container {
         padding: 16px;
@@ -1257,8 +1257,7 @@ body {
     }
 
     .group-bookmarks {
-        /* 使用CSS变量，支持1列或2列切换 */
-        grid-template-columns: repeat(var(--mobile-columns, 2), 1fr);
+        /* 移动端列数由JavaScript内联样式控制 */
         gap: 12px;
     }
 
@@ -1272,17 +1271,15 @@ body {
     }
 }
 
-/* 移动端（小于568px）- 1列或2列 */
+/* 移动端（小于568px）- 移动端样式 */
 @media (max-width: 568px) {
     .container {
         padding: 16px;
         padding-top: 12px;
     }
 
-    /* 移动端书签布局 - 1列或2列 */
     .group-bookmarks {
-        /* 默认2列，可通过 --mobile-columns 变量修改为1列 */
-        grid-template-columns: repeat(var(--mobile-columns, 2), 1fr);
+        /* 移动端列数由JavaScript内联样式控制 */
         gap: 12px;
     }
 

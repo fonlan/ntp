@@ -388,6 +388,12 @@ function applyBookmarkSize() {
     const cards = document.querySelectorAll('.bookmark-card');
     const isMobile = window.innerWidth <= 768;
 
+    // 如果书签容器还不存在（页面刚加载时），直接返回
+    // 等待 renderBookmarks() 创建元素后再调用
+    if (groupBookmarksContainers.length === 0) {
+        return;
+    }
+
     // 设置主容器宽度
     if (mainContainer) {
         mainContainer.style.maxWidth = state.containerWidth + 'px';
