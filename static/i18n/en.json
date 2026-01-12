@@ -130,7 +130,9 @@
     "cancel": "Cancel",
     "add": "Add",
     "create": "Create",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "addBookmark": "Add Bookmark",
+    "settings": "Settings"
   },
   "import": {
     "title": "Import Bookmarks",

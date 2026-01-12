@@ -130,7 +130,9 @@
     "cancel": "取消",
     "add": "添加",
     "create": "创建",
-    "confirm": "确认"
+    "confirm": "确认",
+    "addBookmark": "新建书签",
+    "settings": "设置"
   },
   "import": {
     "title": "导入书签",

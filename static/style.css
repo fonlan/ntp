@@ -69,6 +69,26 @@ body {
     margin: 0 auto;
     padding: 24px;
     animation: fadeIn 0.3s ease-in;
+    /* 响应式宽度限制 */
+    width: 100%;
+}
+
+/* 超大屏幕（大于1400px）- 最多5列 */
+@media (min-width: 1400px) {
+    .container {
+        max-width: 1400px;
+    }
+
+    .group-bookmarks {
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    }
+}
+
+/* 大屏幕（1201px - 1399px）- 最多4列 */
+@media (min-width: 1201px) and (max-width: 1399px) {
+    .group-bookmarks {
+        grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+    }
 }
 
 @keyframes fadeIn {
@@ -89,9 +109,7 @@ body {
     position: relative;
     display: flex;
     align-items: center;
-    justify-content: center;
     margin-bottom: 24px;
-    padding-right: 0;
 }
 
 .search-container {
@@ -100,9 +118,15 @@ body {
     width: 100%;
 }
 
+/* 设置按钮 - 已隐藏，功能移到右键菜单 */
+.top-right-buttons {
+    display: none;
+}
+
 .search-box {
     display: flex;
     align-items: center;
+    width: 100%;
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
@@ -365,7 +389,8 @@ body {
 
 .group-bookmarks {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    /* 使用更小的最小宽度，让列数能更灵活地响应窗口大小 */
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 16px;
 }
 
@@ -1190,10 +1215,54 @@ body {
 /* ===================================
    响应式设计
    =================================== */
-@media (max-width: 768px) {
+
+/* 中等屏幕（769px - 1024px）- 3列或2列 */
+@media (max-width: 1024px) and (min-width: 769px) {
+    .container {
+        max-width: 100%;
+        padding: 20px;
+    }
+
+    .group-bookmarks {
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 14px;
+    }
+}
+
+/* 小屏幕（569px - 768px）- 2列 */
+@media (max-width: 768px) and (min-width: 569px) {
     .container {
         padding: 16px;
         padding-top: 12px;
+    }
+
+    .group-bookmarks {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+
+    .bookmark-card {
+        padding: 12px;
+    }
+
+    .bookmark-icon {
+        width: 48px;
+        height: 48px;
+    }
+}
+
+/* 移动端（小于568px）- 1列或2列 */
+@media (max-width: 568px) {
+    .container {
+        padding: 16px;
+        padding-top: 12px;
+    }
+
+    /* 移动端书签布局 - 1列或2列 */
+    .group-bookmarks {
+        /* 默认2列，可通过 --mobile-columns 变量修改为1列 */
+        grid-template-columns: repeat(var(--mobile-columns, 2), 1fr);
+        gap: 12px;
     }
 
     /* 移动端顶部栏优化 */
@@ -1236,47 +1305,6 @@ body {
         height: 18px;
     }
 
-    /* 移动端按钮放到页面底部（文档流中，不悬浮） */
-    .top-right-buttons {
-        position: relative;
-        top: auto;
-        bottom: auto;
-        right: auto;
-        left: auto;
-        transform: none;
-        display: flex;
-        justify-content: center;
-        gap: 16px;
-        margin-top: 24px;
-        padding: 16px 20px;
-        background: var(--bg-card);
-        border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-sm);
-        border: 1px solid var(--border);
-    }
-
-    /* 当按钮被 JavaScript 移动到页面底部时的额外样式 */
-    .top-right-buttons.mobile-bottom-buttons {
-        margin-top: 32px;
-        margin-bottom: 16px;
-    }
-
-    .add-bookmark-btn,
-    .settings-btn {
-        width: 48px;
-        height: 48px;
-        box-shadow: none;
-        border: none;
-    }
-
-    .add-bookmark-btn:hover {
-        transform: scale(1.1);
-    }
-
-    .settings-btn:hover {
-        transform: rotate(30deg);
-    }
-
     /* 移动端分组标签 */
     .groups-tabs {
         flex-wrap: nowrap;
@@ -1290,13 +1318,6 @@ body {
         flex-shrink: 0;
         padding: 8px 16px;
         font-size: 14px;
-    }
-
-    /* 移动端书签布局 - 使用 CSS 变量控制列数 */
-    .group-bookmarks {
-        /* 默认2列，可通过 --mobile-columns 变量修改为1列 */
-        grid-template-columns: repeat(var(--mobile-columns, 2), 1fr);
-        gap: 12px;
     }
 
     .bookmark-card {
@@ -1371,18 +1392,6 @@ body {
 
     .bookmark-card {
         padding: 10px;
-    }
-
-    .top-right-buttons.mobile-bottom-buttons {
-        margin-top: 24px;
-        margin-bottom: 12px;
-        padding: 14px 18px;
-    }
-
-    .add-bookmark-btn,
-    .settings-btn {
-        width: 44px;
-        height: 44px;
     }
 }
 
@@ -1554,6 +1563,12 @@ body {
 
 .context-menu-item svg {
     flex-shrink: 0;
+}
+
+.context-menu-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 6px 0;
 }
 
 /* ===================================

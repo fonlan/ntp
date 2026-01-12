@@ -224,6 +224,35 @@ async function loadData(url, errorMsg) {
 // ===================================
 // Settings
 // ===================================
+/**
+ * 计算合适的容器宽度（首次访问时调用）
+ * 只在PC和平板视图（屏幕宽度 > 768px）时自动计算
+ * 避免覆盖右上角的新建书签按钮和设置按钮
+ */
+function calculateOptimalContainerWidth() {
+    // 移动端不进行计算，返回默认值
+    if (window.innerWidth <= 768) {
+        return 1400;
+    }
+
+    // 右上角按钮占用的空间
+    // 按钮宽度: 44px × 2 = 88px, gap: 8px, 右侧padding: 24px
+    // 预留空间: 约 150px
+    const rightReservedSpace = 150;
+    const containerPadding = 48; // 左右padding各24px
+
+    // 计算可用宽度
+    const availableWidth = window.innerWidth - containerPadding - rightReservedSpace;
+
+    // 限制在合理范围内（最小800px，最大2000px）
+    const minWidth = 800;
+    const maxWidth = 2000;
+    const optimalWidth = Math.max(minWidth, Math.min(maxWidth, availableWidth));
+
+    // 向下取整到50的倍数，使数值更整齐
+    return Math.floor(optimalWidth / 50) * 50;
+}
+
 function loadSettings() {
     // Background (color or pattern) - unified setting
     const background = localStorage.getItem('background') || '#F8FAFC';
@@ -243,8 +272,18 @@ function loadSettings() {
     const bgRadio = document.querySelector(`input[name="background"][value="${background}"]`);
     if (bgRadio) bgRadio.checked = true;
 
+    // Container Width - 首次访问时根据屏幕宽度自动计算（仅PC和平板）
+    const savedContainerWidth = localStorage.getItem('containerWidth');
+    if (savedContainerWidth === null) {
+        // 首次访问，自动计算合适的容器宽度
+        state.containerWidth = calculateOptimalContainerWidth();
+        // 保存到 localStorage
+        localStorage.setItem('containerWidth', state.containerWidth.toString());
+    } else {
+        state.containerWidth = parseInt(savedContainerWidth);
+    }
+
     // Bookmark size
-    state.containerWidth = parseInt(localStorage.getItem('containerWidth')) || 1400;
     state.bookmarkHeight = parseInt(localStorage.getItem('bookmarkHeight')) || 80;
     state.bookmarkColumns = parseInt(localStorage.getItem('bookmarkColumns')) || 0;
     state.mobileColumns = parseInt(localStorage.getItem('mobileColumns')) || 2;
@@ -655,12 +694,29 @@ function initBookmarkClickHandlers() {
 
     // 显示右键菜单
     function showContextMenu(e, card) {
-        menu.dataset.currentBookmarkId = card.dataset.id;
+        // 根据是否是书签卡片显示不同的菜单项
+        const isBookmarkCard = !!card;
+
+        // 显示/隐藏相应的菜单项
+        menu.querySelectorAll('.global-action').forEach(el => {
+            el.style.display = isBookmarkCard ? 'none' : 'flex';
+        });
+        menu.querySelectorAll('.bookmark-action').forEach(el => {
+            el.style.display = isBookmarkCard ? 'flex' : 'none';
+        });
+        menu.querySelector('.context-menu-divider').style.display = isBookmarkCard ? 'block' : 'none';
+
+        if (isBookmarkCard) {
+            menu.dataset.currentBookmarkId = card.dataset.id;
+        } else {
+            menu.dataset.currentBookmarkId = null;
+        }
+
         i18n.updateElement(menu);
 
         // 简单的边界检测，使用固定菜单尺寸
         const menuWidth = 180;
-        const menuHeight = 100;
+        const menuHeight = isBookmarkCard ? 100 : 160;
         const offset = 5;
 
         let x = e.clientX + offset;
@@ -692,9 +748,25 @@ function initBookmarkClickHandlers() {
             const item = e.target.closest('.context-menu-item');
             if (!item) return;
             const action = item.dataset.action;
-            const bookmarkId = parseInt(menu.dataset.currentBookmarkId);
-            if (action === 'edit') editBookmark(bookmarkId);
-            else if (action === 'delete') deleteBookmark(bookmarkId);
+
+            // 处理全局操作（空白处菜单）
+            if (action === 'add-bookmark') {
+                showBookmarkModal();
+            } else if (action === 'settings') {
+                checkAuthStatus().then(() => {
+                    renderSettingsEngines();
+                    i18n.updatePage();
+                    document.getElementById('settingsModal').classList.add('show');
+                });
+            } else if (action === 'edit') {
+                // 处理书签操作
+                const bookmarkId = parseInt(menu.dataset.currentBookmarkId);
+                editBookmark(bookmarkId);
+            } else if (action === 'delete') {
+                const bookmarkId = parseInt(menu.dataset.currentBookmarkId);
+                deleteBookmark(bookmarkId);
+            }
+
             hideContextMenu();
         });
         menu._menuHandlerAdded = true;
@@ -707,6 +779,65 @@ function initBookmarkClickHandlers() {
         });
         menu._docHandlerAdded = true;
     }
+
+    // 添加空白处的右键菜单
+    document.addEventListener('contextmenu', (e) => {
+        // 只在非书签卡片和非输入框区域显示
+        if (!e.target.closest('.bookmark-card') &&
+            !e.target.closest('input') &&
+            !e.target.closest('textarea') &&
+            !e.target.closest('.modal') &&
+            !e.target.closest('.context-menu')) {
+            e.preventDefault();
+            showContextMenu(e, null);
+        }
+    });
+
+    // 添加空白处的长按菜单（移动设备）
+    const emptySpaceTouchState = { isLongPress: false, timer: null };
+    document.addEventListener('touchstart', (e) => {
+        // 只在非书签卡片区域处理
+        if (e.target.closest('.bookmark-card') ||
+            e.target.closest('input') ||
+            e.target.closest('textarea') ||
+            e.target.closest('.modal') ||
+            e.target.closest('.context-menu') ||
+            e.target.closest('.search-submit-btn')) {
+            return;
+        }
+
+        emptySpaceTouchState.isLongPress = false;
+        emptySpaceTouchState.timer = setTimeout(() => {
+            emptySpaceTouchState.isLongPress = true;
+            if (navigator.vibrate) navigator.vibrate(50);
+            const touch = e.touches[0];
+            showContextMenu({
+                preventDefault: () => {},
+                clientX: touch.clientX,
+                clientY: touch.clientY,
+                target: e.target
+            }, null);
+        }, 500);
+    }, { passive: true });
+
+    document.addEventListener('touchend', (e) => {
+        if (emptySpaceTouchState.timer) {
+            clearTimeout(emptySpaceTouchState.timer);
+            emptySpaceTouchState.timer = null;
+        }
+        if (emptySpaceTouchState.isLongPress) {
+            e.preventDefault();
+        }
+        emptySpaceTouchState.isLongPress = false;
+    });
+
+    document.addEventListener('touchmove', () => {
+        if (emptySpaceTouchState.timer) {
+            clearTimeout(emptySpaceTouchState.timer);
+            emptySpaceTouchState.timer = null;
+        }
+        emptySpaceTouchState.isLongPress = false;
+    });
 }
 
 // 事件委托辅助函数
@@ -1320,14 +1451,6 @@ function initEventListeners() {
         if (e.key === 'Enter') performSearch();
     });
 
-    // Settings button
-    document.getElementById('settingsBtn').addEventListener('click', async () => {
-        await checkAuthStatus();
-        renderSettingsEngines();
-        i18n.updatePage();
-        document.getElementById('settingsModal').classList.add('show');
-    });
-
     // Unified background selection (colors and patterns)
     document.querySelectorAll('input[name="background"]').forEach(radio => {
         radio.addEventListener('change', (e) => {
@@ -1381,9 +1504,6 @@ function initEventListeners() {
 
     // Group management button
     document.getElementById('addGroupBtn').addEventListener('click', () => showGroupModal());
-
-    // Add bookmark button
-    document.getElementById('addBookmarkBtn').addEventListener('click', () => showBookmarkModal());
 
     // Search engine management button
     document.getElementById('addEngineBtn').addEventListener('click', () => showEngineModal());
