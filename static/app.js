@@ -177,11 +177,23 @@ async function loadData(url, errorMsg) {
 // Settings
 // ===================================
 function loadSettings() {
-    // Background color
-    const bgColor = localStorage.getItem('bgColor') || '#F8FAFC';
-    document.body.style.background = bgColor;
-    const bgColorRadio = document.querySelector(`input[name="bgColor"][value="${bgColor}"]`);
-    if (bgColorRadio) bgColorRadio.checked = true;
+    // Background (color or pattern) - unified setting
+    const background = localStorage.getItem('background') || '#F8FAFC';
+
+    // Check if it's a pattern (starts with 'bg-pattern-') or a color (starts with '#')
+    if (background.startsWith('bg-pattern-')) {
+        // It's a pattern
+        applyBackgroundPattern(background);
+    } else {
+        // It's a solid color
+        document.body.style.background = background;
+        // Clear any pattern classes
+        applyBackgroundPattern('');
+    }
+
+    // Set the radio button state
+    const bgRadio = document.querySelector(`input[name="background"][value="${background}"]`);
+    if (bgRadio) bgRadio.checked = true;
 
     // Bookmark size
     state.containerWidth = parseInt(localStorage.getItem('containerWidth')) || 1400;
@@ -214,8 +226,17 @@ function loadSettings() {
 
 function saveSetting(key, value) {
     localStorage.setItem(key, value);
-    if (key === 'bgColor') {
-        document.body.style.background = value;
+    if (key === 'background') {
+        // Unified background setting (color or pattern)
+        if (value.startsWith('bg-pattern-')) {
+            // It's a pattern
+            applyBackgroundPattern(value);
+        } else {
+            // It's a solid color
+            document.body.style.background = value;
+            // Clear any pattern classes
+            applyBackgroundPattern('');
+        }
     } else if (key === 'cardOpacity') {
         state.cardOpacity = parseInt(value);
         updateSizeDisplay();
@@ -343,6 +364,42 @@ function applyCardOpacity() {
     const preview = document.getElementById('bookmarkPreview');
     if (preview) {
         preview.style.background = rgbaColor;
+    }
+}
+
+function applyBackgroundPattern(patternClass) {
+    // 移除所有已知的背景图案类
+    const patternClasses = [
+        'bg-pattern-dots',
+        'bg-pattern-grid',
+        'bg-pattern-diagonal',
+        'bg-pattern-polka',
+        'bg-pattern-cross',
+        'bg-pattern-diamond',
+        'bg-pattern-checker',
+        'bg-pattern-herringbone',
+        'bg-pattern-circles',
+        'bg-pattern-waves',
+        'bg-pattern-hexagon',
+        'bg-pattern-stripes',
+        'bg-pattern-dots-dark',
+        'bg-pattern-grid-dark',
+        'bg-pattern-diamond-dark',
+        'bg-pattern-diagonal-dark',
+        'bg-pattern-aurora',
+        'bg-pattern-animated-gradient',
+        'bg-pattern-zigzag'
+    ];
+
+    patternClasses.forEach(cls => {
+        document.body.classList.remove(cls);
+    });
+
+    // 如果提供了新的图案类，则添加
+    if (patternClass && patternClass.trim() !== '') {
+        document.body.classList.add(patternClass);
+        // 清除内联背景色，让 CSS 图案生效
+        document.body.style.background = '';
     }
 }
 
@@ -1221,10 +1278,10 @@ function initEventListeners() {
         document.getElementById('settingsModal').classList.add('show');
     });
 
-    // Background color selection
-    document.querySelectorAll('input[name="bgColor"]').forEach(radio => {
+    // Unified background selection (colors and patterns)
+    document.querySelectorAll('input[name="background"]').forEach(radio => {
         radio.addEventListener('change', (e) => {
-            saveSetting('bgColor', e.target.value);
+            saveSetting('background', e.target.value);
         });
     });
 

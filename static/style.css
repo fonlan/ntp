@@ -1552,3 +1552,87 @@ body {
 .context-menu-item svg {
     flex-shrink: 0;
 }
+
+/* ===================================
+   背景图案选项样式
+   =================================== */
+.background-options {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.background-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.background-group h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.pattern-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 12px;
+}
+
+.pattern-option {
+    cursor: pointer;
+    position: relative;
+}
+
+.pattern-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.pattern-preview {
+    display: block;
+    width: 100%;
+    height: 60px;
+    border-radius: var(--radius-md);
+    border: 2px solid var(--border);
+    margin-bottom: 8px;
+    transition: all 0.2s ease;
+}
+
+.pattern-option input[type="radio"]:checked ~ .pattern-preview {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.pattern-name {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-align: center;
+    display: block;
+}
+
+.pattern-option input[type="radio"]:checked ~ .pattern-name {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+/* 响应式 - 移动端图案选项 */
+@media (max-width: 768px) {
+    .pattern-options {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+    }
+
+    .pattern-preview {
+        height: 50px;
+    }
+
+    .pattern-name {
+        font-size: 11px;
+    }
+}

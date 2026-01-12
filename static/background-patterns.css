@@ -1,0 +1,216 @@
+/* ===================================
+   CSS Background Patterns - 纯 CSS 实现的简单背景图案
+   =================================== */
+
+/* 1. 点阵图案 - Dots Pattern */
+.bg-pattern-dots {
+    background-color: #F8FAFC;
+    background-image: radial-gradient(#CBD5E1 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+
+/* 2. 网格图案 - Grid Pattern */
+.bg-pattern-grid {
+    background-color: #F8FAFC;
+    background-image:
+        linear-gradient(#E2E8F0 1px, transparent 1px),
+        linear-gradient(90deg, #E2E8F0 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+
+/* 3. 斜线图案 - Diagonal Lines */
+.bg-pattern-diagonal {
+    background-color: #F8FAFC;
+    background-image: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 10px,
+        #E2E8F0 10px,
+        #E2E8F0 11px
+    );
+}
+
+/* 4. 波点图案 - Polka Dots */
+.bg-pattern-polka {
+    background-color: #F8FAFC;
+    background-image: radial-gradient(#94A3B8 2px, transparent 2px);
+    background-size: 16px 16px;
+    background-position: 0 0, 8px 8px;
+}
+
+/* 5. 十字图案 - Cross Pattern */
+.bg-pattern-cross {
+    background-color: #F8FAFC;
+    background-image:
+        linear-gradient(#E2E8F0 2px, transparent 2px),
+        linear-gradient(90deg, #E2E8F0 2px, transparent 2px);
+    background-size: 20px 20px;
+}
+
+/* 6. 菱形图案 - Diamond Pattern */
+.bg-pattern-diamond {
+    background-color: #F8FAFC;
+    background-image:
+        linear-gradient(45deg, #E2E8F0 25%, transparent 25%, transparent 75%, #E2E8F0 75%, #E2E8F0),
+        linear-gradient(45deg, #E2E8F0 25%, transparent 25%, transparent 75%, #E2E8F0 75%, #E2E8F0);
+    background-size: 20px 20px;
+    background-position: 0 0, 10px 10px;
+}
+
+/* 7. 棋盘格图案 - Checkerboard */
+.bg-pattern-checker {
+    background-color: #F8FAFC;
+    background-image:
+        linear-gradient(45deg, #E2E8F0 25%, transparent 25%, transparent 75%, #E2E8F0 75%, #E2E8F0),
+        linear-gradient(45deg, #E2E8F0 25%, transparent 25%, transparent 75%, #E2E8F0 75%, #E2E8F0);
+    background-size: 30px 30px;
+    background-position: 0 0, 15px 15px;
+}
+
+/* 8. 斜纹图案 - Herringbone */
+.bg-pattern-herringbone {
+    background-color: #F8FAFC;
+    background-image: repeating-linear-gradient(
+        45deg,
+        #E2E8F0,
+        #E2E8F0 1px,
+        transparent 1px,
+        transparent 10px
+    ),
+    repeating-linear-gradient(
+        -45deg,
+        #E2E8F0,
+        #E2E8F0 1px,
+        transparent 1px,
+        transparent 10px
+    );
+}
+
+/* 9. 圆形图案 - Circles Pattern */
+.bg-pattern-circles {
+    background-color: #F8FAFC;
+    background-image: radial-gradient(circle, #CBD5E1 2px, transparent 2.5px);
+    background-size: 20px 20px;
+}
+
+/* 10. 波浪图案 - Waves Pattern */
+.bg-pattern-waves {
+    background-color: #F8FAFC;
+    background-image:
+        radial-gradient(circle at 50% 100%, #CBD5E1 20%, transparent 20%),
+        radial-gradient(circle at 50% 0%, #CBD5E1 20%, transparent 20%);
+    background-size: 30px 30px;
+}
+
+/* 11. 六边形图案 - Hexagon Pattern */
+.bg-pattern-hexagon {
+    background-color: #F8FAFC;
+    background-image:
+        linear-gradient(30deg, #E2E8F0 12%, transparent 12.5%, transparent 87%, #E2E8F0 87.5%, #E2E8F0),
+        linear-gradient(150deg, #E2E8F0 12%, transparent 12.5%, transparent 87%, #E2E8F0 87.5%, #E2E8F0),
+        linear-gradient(30deg, #E2E8F0 12%, transparent 12.5%, transparent 87%, #E2E8F0 87.5%, #E2E8F0),
+        linear-gradient(150deg, #E2E8F0 12%, transparent 12.5%, transparent 87%, #E2E8F0 87.5%, #E2E8F0),
+        linear-gradient(60deg, #CBD5E177 25%, transparent 25.5%, transparent 75%, #CBD5E177 75%, #CBD5E177),
+        linear-gradient(60deg, #CBD5E177 25%, transparent 25.5%, transparent 75%, #CBD5E177 75%, #CBD5E177);
+    background-size: 20px 35px;
+    background-position: 0 0, 0 0, 10px 18px, 10px 18px, 0 0, 10px 18px;
+}
+
+/* 12. 条纹图案 - Stripes Pattern */
+.bg-pattern-stripes {
+    background-color: #F8FAFC;
+    background-image: repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 10px,
+        #E2E8F0 10px,
+        #E2E8F0 11px
+    );
+}
+
+/* 深色主题变体 - Dark Mode Variants */
+
+/* 13. 深色点阵 - Dark Dots */
+.bg-pattern-dots-dark {
+    background-color: #0F172A;
+    background-image: radial-gradient(#334155 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+
+/* 14. 深色网格 - Dark Grid */
+.bg-pattern-grid-dark {
+    background-color: #0F172A;
+    background-image:
+        linear-gradient(#1E293B 1px, transparent 1px),
+        linear-gradient(90deg, #1E293B 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+
+/* 15. 深色菱形 - Dark Diamond */
+.bg-pattern-diamond-dark {
+    background-color: #0F172A;
+    background-image:
+        linear-gradient(45deg, #1E293B 25%, transparent 25%, transparent 75%, #1E293B 75%, #1E293B),
+        linear-gradient(45deg, #1E293B 25%, transparent 25%, transparent 75%, #1E293B 75%, #1E293B);
+    background-size: 20px 20px;
+    background-position: 0 0, 10px 10px;
+}
+
+/* 16. 深色斜线 - Dark Diagonal */
+.bg-pattern-diagonal-dark {
+    background-color: #0F172A;
+    background-image: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 10px,
+        #1E293B 10px,
+        #1E293B 11px
+    );
+}
+
+/* ===================================
+   动态背景效果 - Dynamic Background Effects
+   =================================== */
+
+/* 17. 弥散极光 - Aurora Background */
+.bg-pattern-aurora {
+    background-color: #ff9a9e;
+    background-image:
+        radial-gradient(at 40% 20%, hsla(28,100%,74%,1) 0px, transparent 50%),
+        radial-gradient(at 80% 0%, hsla(189,100%,56%,1) 0px, transparent 50%),
+        radial-gradient(at 0% 50%, hsla(355,100%,93%,1) 0px, transparent 50%),
+        radial-gradient(at 80% 50%, hsla(340,100%,76%,1) 0px, transparent 50%),
+        radial-gradient(at 0% 100%, hsla(22,100%,77%,1) 0px, transparent 50%),
+        radial-gradient(at 80% 100%, hsla(242,100%,70%,1) 0px, transparent 50%),
+        radial-gradient(at 0% 0%, hsla(343,100%,76%,1) 0px, transparent 50%);
+}
+
+/* 18. 动态流光 - Animated Gradient */
+.bg-pattern-animated-gradient {
+    background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+    background-size: 400% 400%;
+    animation: gradientBG 15s ease infinite;
+}
+
+@keyframes gradientBG {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+/* 19. 几何锯齿 - Zig Zag Pattern */
+.bg-pattern-zigzag {
+    background-color: #131313;
+    opacity: 1;
+    background:
+        linear-gradient(135deg, #222222 25%, transparent 25%) -20px 0/ 40px 40px,
+        linear-gradient(225deg, #222222 25%, transparent 25%) -20px 0/ 40px 40px,
+        linear-gradient(315deg, #222222 25%, transparent 25%) 0px 0/ 40px 40px,
+        linear-gradient(45deg, #222222 25%, #131313 25%) 0px 0/ 40px 40px;
+}

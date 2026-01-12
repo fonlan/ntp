@@ -6,6 +6,7 @@
     <title data-i18n="app.title">NTP - Bookmark Navigation</title>
     <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
     <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/background-patterns.css">
     <script src="/static/i18n.js"></script>
 </head>
 <body>
@@ -73,40 +74,150 @@
             </div>
             <div class="modal-body">
                 <div class="settings-sections">
-                    <!-- Background color settings -->
+                    <!-- Background Settings (Colors and Patterns merged) -->
                     <div class="settings-section">
-                        <h3 data-i18n="settings.backgroundColor">Background Color</h3>
-                        <div class="color-options">
-                            <label class="color-option">
-                                <input type="radio" name="bgColor" value="#F8FAFC" checked>
-                                <span class="color-preview" style="background: #F8FAFC;"></span>
-                                <span class="color-name" data-i18n="settings.colors.default">Default Gray</span>
-                            </label>
-                            <label class="color-option">
-                                <input type="radio" name="bgColor" value="#FFFFFF">
-                                <span class="color-preview" style="background: #FFFFFF; border: 1px solid #E2E8F0;"></span>
-                                <span class="color-name" data-i18n="settings.colors.white">Pure White</span>
-                            </label>
-                            <label class="color-option">
-                                <input type="radio" name="bgColor" value="#0F172A">
-                                <span class="color-preview" style="background: #0F172A;"></span>
-                                <span class="color-name" data-i18n="settings.colors.dark">Dark</span>
-                            </label>
-                            <label class="color-option">
-                                <input type="radio" name="bgColor" value="#FEF3C7">
-                                <span class="color-preview" style="background: #FEF3C7;"></span>
-                                <span class="color-name" data-i18n="settings.colors.warm">Warm Yellow</span>
-                            </label>
-                            <label class="color-option">
-                                <input type="radio" name="bgColor" value="#ECFDF5">
-                                <span class="color-preview" style="background: #ECFDF5;"></span>
-                                <span class="color-name" data-i18n="settings.colors.mint">Mint Green</span>
-                            </label>
-                            <label class="color-option">
-                                <input type="radio" name="bgColor" value="#FEE2E2">
-                                <span class="color-preview" style="background: #FEE2E2;"></span>
-                                <span class="color-name" data-i18n="settings.colors.pink">Pale Pink</span>
-                            </label>
+                        <h3 data-i18n="settings.background">Background</h3>
+                        <div class="background-options">
+                            <!-- Solid Colors -->
+                            <div class="background-group">
+                                <h4 data-i18n="settings.backgroundColors">Solid Colors</h4>
+                                <div class="color-options">
+                                    <label class="color-option">
+                                        <input type="radio" name="background" value="#F8FAFC" checked>
+                                        <span class="color-preview" style="background: #F8FAFC;"></span>
+                                        <span class="color-name" data-i18n="settings.colors.default">Default Gray</span>
+                                    </label>
+                                    <label class="color-option">
+                                        <input type="radio" name="background" value="#FFFFFF">
+                                        <span class="color-preview" style="background: #FFFFFF; border: 1px solid #E2E8F0;"></span>
+                                        <span class="color-name" data-i18n="settings.colors.white">Pure White</span>
+                                    </label>
+                                    <label class="color-option">
+                                        <input type="radio" name="background" value="#0F172A">
+                                        <span class="color-preview" style="background: #0F172A;"></span>
+                                        <span class="color-name" data-i18n="settings.colors.dark">Dark</span>
+                                    </label>
+                                    <label class="color-option">
+                                        <input type="radio" name="background" value="#FEF3C7">
+                                        <span class="color-preview" style="background: #FEF3C7;"></span>
+                                        <span class="color-name" data-i18n="settings.colors.warm">Warm Yellow</span>
+                                    </label>
+                                    <label class="color-option">
+                                        <input type="radio" name="background" value="#ECFDF5">
+                                        <span class="color-preview" style="background: #ECFDF5;"></span>
+                                        <span class="color-name" data-i18n="settings.colors.mint">Mint Green</span>
+                                    </label>
+                                    <label class="color-option">
+                                        <input type="radio" name="background" value="#FEE2E2">
+                                        <span class="color-preview" style="background: #FEE2E2;"></span>
+                                        <span class="color-name" data-i18n="settings.colors.pink">Pale Pink</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Patterns -->
+                            <div class="background-group">
+                                <h4 data-i18n="settings.backgroundPatterns">Patterns</h4>
+                                <div class="pattern-options">
+                                    <label class="pattern-option">
+                                        <input type="radio" name="background" value="bg-pattern-dots">
+                                        <span class="pattern-preview bg-pattern-dots"></span>
+                                        <span class="pattern-name" data-i18n="settings.patterns.dots">Dots</span>
+                                    </label>
+                                    <label class="pattern-option">
+                                        <input type="radio" name="background" value="bg-pattern-grid">
+                                        <span class="pattern-preview bg-pattern-grid"></span>
+                                        <span class="pattern-name" data-i18n="settings.patterns.grid">Grid</span>
+                                    </label>
+                                    <label class="pattern-option">
+                                        <input type="radio" name="background" value="bg-pattern-diagonal">
+                                        <span class="pattern-preview bg-pattern-diagonal"></span>
+                                        <span class="pattern-name" data-i18n="settings.patterns.diagonal">Diagonal</span>
+                                    </label>
+                                    <label class="pattern-option">
+                                        <input type="radio" name="background" value="bg-pattern-polka">
+                                        <span class="pattern-preview bg-pattern-polka"></span>
+                                        <span class="pattern-name" data-i18n="settings.patterns.polka">Polka</span>
+                                    </label>
+                                    <label class="pattern-option">
+                                        <input type="radio" name="background" value="bg-pattern-cross">
+                                        <span class="pattern-preview bg-pattern-cross"></span>
+                                        <span class="pattern-name" data-i18n="settings.patterns.cross">Cross</span>
+                                    </label>
+                                    <label class="pattern-option">
+                                        <input type="radio" name="background" value="bg-pattern-diamond">
+                                        <span class="pattern-preview bg-pattern-diamond"></span>
+                                        <span class="pattern-name" data-i18n="settings.patterns.diamond">Diamond</span>
+                                    </label>
+                                    <label class="pattern-option">
+                                        <input type="radio" name="background" value="bg-pattern-checker">
+                                        <span class="pattern-preview bg-pattern-checker"></span>
+                                        <span class="pattern-name" data-i18n="settings.patterns.checker">Checkerboard</span>
+                                    </label>
+                                    <label class="pattern-option">
+                                        <input type="radio" name="background" value="bg-pattern-herringbone">
+                                        <span class="pattern-preview bg-pattern-herringbone"></span>
+                                        <span class="pattern-name" data-i18n="settings.patterns.herringbone">Herringbone</span>
+                                    </label>
+                                    <label class="pattern-option">
+                                        <input type="radio" name="background" value="bg-pattern-circles">
+                                        <span class="pattern-preview bg-pattern-circles"></span>
+                                        <span class="pattern-name" data-i18n="settings.patterns.circles">Circles</span>
+                                    </label>
+                                    <label class="pattern-option">
+                                        <input type="radio" name="background" value="bg-pattern-waves">
+                                        <span class="pattern-preview bg-pattern-waves"></span>
+                                        <span class="pattern-name" data-i18n="settings.patterns.waves">Waves</span>
+                                    </label>
+                                    <label class="pattern-option">
+                                        <input type="radio" name="background" value="bg-pattern-stripes">
+                                        <span class="pattern-preview bg-pattern-stripes"></span>
+                                        <span class="pattern-name" data-i18n="settings.patterns.stripes">Stripes</span>
+                                    </label>
+                                    <label class="pattern-option">
+                                        <input type="radio" name="background" value="bg-pattern-dots-dark">
+                                        <span class="pattern-preview bg-pattern-dots-dark"></span>
+                                        <span class="pattern-name" data-i18n="settings.patterns.dotsDark">Dark Dots</span>
+                                    </label>
+                                    <label class="pattern-option">
+                                        <input type="radio" name="background" value="bg-pattern-grid-dark">
+                                        <span class="pattern-preview bg-pattern-grid-dark"></span>
+                                        <span class="pattern-name" data-i18n="settings.patterns.gridDark">Dark Grid</span>
+                                    </label>
+                                    <label class="pattern-option">
+                                        <input type="radio" name="background" value="bg-pattern-diamond-dark">
+                                        <span class="pattern-preview bg-pattern-diamond-dark"></span>
+                                        <span class="pattern-name" data-i18n="settings.patterns.diamondDark">Dark Diamond</span>
+                                    </label>
+                                    <label class="pattern-option">
+                                        <input type="radio" name="background" value="bg-pattern-diagonal-dark">
+                                        <span class="pattern-preview bg-pattern-diagonal-dark"></span>
+                                        <span class="pattern-name" data-i18n="settings.patterns.diagonalDark">Dark Diagonal</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Dynamic Effects -->
+                            <div class="background-group">
+                                <h4 data-i18n="settings.backgroundDynamic">Dynamic Effects</h4>
+                                <div class="pattern-options">
+                                    <label class="pattern-option">
+                                        <input type="radio" name="background" value="bg-pattern-aurora">
+                                        <span class="pattern-preview bg-pattern-aurora"></span>
+                                        <span class="pattern-name" data-i18n="settings.patterns.aurora">Aurora</span>
+                                    </label>
+                                    <label class="pattern-option">
+                                        <input type="radio" name="background" value="bg-pattern-animated-gradient">
+                                        <span class="pattern-preview bg-pattern-animated-gradient"></span>
+                                        <span class="pattern-name" data-i18n="settings.patterns.animatedGradient">Animated Gradient</span>
+                                    </label>
+                                    <label class="pattern-option">
+                                        <input type="radio" name="background" value="bg-pattern-zigzag">
+                                        <span class="pattern-preview bg-pattern-zigzag"></span>
+                                        <span class="pattern-name" data-i18n="settings.patterns.zigzag">Zig Zag</span>
+                                    </label>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
