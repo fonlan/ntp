@@ -1,6 +1,54 @@
 // API base path
 const API = '/api';
 
+// ===================================
+// 移动端布局调整
+// ===================================
+// 在移动端将按钮容器移到页面底部
+function adjustMobileLayout() {
+    if (window.innerWidth <= 768) {
+        const container = document.querySelector('.container');
+        const topBar = document.querySelector('.top-bar');
+        const buttonsContainer = document.querySelector('.top-right-buttons');
+
+        if (container && topBar && buttonsContainer) {
+            // 检查按钮容器是否已经被移动过
+            if (buttonsContainer.parentElement !== topBar) {
+                return; // 已经移动过了，不再重复移动
+            }
+
+            // 将按钮容器从 .top-bar 移到 .container 的最后
+            container.appendChild(buttonsContainer);
+
+            // 添加移动端样式类
+            buttonsContainer.classList.add('mobile-bottom-buttons');
+        }
+    }
+}
+
+// DOM 加载完成后执行移动端布局调整
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', adjustMobileLayout);
+} else {
+    adjustMobileLayout();
+}
+
+// 窗口大小改变时重新检查
+window.addEventListener('resize', () => {
+    if (window.innerWidth <= 768) {
+        adjustMobileLayout();
+    } else {
+        // 桌面端恢复原始位置
+        const topBar = document.querySelector('.top-bar');
+        const buttonsContainer = document.querySelector('.top-right-buttons');
+        if (topBar && buttonsContainer && buttonsContainer.classList.contains('mobile-bottom-buttons')) {
+            // 将按钮容器放回 .top-bar 的最后
+            topBar.appendChild(buttonsContainer);
+            buttonsContainer.classList.remove('mobile-bottom-buttons');
+        }
+    }
+});
+
 // Helper function to make API requests with language header
 async function apiRequest(url, options = {}) {
     const headers = {
