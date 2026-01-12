@@ -1569,7 +1569,23 @@ function initEventListeners() {
             group_id: parseGroupId(document.getElementById('bookmarkGroup').value),
             description: document.getElementById('bookmarkDesc').value,
             is_new_window: document.getElementById('bookmarkNewWindow').checked
-        }, () => Promise.all([loadBookmarks(), loadGroups()]));
+        }, async (result, existingId) => {
+            // existingId 有值表示编辑，空表示新增
+            if (existingId) {
+                // 编辑模式：更新本地状态中的书签
+                const index = state.bookmarks.findIndex(b => b.id === parseInt(existingId));
+                if (index !== -1) {
+                    state.bookmarks[index] = result;
+                }
+            } else {
+                // 新增模式：将新书签添加到本地状态
+                state.bookmarks.push(result);
+            }
+            // 重新渲染书签列表
+            renderBookmarks();
+            // 更新分组下拉选择（因为分组可能变化）
+            updateGroupSelect();
+        });
     });
 
     // Group form submit
@@ -1617,9 +1633,10 @@ async function saveForm(resource, data, afterSave) {
     const modal = document.getElementById(modalMap[resource]);
 
     try {
-        await apiRequest(url, { method, body: JSON.stringify(data) });
+        const response = await apiRequest(url, { method, body: JSON.stringify(data) });
+        const result = await response.json();
         modal.classList.remove('show');
-        await afterSave();
+        await afterSave(result, id);  // 传递后端返回的数据和 ID（编辑时有值）
     } catch (err) {
         console.error(i18n.t('errors.saveFailed'), err);
         alert(i18n.t('errors.saveFailed'));
