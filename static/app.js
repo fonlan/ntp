@@ -592,6 +592,7 @@ function renderBookmarks() {
 
     dom.bookmarksContainer.innerHTML = html + ungroupedHtml;
     applyBookmarkSize();
+    applyCardOpacity();  // 确保透明度设置在渲染后应用
     initDragAndDrop();
     initBookmarkClickHandlers();
 }
