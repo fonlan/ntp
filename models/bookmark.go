@@ -2,23 +2,25 @@ package models
 
 import (
 	"database/sql"
+	"fmt"
+	"strings"
 	"time"
 )
 
 // Bookmark 书签
 type Bookmark struct {
-	ID          int64      `json:"id"`
-	Title       string     `json:"title"`
-	URL         string     `json:"url"`
-	IconURL     *string    `json:"icon_url"`
-	IconPath    *string    `json:"icon_path"`
-	IconChar    *string    `json:"icon_char"`
-	Description *string    `json:"description"`
-	GroupID     *int64     `json:"group_id"`
-	SortOrder   int        `json:"sort_order"`
-	IsNewWindow bool       `json:"is_new_window"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	ID          int64     `json:"id"`
+	Title       string    `json:"title"`
+	URL         string    `json:"url"`
+	IconURL     *string   `json:"icon_url"`
+	IconPath    *string   `json:"icon_path"`
+	IconChar    *string   `json:"icon_char"`
+	Description *string   `json:"description"`
+	GroupID     *int64    `json:"group_id"`
+	SortOrder   int       `json:"sort_order"`
+	IsNewWindow bool      `json:"is_new_window"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // BookmarkRepository 书签数据访问层
@@ -29,6 +31,11 @@ type BookmarkRepository struct {
 // NewBookmarkRepository 创建书签仓库
 func NewBookmarkRepository(db *sql.DB) *BookmarkRepository {
 	return &BookmarkRepository{db: db}
+}
+
+// GetDB 获取数据库连接（用于 Import 优化中的批量查询）
+func (r *BookmarkRepository) GetDB() *sql.DB {
+	return r.db
 }
 
 // Create 创建书签
@@ -50,6 +57,40 @@ func (r *BookmarkRepository) Create(bookmark *Bookmark) error {
 
 	bookmark.ID = id
 	return nil
+}
+
+// BatchCreate 批量创建书签（用于 Import 优化）
+func (r *BookmarkRepository) BatchCreate(bookmarks []*Bookmark) error {
+	if len(bookmarks) == 0 {
+		return nil
+	}
+
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+
+	stmt, err := tx.Prepare(
+		`INSERT INTO bookmarks (title, url, icon_url, icon_path, icon_char, description, group_id, sort_order, is_new_window, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	defer stmt.Close()
+
+	for _, b := range bookmarks {
+		if _, err := stmt.Exec(
+			b.Title, b.URL, b.IconURL, b.IconPath, b.IconChar,
+			b.Description, b.GroupID, b.SortOrder, b.IsNewWindow,
+			b.CreatedAt, b.UpdatedAt,
+		); err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	return tx.Commit()
 }
 
 // GetByID 根据 ID 获取书签
@@ -94,7 +135,8 @@ func (r *BookmarkRepository) GetAll(groupID *int64) ([]Bookmark, error) {
 	}
 	defer rows.Close()
 
-	bookmarks := []Bookmark{}
+	// 预分配 slice 容量（基于典型数据大小优化）
+	bookmarks := make([]Bookmark, 0, 100)
 	for rows.Next() {
 		var b Bookmark
 		if err := rows.Scan(
@@ -224,6 +266,41 @@ func (r *BookmarkRepository) GetByURL(url string) (*Bookmark, error) {
 		return nil, nil
 	}
 	return bookmark, err
+}
+
+// GetBookmarksByURLs 根据 URL 列表批量查询书签（用于 Import 优化）
+func (r *BookmarkRepository) GetBookmarksByURLs(urls []string) (map[string]*Bookmark, error) {
+	if len(urls) == 0 {
+		return nil, nil
+	}
+
+	placeholders := strings.Repeat("?,", len(urls))
+	query := fmt.Sprintf("SELECT id, title, url, icon_url, icon_path, icon_char, description, group_id, sort_order, is_new_window, created_at, updated_at FROM bookmarks WHERE url IN (%s)", placeholders)
+
+	args := make([]interface{}, len(urls))
+	for i, url := range urls {
+		args[i] = url
+	}
+
+	bookmarkMap := make(map[string]*Bookmark)
+	rows, err := r.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var b Bookmark
+		err := rows.Scan(&b.ID, &b.Title, &b.URL, &b.IconURL, &b.IconPath, &b.IconChar,
+			&b.Description, &b.GroupID, &b.SortOrder, &b.IsNewWindow,
+			&b.CreatedAt, &b.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		bookmarkMap[b.URL] = &b
+	}
+
+	return bookmarkMap, nil
 }
 
 // DeleteAll 删除所有书签

@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -10,9 +11,15 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 )
 
-// validImageExts 支持的图片扩展名
+const (
+	localIconPrefix = "/data/icons/"
+	defaultIconExt  = ".png"
+)
+
 var validImageExts = map[string]bool{
 	".png":  true,
 	".jpg":  true,
@@ -23,34 +30,46 @@ var validImageExts = map[string]bool{
 	".webp": true,
 }
 
-const (
-	localIconPrefix = "/data/icons/"
-	defaultIconExt  = ".png"
-)
-
-// IconService 图标服务
 type IconService struct {
 	iconDir string
 	baseURL string
+	client  *http.Client
+	cache   *sync.Map
 }
 
-// NewIconService 创建图标服务
 func NewIconService(iconDir, baseURL string) *IconService {
+	transport := &http.Transport{
+		MaxIdleConns:        100,
+		MaxIdleConnsPerHost: 10,
+		IdleConnTimeout:     90 * time.Second,
+		TLSHandshakeTimeout: 10 * time.Second,
+	}
+
 	return &IconService{
 		iconDir: iconDir,
 		baseURL: baseURL,
+		client: &http.Client{
+			Timeout:   10 * time.Second,
+			Transport: transport,
+		},
+		cache: &sync.Map{},
 	}
 }
 
-// DownloadIcon 下载图标并保存到本地
 func (s *IconService) DownloadIcon(iconURL string) (string, error) {
+	// 检查内存缓存
+	if cached, ok := s.cache.Load(iconURL); ok {
+		return cached.(string), nil
+	}
+
 	// 如果是本地路径，直接返回
 	if strings.HasPrefix(iconURL, localIconPrefix) {
+		s.cache.Store(iconURL, iconURL)
 		return iconURL, nil
 	}
 
-	// 下载图标
-	resp, err := http.Get(iconURL)
+	// 下载图标（使用共享客户端）
+	resp, err := s.client.Get(iconURL)
 	if err != nil {
 		return "", fmt.Errorf("下载图标失败: %w", err)
 	}
@@ -67,10 +86,16 @@ func (s *IconService) DownloadIcon(iconURL string) (string, error) {
 	}
 
 	// 保存图标
-	return s.saveIcon(iconURL, data, extractExtFromURL(iconURL))
+	path, err := s.saveIcon(iconURL, data, extractExtFromURL(iconURL))
+	if err != nil {
+		return "", err
+	}
+
+	// 写入缓存
+	s.cache.Store(iconURL, path)
+	return path, nil
 }
 
-// extractExtFromURL 从 URL 中提取文件扩展名
 func extractExtFromURL(iconURL string) string {
 	u, err := url.Parse(iconURL)
 	if err != nil {
@@ -90,19 +115,16 @@ func extractExtFromURL(iconURL string) string {
 	return defaultIconExt
 }
 
-// ensureIconDir 确保图标目录存在
 func (s *IconService) ensureIconDir() error {
 	return os.MkdirAll(s.iconDir, 0755)
 }
 
-// generateIconPath 生成图标文件路径
 func (s *IconService) generateIconPath(key string, ext string) string {
 	hash := sha256.Sum256([]byte(key))
 	filename := hex.EncodeToString(hash[:]) + ext
 	return filepath.Join(s.iconDir, filename)
 }
 
-// saveIcon 保存图标数据到本地
 func (s *IconService) saveIcon(key string, data []byte, ext string) (string, error) {
 	if !validImageExts[ext] {
 		return "", fmt.Errorf("不支持的文件格式: %s", ext)
@@ -121,7 +143,6 @@ func (s *IconService) saveIcon(key string, data []byte, ext string) (string, err
 	return localIconPrefix + filepath.Base(filePath), nil
 }
 
-// DownloadFavicon 从网站域名下载favicon
 func (s *IconService) DownloadFavicon(websiteURL string) (string, error) {
 	// 解析URL获取域名
 	u, err := url.Parse(websiteURL)
@@ -131,7 +152,7 @@ func (s *IconService) DownloadFavicon(websiteURL string) (string, error) {
 
 	domain := u.Hostname()
 
-	// 使用多个favicon源
+	// 使用多个favicon源（并发优化）
 	// 注意：URL 参数使用书签原始 URL 的协议（http 或 https），与书签保持一致
 	faviconURLs := []string{
 		fmt.Sprintf("https://t0.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=%s&size=128", websiteURL),
@@ -139,24 +160,54 @@ func (s *IconService) DownloadFavicon(websiteURL string) (string, error) {
 		fmt.Sprintf("https://favicon.yandex.net/favicon/%s", domain),
 	}
 
-	// 尝试从各个源下载
+	// 设置 15 秒超时
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	// 并发发起所有请求，使用 goroutine
+	type downloadResult struct {
+		path string
+		err  error
+	}
+
+	resultChan := make(chan downloadResult, 1)
+
 	for _, faviconURL := range faviconURLs {
-		iconPath, err := s.DownloadIcon(faviconURL)
-		if err == nil {
-			return iconPath, nil
+		go func(url string) {
+			path, err := s.DownloadIcon(url)
+			resultChan <- downloadResult{path, err}
+		}(faviconURL)
+	}
+
+	// 等待第一个成功结果
+	var successPath string
+	for {
+		select {
+		case result := <-resultChan:
+			if result.err == nil && result.path != "" {
+				successPath = result.path
+				cancel() // 成功后取消其他请求
+				goto done
+			}
+		case <-ctx.Done():
+			// 超时，返回超时错误
+			return "", fmt.Errorf("favicon 下载超时（15秒）")
 		}
+	}
+
+done:
+	if successPath != "" {
+		return successPath, nil
 	}
 
 	return "", fmt.Errorf("所有favicon源都下载失败")
 }
 
-// SaveUploadedIcon 保存上传的图标
 func (s *IconService) SaveUploadedIcon(filename string, data []byte) (string, error) {
 	ext := strings.ToLower(filepath.Ext(filename))
 	return s.saveIcon(filename, data, ext)
 }
 
-// DeleteIcon 删除本地图标文件
 func (s *IconService) DeleteIcon(iconPath string) error {
 	if !strings.HasPrefix(iconPath, localIconPrefix) {
 		return nil // 不是本地文件，不删除
@@ -171,7 +222,6 @@ func (s *IconService) DeleteIcon(iconPath string) error {
 	return os.Remove(filePath)
 }
 
-// GetIconDir 获取图标目录路径
 func (s *IconService) GetIconDir() string {
 	return s.iconDir
 }

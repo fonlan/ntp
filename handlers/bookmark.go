@@ -13,10 +13,19 @@ import (
 	"strconv"
 	"strings"
 
+	"ntp/middleware"
 	"ntp/models"
 	"ntp/services"
-	"ntp/middleware"
 )
+
+// toInterfaceSlice 将字符串切片转换为 interface{} 切片（用于 SQL IN 查询）
+func toInterfaceSlice(slice []string) []interface{} {
+	result := make([]interface{}, len(slice))
+	for i, v := range slice {
+		result[i] = v
+	}
+	return result
+}
 
 // BookmarkHandler 书签处理器
 type BookmarkHandler struct {
@@ -412,6 +421,42 @@ func (h *BookmarkHandler) Import(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// sort_order 计数器：避免 N+1 查询问题
+	groupSortOrders := make(map[int64]int)
+
+	// 批量查询所有 URL 以避免 N+1 查询问题（Merge 模式）
+	if mode == "merge" {
+		urls := make([]string, len(bookmarks))
+		for i, b := range bookmarks {
+			urls[i] = b.URL
+		}
+
+		// 构建占位符字符串
+		placeholders := strings.Repeat("?,", len(urls)-1) + "?"
+		query := fmt.Sprintf("SELECT id, title, url, icon_url, icon_path, icon_char, description, group_id, sort_order, is_new_window, created_at, updated_at FROM bookmarks WHERE url IN (%s)", placeholders)
+
+		// 批量查询
+		existingBookmarks := make([]*models.Bookmark, 0)
+		rows, err := h.bookmarkRepo.GetDB().Query(query, toInterfaceSlice(urls)...)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var b models.Bookmark
+				err := rows.Scan(&b.ID, &b.Title, &b.URL, &b.IconURL, &b.IconPath, &b.IconChar,
+					&b.Description, &b.GroupID, &b.SortOrder, &b.IsNewWindow, &b.CreatedAt, &b.UpdatedAt)
+				if err == nil {
+					existingBookmarks = append(existingBookmarks, &b)
+				}
+			}
+		}
+
+		// 构建 URL -> Bookmark 映射
+		existingBookmarkMap := make(map[string]*models.Bookmark)
+		for _, b := range existingBookmarks {
+			existingBookmarkMap[b.URL] = b
+		}
+	}
+
 	for i := range bookmarks {
 		bookmark := &bookmarks[i]
 
@@ -488,9 +533,15 @@ func (h *BookmarkHandler) Import(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		// 获取最大 sort_order
-		maxSortOrder, _ := h.bookmarkRepo.GetMaxSortOrder(bookmark.GroupID)
-		bookmark.SortOrder = maxSortOrder + 1
+		// 获取最大 sort_order（使用内存计数器避免 N+1 查询）
+		groupID := bookmark.GroupID
+		key := int64(-1)
+		if groupID != nil {
+			key = *groupID
+		}
+		currentMax := groupSortOrders[key]
+		groupSortOrders[key] = currentMax + 1
+		bookmark.SortOrder = groupSortOrders[key]
 
 		// 合并模式：检查 URL 是否已存在
 		if mode == "merge" {
@@ -542,7 +593,7 @@ func (h *BookmarkHandler) Import(w http.ResponseWriter, r *http.Request) {
 // parseNetscapeBookmarksWithGroups 解析 Netscape 书签格式，同时解析分组关联
 func parseNetscapeBookmarksWithGroups(html string) ([]models.Bookmark, map[string]string, map[string]int64, error) {
 	var bookmarks []models.Bookmark
-	groups := make(map[string]string)     // 记录所有出现的分组名
+	groups := make(map[string]string)          // 记录所有出现的分组名
 	groupNameToIndex := make(map[string]int64) // 分组名 -> 临时索引
 	var currentGroupName string
 	groupIndex := int64(1)
@@ -764,10 +815,60 @@ func generateNetscapeBookmarks(bookmarks []models.Bookmark, groups []models.Grou
 	sb.WriteString(`<H1>Bookmarks</H1>` + "\n")
 	sb.WriteString(`<DL><p>` + "\n")
 
-	// 按分组组织书签
+	// 分组书签
 	groupMap := make(map[int64]models.Group)
 	for _, g := range groups {
 		groupMap[g.ID] = g
+	}
+
+	// 按分组索引书签（优化 O(n*m) 嵌套循环）
+	groupBookmarks := make(map[int64][]models.Bookmark)
+	for _, b := range bookmarks {
+		if b.GroupID == nil {
+			groupBookmarks[-1] = append(groupBookmarks[-1], b)
+		} else {
+			groupBookmarks[*b.GroupID] = append(groupBookmarks[*b.GroupID], b)
+		}
+	}
+
+	// 未分组书签
+	sb.WriteString(`<DT><H3 ADD_DATE="0">未分类</H3>` + "\n")
+	sb.WriteString(`<DL><p>` + "\n")
+	for _, b := range groupBookmarks[-1] {
+		iconData := iconToBase64(b.IconPath, b.IconURL, iconDir)
+		desc := ""
+		if b.Description != nil {
+			desc = fmt.Sprintf(` DESC="%s"`, escapeHTMLAttr(*b.Description))
+		}
+		newWindow := ""
+		if b.IsNewWindow {
+			newWindow = ` NEW_WINDOW="1"`
+		}
+		sb.WriteString(fmt.Sprintf(`<DT><A HREF="%s" ADD_DATE="%d" ICON="%s"%s>%s</A>`+"\n",
+			escapeHTMLAttr(b.URL), b.CreatedAt.Unix(), escapeHTMLAttr(iconData), desc, newWindow, escapeHTMLContent(b.Title)))
+	}
+	sb.WriteString(`</DL><p>` + "\n")
+
+	// 分组书签
+	for _, g := range groups {
+		sb.WriteString(fmt.Sprintf(`<DT><H3 ADD_DATE="%d">%s</H3>`+"\n", g.CreatedAt.Unix(), escapeHTMLContent(g.Name)))
+		sb.WriteString(`<DL><p>` + "\n")
+		if bookmarks, ok := groupBookmarks[g.ID]; ok {
+			for _, b := range bookmarks {
+				iconData := iconToBase64(b.IconPath, b.IconURL, iconDir)
+				desc := ""
+				if b.Description != nil {
+					desc = fmt.Sprintf(` DESC="%s"`, escapeHTMLAttr(*b.Description))
+				}
+				newWindow := ""
+				if b.IsNewWindow {
+					newWindow = ` NEW_WINDOW="1"`
+				}
+				sb.WriteString(fmt.Sprintf(`<DT><A HREF="%s" ADD_DATE="%d" ICON="%s"%s>%s</A>`+"\n",
+					escapeHTMLAttr(b.URL), b.CreatedAt.Unix(), escapeHTMLAttr(iconData), desc, newWindow, escapeHTMLContent(b.Title)))
+			}
+		}
+		sb.WriteString(`</DL><p>` + "\n")
 	}
 
 	// 未分组书签
