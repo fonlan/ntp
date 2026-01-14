@@ -769,6 +769,75 @@ body {
 /* ===================================
    设置页面样式
    =================================== */
+/* 设置模态框布局 */
+.settings-layout {
+    display: flex;
+    min-height: 500px;
+    max-height: 70vh;
+}
+
+/* 侧边栏 */
+.settings-sidebar {
+    width: 180px;
+    flex-shrink: 0;
+    background: var(--bg-hover);
+    border-right: 1px solid var(--border);
+    padding: 16px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow-y: auto;
+}
+
+.settings-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border: none;
+    background: transparent;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+    text-align: left;
+    width: 100%;
+}
+
+.settings-nav-item:hover {
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+
+.settings-nav-item.active {
+    background: var(--primary);
+    color: white;
+}
+
+.settings-nav-item svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+/* 内容区域 */
+.settings-content {
+    flex: 1;
+    padding: 24px;
+    overflow-y: auto;
+    min-width: 0;
+}
+
+.settings-panel {
+    display: none;
+}
+
+.settings-panel.active {
+    display: block;
+}
+
 .settings-sections {
     display: flex;
     flex-direction: column;
@@ -840,8 +909,6 @@ body {
 /* 设置列表 */
 .settings-list {
     margin-top: 16px;
-    max-height: 200px;
-    overflow-y: auto;
 }
 
 .settings-item {
@@ -888,6 +955,38 @@ body {
 .settings-item-actions {
     display: flex;
     gap: 6px;
+}
+
+.btn-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-icon:hover {
+    background: var(--bg-hover);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.btn-icon-danger:hover {
+    background: #FEF2F2;
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+.btn-icon svg {
+    width: 16px;
+    height: 16px;
 }
 
 /* 数据管理按钮 */
@@ -1423,6 +1522,54 @@ body {
         border-radius: var(--radius-lg);
         max-height: none;
         overflow: visible;
+    }
+
+    /* 移动端设置模态框侧边栏 */
+    .settings-layout {
+        flex-direction: column;
+        max-height: none;
+        min-height: auto;
+    }
+
+    .settings-sidebar {
+        width: 100%;
+        flex-direction: row;
+        overflow-x: visible;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        padding: 8px;
+        gap: 4px;
+        justify-content: space-around;
+    }
+
+    .settings-nav-item {
+        flex: 1;
+        flex-shrink: 1;
+        padding: 8px 4px;
+        justify-content: center;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+    }
+
+    .settings-nav-item svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    .settings-nav-item span {
+        display: block;
+        font-size: 10px;
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .settings-content {
+        padding: 20px;
+        max-height: 60vh;
+        overflow-y: auto;
     }
 
     .modal-header {

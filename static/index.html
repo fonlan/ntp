@@ -53,266 +53,321 @@
                 <h2 data-i18n="settings.title">Settings</h2>
                 <span class="close">&times;</span>
             </div>
-            <div class="modal-body">
-                <div class="settings-sections">
-                    <!-- Background Settings (Colors and Patterns merged) -->
-                    <div class="settings-section">
-                        <h3 data-i18n="settings.background">Background</h3>
-                        <div class="background-options">
-                            <!-- Solid Colors -->
-                            <div class="background-group">
-                                <h4 data-i18n="settings.backgroundColors">Solid Colors</h4>
-                                <div class="color-options">
-                                    <label class="color-option">
-                                        <input type="radio" name="background" value="#F8FAFC" checked>
-                                        <span class="color-preview" style="--preview-color: #F8FAFC;"></span>
-                                        <span class="color-name" data-i18n="settings.colors.default">Default Gray</span>
-                                    </label>
-                                    <label class="color-option">
-                                        <input type="radio" name="background" value="#FFFFFF">
-                                        <span class="color-preview" style="--preview-color: #FFFFFF; --preview-border: 1px solid #E2E8F0;"></span>
-                                        <span class="color-name" data-i18n="settings.colors.white">Pure White</span>
-                                    </label>
-                                    <label class="color-option">
-                                        <input type="radio" name="background" value="#0F172A">
-                                        <span class="color-preview" style="--preview-color: #0F172A;"></span>
-                                        <span class="color-name" data-i18n="settings.colors.dark">Dark</span>
-                                    </label>
-                                    <label class="color-option">
-                                        <input type="radio" name="background" value="#FEF3C7">
-                                        <span class="color-preview" style="--preview-color: #FEF3C7;"></span>
-                                        <span class="color-name" data-i18n="settings.colors.warm">Warm Yellow</span>
-                                    </label>
-                                    <label class="color-option">
-                                        <input type="radio" name="background" value="#ECFDF5">
-                                        <span class="color-preview" style="--preview-color: #ECFDF5;"></span>
-                                        <span class="color-name" data-i18n="settings.colors.mint">Mint Green</span>
-                                    </label>
-                                    <label class="color-option">
-                                        <input type="radio" name="background" value="#FEE2E2">
-                                        <span class="color-preview" style="--preview-color: #FEE2E2;"></span>
-                                        <span class="color-name" data-i18n="settings.colors.pink">Pale Pink</span>
-                                    </label>
+            <div class="settings-layout">
+                <!-- Sidebar Navigation -->
+                <nav class="settings-sidebar">
+                    <button class="settings-nav-item active" data-panel="appearance">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="13.5" cy="6.5" r="2.5"/>
+                            <circle cx="17.5" cy="10.5" r="2.5"/>
+                            <circle cx="8.5" cy="7.5" r="2.5"/>
+                            <circle cx="6.5" cy="12.5" r="2.5"/>
+                            <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 011.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.555C21.965 6.012 17.461 2 12 2z"/>
+                        </svg>
+                        <span data-i18n="settings.nav.appearance">Appearance</span>
+                    </button>
+                    <button class="settings-nav-item" data-panel="groups">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
+                        </svg>
+                        <span data-i18n="settings.nav.groups">Groups</span>
+                    </button>
+                    <button class="settings-nav-item" data-panel="search">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"/>
+                            <path d="M21 21l-4.35-4.35"/>
+                        </svg>
+                        <span data-i18n="settings.nav.search">Search Engine</span>
+                    </button>
+                    <button class="settings-nav-item" data-panel="data">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+                            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                        </svg>
+                        <span data-i18n="settings.nav.data">Data</span>
+                    </button>
+                    <button class="settings-nav-item" data-panel="account">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                        <span data-i18n="settings.nav.account">Account</span>
+                    </button>
+                </nav>
+
+                <!-- Content Area -->
+                <div class="settings-content">
+                    <!-- Appearance Panel -->
+                    <div class="settings-panel active" data-panel="appearance">
+                        <!-- Background Settings -->
+                        <div class="settings-section">
+                            <h3 data-i18n="settings.background">Background</h3>
+                            <div class="background-options">
+                                <!-- Solid Colors -->
+                                <div class="background-group">
+                                    <h4 data-i18n="settings.backgroundColors">Solid Colors</h4>
+                                    <div class="color-options">
+                                        <label class="color-option">
+                                            <input type="radio" name="background" value="#F8FAFC" checked>
+                                            <span class="color-preview" style="--preview-color: #F8FAFC;"></span>
+                                            <span class="color-name" data-i18n="settings.colors.default">Default Gray</span>
+                                        </label>
+                                        <label class="color-option">
+                                            <input type="radio" name="background" value="#FFFFFF">
+                                            <span class="color-preview" style="--preview-color: #FFFFFF; --preview-border: 1px solid #E2E8F0;"></span>
+                                            <span class="color-name" data-i18n="settings.colors.white">Pure White</span>
+                                        </label>
+                                        <label class="color-option">
+                                            <input type="radio" name="background" value="#0F172A">
+                                            <span class="color-preview" style="--preview-color: #0F172A;"></span>
+                                            <span class="color-name" data-i18n="settings.colors.dark">Dark</span>
+                                        </label>
+                                        <label class="color-option">
+                                            <input type="radio" name="background" value="#FEF3C7">
+                                            <span class="color-preview" style="--preview-color: #FEF3C7;"></span>
+                                            <span class="color-name" data-i18n="settings.colors.warm">Warm Yellow</span>
+                                        </label>
+                                        <label class="color-option">
+                                            <input type="radio" name="background" value="#ECFDF5">
+                                            <span class="color-preview" style="--preview-color: #ECFDF5;"></span>
+                                            <span class="color-name" data-i18n="settings.colors.mint">Mint Green</span>
+                                        </label>
+                                        <label class="color-option">
+                                            <input type="radio" name="background" value="#FEE2E2">
+                                            <span class="color-preview" style="--preview-color: #FEE2E2;"></span>
+                                            <span class="color-name" data-i18n="settings.colors.pink">Pale Pink</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Patterns -->
+                                <div class="background-group">
+                                    <h4 data-i18n="settings.backgroundPatterns">Patterns</h4>
+                                    <div class="pattern-options">
+                                        <label class="pattern-option">
+                                            <input type="radio" name="background" value="bg-pattern-dots">
+                                            <span class="pattern-preview bg-pattern-dots"></span>
+                                            <span class="pattern-name" data-i18n="settings.patterns.dots">Dots</span>
+                                        </label>
+                                        <label class="pattern-option">
+                                            <input type="radio" name="background" value="bg-pattern-grid">
+                                            <span class="pattern-preview bg-pattern-grid"></span>
+                                            <span class="pattern-name" data-i18n="settings.patterns.grid">Grid</span>
+                                        </label>
+                                        <label class="pattern-option">
+                                            <input type="radio" name="background" value="bg-pattern-diagonal">
+                                            <span class="pattern-preview bg-pattern-diagonal"></span>
+                                            <span class="pattern-name" data-i18n="settings.patterns.diagonal">Diagonal</span>
+                                        </label>
+                                        <label class="pattern-option">
+                                            <input type="radio" name="background" value="bg-pattern-polka">
+                                            <span class="pattern-preview bg-pattern-polka"></span>
+                                            <span class="pattern-name" data-i18n="settings.patterns.polka">Polka</span>
+                                        </label>
+                                        <label class="pattern-option">
+                                            <input type="radio" name="background" value="bg-pattern-cross">
+                                            <span class="pattern-preview bg-pattern-cross"></span>
+                                            <span class="pattern-name" data-i18n="settings.patterns.cross">Cross</span>
+                                        </label>
+                                        <label class="pattern-option">
+                                            <input type="radio" name="background" value="bg-pattern-diamond">
+                                            <span class="pattern-preview bg-pattern-diamond"></span>
+                                            <span class="pattern-name" data-i18n="settings.patterns.diamond">Diamond</span>
+                                        </label>
+                                        <label class="pattern-option">
+                                            <input type="radio" name="background" value="bg-pattern-checker">
+                                            <span class="pattern-preview bg-pattern-checker"></span>
+                                            <span class="pattern-name" data-i18n="settings.patterns.checker">Checkerboard</span>
+                                        </label>
+                                        <label class="pattern-option">
+                                            <input type="radio" name="background" value="bg-pattern-herringbone">
+                                            <span class="pattern-preview bg-pattern-herringbone"></span>
+                                            <span class="pattern-name" data-i18n="settings.patterns.herringbone">Herringbone</span>
+                                        </label>
+                                        <label class="pattern-option">
+                                            <input type="radio" name="background" value="bg-pattern-circles">
+                                            <span class="pattern-preview bg-pattern-circles"></span>
+                                            <span class="pattern-name" data-i18n="settings.patterns.circles">Circles</span>
+                                        </label>
+                                        <label class="pattern-option">
+                                            <input type="radio" name="background" value="bg-pattern-waves">
+                                            <span class="pattern-preview bg-pattern-waves"></span>
+                                            <span class="pattern-name" data-i18n="settings.patterns.waves">Waves</span>
+                                        </label>
+                                        <label class="pattern-option">
+                                            <input type="radio" name="background" value="bg-pattern-stripes">
+                                            <span class="pattern-preview bg-pattern-stripes"></span>
+                                            <span class="pattern-name" data-i18n="settings.patterns.stripes">Stripes</span>
+                                        </label>
+                                        <label class="pattern-option">
+                                            <input type="radio" name="background" value="bg-pattern-dots-dark">
+                                            <span class="pattern-preview bg-pattern-dots-dark"></span>
+                                            <span class="pattern-name" data-i18n="settings.patterns.dotsDark">Dark Dots</span>
+                                        </label>
+                                        <label class="pattern-option">
+                                            <input type="radio" name="background" value="bg-pattern-grid-dark">
+                                            <span class="pattern-preview bg-pattern-grid-dark"></span>
+                                            <span class="pattern-name" data-i18n="settings.patterns.gridDark">Dark Grid</span>
+                                        </label>
+                                        <label class="pattern-option">
+                                            <input type="radio" name="background" value="bg-pattern-diamond-dark">
+                                            <span class="pattern-preview bg-pattern-diamond-dark"></span>
+                                            <span class="pattern-name" data-i18n="settings.patterns.diamondDark">Dark Diamond</span>
+                                        </label>
+                                        <label class="pattern-option">
+                                            <input type="radio" name="background" value="bg-pattern-diagonal-dark">
+                                            <span class="pattern-preview bg-pattern-diagonal-dark"></span>
+                                            <span class="pattern-name" data-i18n="settings.patterns.diagonalDark">Dark Diagonal</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Dynamic Effects -->
+                                <div class="background-group">
+                                    <h4 data-i18n="settings.backgroundDynamic">Dynamic Effects</h4>
+                                    <div class="pattern-options">
+                                        <label class="pattern-option">
+                                            <input type="radio" name="background" value="bg-pattern-aurora">
+                                            <span class="pattern-preview bg-pattern-aurora"></span>
+                                            <span class="pattern-name" data-i18n="settings.patterns.aurora">Aurora</span>
+                                        </label>
+                                        <label class="pattern-option">
+                                            <input type="radio" name="background" value="bg-pattern-animated-gradient">
+                                            <span class="pattern-preview bg-pattern-animated-gradient"></span>
+                                            <span class="pattern-name" data-i18n="settings.patterns.animatedGradient">Animated Gradient</span>
+                                        </label>
+                                        <label class="pattern-option">
+                                            <input type="radio" name="background" value="bg-pattern-zigzag">
+                                            <span class="pattern-preview bg-pattern-zigzag"></span>
+                                            <span class="pattern-name" data-i18n="settings.patterns.zigzag">Zig Zag</span>
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
+                        </div>
 
-                            <!-- Patterns -->
-                            <div class="background-group">
-                                <h4 data-i18n="settings.backgroundPatterns">Patterns</h4>
-                                <div class="pattern-options">
-                                    <label class="pattern-option">
-                                        <input type="radio" name="background" value="bg-pattern-dots">
-                                        <span class="pattern-preview bg-pattern-dots"></span>
-                                        <span class="pattern-name" data-i18n="settings.patterns.dots">Dots</span>
-                                    </label>
-                                    <label class="pattern-option">
-                                        <input type="radio" name="background" value="bg-pattern-grid">
-                                        <span class="pattern-preview bg-pattern-grid"></span>
-                                        <span class="pattern-name" data-i18n="settings.patterns.grid">Grid</span>
-                                    </label>
-                                    <label class="pattern-option">
-                                        <input type="radio" name="background" value="bg-pattern-diagonal">
-                                        <span class="pattern-preview bg-pattern-diagonal"></span>
-                                        <span class="pattern-name" data-i18n="settings.patterns.diagonal">Diagonal</span>
-                                    </label>
-                                    <label class="pattern-option">
-                                        <input type="radio" name="background" value="bg-pattern-polka">
-                                        <span class="pattern-preview bg-pattern-polka"></span>
-                                        <span class="pattern-name" data-i18n="settings.patterns.polka">Polka</span>
-                                    </label>
-                                    <label class="pattern-option">
-                                        <input type="radio" name="background" value="bg-pattern-cross">
-                                        <span class="pattern-preview bg-pattern-cross"></span>
-                                        <span class="pattern-name" data-i18n="settings.patterns.cross">Cross</span>
-                                    </label>
-                                    <label class="pattern-option">
-                                        <input type="radio" name="background" value="bg-pattern-diamond">
-                                        <span class="pattern-preview bg-pattern-diamond"></span>
-                                        <span class="pattern-name" data-i18n="settings.patterns.diamond">Diamond</span>
-                                    </label>
-                                    <label class="pattern-option">
-                                        <input type="radio" name="background" value="bg-pattern-checker">
-                                        <span class="pattern-preview bg-pattern-checker"></span>
-                                        <span class="pattern-name" data-i18n="settings.patterns.checker">Checkerboard</span>
-                                    </label>
-                                    <label class="pattern-option">
-                                        <input type="radio" name="background" value="bg-pattern-herringbone">
-                                        <span class="pattern-preview bg-pattern-herringbone"></span>
-                                        <span class="pattern-name" data-i18n="settings.patterns.herringbone">Herringbone</span>
-                                    </label>
-                                    <label class="pattern-option">
-                                        <input type="radio" name="background" value="bg-pattern-circles">
-                                        <span class="pattern-preview bg-pattern-circles"></span>
-                                        <span class="pattern-name" data-i18n="settings.patterns.circles">Circles</span>
-                                    </label>
-                                    <label class="pattern-option">
-                                        <input type="radio" name="background" value="bg-pattern-waves">
-                                        <span class="pattern-preview bg-pattern-waves"></span>
-                                        <span class="pattern-name" data-i18n="settings.patterns.waves">Waves</span>
-                                    </label>
-                                    <label class="pattern-option">
-                                        <input type="radio" name="background" value="bg-pattern-stripes">
-                                        <span class="pattern-preview bg-pattern-stripes"></span>
-                                        <span class="pattern-name" data-i18n="settings.patterns.stripes">Stripes</span>
-                                    </label>
-                                    <label class="pattern-option">
-                                        <input type="radio" name="background" value="bg-pattern-dots-dark">
-                                        <span class="pattern-preview bg-pattern-dots-dark"></span>
-                                        <span class="pattern-name" data-i18n="settings.patterns.dotsDark">Dark Dots</span>
-                                    </label>
-                                    <label class="pattern-option">
-                                        <input type="radio" name="background" value="bg-pattern-grid-dark">
-                                        <span class="pattern-preview bg-pattern-grid-dark"></span>
-                                        <span class="pattern-name" data-i18n="settings.patterns.gridDark">Dark Grid</span>
-                                    </label>
-                                    <label class="pattern-option">
-                                        <input type="radio" name="background" value="bg-pattern-diamond-dark">
-                                        <span class="pattern-preview bg-pattern-diamond-dark"></span>
-                                        <span class="pattern-name" data-i18n="settings.patterns.diamondDark">Dark Diamond</span>
-                                    </label>
-                                    <label class="pattern-option">
-                                        <input type="radio" name="background" value="bg-pattern-diagonal-dark">
-                                        <span class="pattern-preview bg-pattern-diagonal-dark"></span>
-                                        <span class="pattern-name" data-i18n="settings.patterns.diagonalDark">Dark Diagonal</span>
-                                    </label>
+                        <!-- Container Width -->
+                        <div class="settings-section">
+                            <h3 data-i18n="settings.containerWidth">Container Width</h3>
+                            <div class="size-control-group">
+                                <label for="containerWidth"><span class="label-text" data-i18n="settings.containerWidth">Container Width</span> <span id="containerWidthValue">1400</span>px</label>
+                                <input type="range" id="containerWidth" min="800" max="2000" value="1400" step="50">
+                            </div>
+                        </div>
+
+                        <!-- Bookmark size settings -->
+                        <div class="settings-section">
+                            <h3 data-i18n="settings.bookmarkSize">Bookmark Size</h3>
+                            <div class="bookmark-size-controls">
+                                <div class="size-control-group">
+                                    <label for="bookmarkHeight"><span class="label-text" data-i18n="settings.height">Height</span> <span id="heightValue">80</span>px</label>
+                                    <input type="range" id="bookmarkHeight" min="60" max="150" value="80" step="5">
+                                </div>
+                                <div class="size-control-group">
+                                    <label for="bookmarkColumns"><span class="label-text" data-i18n="settings.columns">Columns per row</span> <span id="columnsValue" data-i18n="settings.auto">Auto</span></label>
+                                    <select id="bookmarkColumns">
+                                        <option value="0" data-i18n="settings.auto">Auto</option>
+                                        <option value="2">2</option>
+                                        <option value="3">3</option>
+                                        <option value="4">4</option>
+                                        <option value="5">5</option>
+                                        <option value="6">6</option>
+                                    </select>
+                                </div>
+                                <div class="size-control-group">
+                                    <label for="mobileColumns"><span class="label-text" data-i18n="settings.mobileColumns">Mobile columns</span> <span id="mobileColumnsValue">2</span></label>
+                                    <select id="mobileColumns">
+                                        <option value="1">1</option>
+                                        <option value="2" selected>2</option>
+                                    </select>
+                                </div>
+                                <div class="size-control-group">
+                                    <label for="cardOpacity"><span class="label-text" data-i18n="settings.cardOpacity">Card Opacity</span> <span id="opacityValue">95</span>%</label>
+                                    <input type="range" id="cardOpacity" min="50" max="100" value="95" step="5">
                                 </div>
                             </div>
-
-                            <!-- Dynamic Effects -->
-                            <div class="background-group">
-                                <h4 data-i18n="settings.backgroundDynamic">Dynamic Effects</h4>
-                                <div class="pattern-options">
-                                    <label class="pattern-option">
-                                        <input type="radio" name="background" value="bg-pattern-aurora">
-                                        <span class="pattern-preview bg-pattern-aurora"></span>
-                                        <span class="pattern-name" data-i18n="settings.patterns.aurora">Aurora</span>
-                                    </label>
-                                    <label class="pattern-option">
-                                        <input type="radio" name="background" value="bg-pattern-animated-gradient">
-                                        <span class="pattern-preview bg-pattern-animated-gradient"></span>
-                                        <span class="pattern-name" data-i18n="settings.patterns.animatedGradient">Animated Gradient</span>
-                                    </label>
-                                    <label class="pattern-option">
-                                        <input type="radio" name="background" value="bg-pattern-zigzag">
-                                        <span class="pattern-preview bg-pattern-zigzag"></span>
-                                        <span class="pattern-name" data-i18n="settings.patterns.zigzag">Zig Zag</span>
-                                    </label>
+                            <div class="bookmark-preview-container">
+                                <h4 data-i18n="settings.preview">Preview</h4>
+                                <div class="bookmark-preview" id="bookmarkPreview">
+                                    <div class="bookmark-icon">🌐</div>
+                                    <div class="bookmark-content">
+                                        <div class="bookmark-title" data-i18n="settings.example.title">Example Bookmark</div>
+                                        <div class="bookmark-desc" data-i18n="settings.example.description">This is an example description</div>
+                                        <div class="bookmark-url">https://example.com</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Container Width -->
-                    <div class="settings-section">
-                        <h3 data-i18n="settings.containerWidth">Container Width</h3>
-                        <div class="size-control-group">
-                            <label for="containerWidth"><span class="label-text" data-i18n="settings.containerWidth">Container Width</span> <span id="containerWidthValue">1400</span>px</label>
-                            <input type="range" id="containerWidth" min="800" max="2000" value="1400" step="50">
+                    <!-- Groups Panel -->
+                    <div class="settings-panel" data-panel="groups">
+                        <div class="settings-section">
+                            <h3 data-i18n="settings.groupManagement">Group Management</h3>
+                            <button id="addGroupBtn" class="btn btn-primary"><span data-i18n="group.add">Add Group</span></button>
+                            <div id="groupsList" class="settings-list"></div>
                         </div>
                     </div>
 
-                    <!-- Bookmark size settings -->
-                    <div class="settings-section">
-                        <h3 data-i18n="settings.bookmarkSize">Bookmark Size</h3>
-                        <div class="bookmark-size-controls">
-                            <div class="size-control-group">
-                                <label for="bookmarkHeight"><span class="label-text" data-i18n="settings.height">Height</span> <span id="heightValue">80</span>px</label>
-                                <input type="range" id="bookmarkHeight" min="60" max="150" value="80" step="5">
-                            </div>
-                            <div class="size-control-group">
-                                <label for="bookmarkColumns"><span class="label-text" data-i18n="settings.columns">Columns per row</span> <span id="columnsValue" data-i18n="settings.auto">Auto</span></label>
-                                <select id="bookmarkColumns">
-                                    <option value="0" data-i18n="settings.auto">Auto</option>
-                                    <option value="2">2</option>
-                                    <option value="3">3</option>
-                                    <option value="4">4</option>
-                                    <option value="5">5</option>
-                                    <option value="6">6</option>
-                                </select>
-                            </div>
-                            <div class="size-control-group">
-                                <label for="mobileColumns"><span class="label-text" data-i18n="settings.mobileColumns">Mobile columns</span> <span id="mobileColumnsValue">2</span></label>
-                                <select id="mobileColumns">
-                                    <option value="1">1</option>
-                                    <option value="2" selected>2</option>
-                                </select>
-                            </div>
-                            <div class="size-control-group">
-                                <label for="cardOpacity"><span class="label-text" data-i18n="settings.cardOpacity">Card Opacity</span> <span id="opacityValue">95</span>%</label>
-                                <input type="range" id="cardOpacity" min="50" max="100" value="95" step="5">
-                            </div>
+                    <!-- Search Engine Panel -->
+                    <div class="settings-panel" data-panel="search">
+                        <div class="settings-section">
+                            <h3 data-i18n="settings.searchEngine">Search Engine</h3>
+                            <button id="addEngineBtn" class="btn btn-primary"><span data-i18n="searchEngine.add">Add Search Engine</span></button>
+                            <div id="enginesList" class="settings-list"></div>
                         </div>
-                        <div class="bookmark-preview-container">
-                            <h4 data-i18n="settings.preview">Preview</h4>
-                            <div class="bookmark-preview" id="bookmarkPreview">
-                                <div class="bookmark-icon">🌐</div>
-                                <div class="bookmark-content">
-                                    <div class="bookmark-title" data-i18n="settings.example.title">Example Bookmark</div>
-                                    <div class="bookmark-desc" data-i18n="settings.example.description">This is an example description</div>
-                                    <div class="bookmark-url">https://example.com</div>
-                                </div>
+                    </div>
+
+                    <!-- Data Panel -->
+                    <div class="settings-panel" data-panel="data">
+                        <div class="settings-section">
+                            <h3 data-i18n="settings.dataManagement">Data Management</h3>
+                            <div class="data-actions">
+                                <button id="importBtn" class="btn btn-secondary">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                                        <polyline points="17 8 12 3 7 8"/>
+                                        <line x1="12" y1="3" x2="12" y2="15"/>
+                                    </svg>
+                                    <span data-i18n="settings.importBookmarks">Import Bookmarks</span>
+                                </button>
+                                <button id="exportBtn" class="btn btn-secondary">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                                        <polyline points="7 10 12 15 17 10"/>
+                                        <line x1="12" y1="15" x2="12" y2="3"/>
+                                    </svg>
+                                    <span data-i18n="settings.exportBookmarks">Export Bookmarks</span>
+                                </button>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Language settings -->
-                    <div class="settings-section">
-                        <h3 data-i18n="settings.language">Language</h3>
-                        <label for="languageSelect" class="sr-only" data-i18n="settings.language">Language</label>
-                        <select id="languageSelect" class="language-select">
-                            <option value="en">English</option>
-                            <option value="zh">简体中文</option>
-                        </select>
-                    </div>
+                    <!-- Account Panel -->
+                    <div class="settings-panel" data-panel="account">
+                        <!-- Language settings -->
+                        <div class="settings-section">
+                            <h3 data-i18n="settings.language">Language</h3>
+                            <label for="languageSelect" class="sr-only" data-i18n="settings.language">Language</label>
+                            <select id="languageSelect" class="language-select">
+                                <option value="en">English</option>
+                                <option value="zh">简体中文</option>
+                            </select>
+                        </div>
 
-                    <!-- Group management -->
-                    <div class="settings-section">
-                        <h3 data-i18n="settings.groupManagement">Group Management</h3>
-                        <button id="addGroupBtn" class="btn btn-primary"><span data-i18n="group.add">Add Group</span></button>
-                        <div id="groupsList" class="settings-list"></div>
-                    </div>
-
-                    <!-- Search engine management -->
-                    <div class="settings-section">
-                        <h3 data-i18n="settings.searchEngine">Search Engine</h3>
-                        <button id="addEngineBtn" class="btn btn-primary"><span data-i18n="searchEngine.add">Add Search Engine</span></button>
-                        <div id="enginesList" class="settings-list"></div>
-                    </div>
-
-                    <!-- Import/Export -->
-                    <div class="settings-section">
-                        <h3 data-i18n="settings.dataManagement">Data Management</h3>
-                        <div class="data-actions">
-                            <button id="importBtn" class="btn btn-secondary">
+                        <!-- Account -->
+                        <div class="settings-section" id="accountSection" style="display: none;">
+                            <h3 data-i18n="settings.account">Account</h3>
+                            <button id="logoutBtn" class="btn btn-danger">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-                                    <polyline points="17 8 12 3 7 8"/>
-                                    <line x1="12" y1="3" x2="12" y2="15"/>
+                                    <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+                                    <polyline points="16 17 21 12 16 7"/>
+                                    <line x1="21" y1="12" x2="9" y2="12"/>
                                 </svg>
-                                <span data-i18n="settings.importBookmarks">Import Bookmarks</span>
-                            </button>
-                            <button id="exportBtn" class="btn btn-secondary">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-                                    <polyline points="7 10 12 15 17 10"/>
-                                    <line x1="12" y1="15" x2="12" y2="3"/>
-                                </svg>
-                                <span data-i18n="settings.exportBookmarks">Export Bookmarks</span>
+                                <span data-i18n="settings.logout">Logout</span>
                             </button>
                         </div>
-                    </div>
-
-                    <!-- Account -->
-                    <div class="settings-section" id="accountSection" style="display: none;">
-                        <h3 data-i18n="settings.account">Account</h3>
-                        <button id="logoutBtn" class="btn btn-danger">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
-                                <polyline points="16 17 21 12 16 7"/>
-                                <line x1="21" y1="12" x2="9" y2="12"/>
-                            </svg>
-                            <span data-i18n="settings.logout">Logout</span>
-                        </button>
                     </div>
                 </div>
             </div>

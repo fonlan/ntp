@@ -12,6 +12,13 @@
   "settings": {
     "title": "Settings",
     "button": "Settings",
+    "nav": {
+      "appearance": "Appearance",
+      "groups": "Groups",
+      "search": "Search Engine",
+      "data": "Data",
+      "account": "Account"
+    },
     "background": "Background",
     "backgroundColors": "Solid Colors",
     "colors": {

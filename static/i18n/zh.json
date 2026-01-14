@@ -12,6 +12,13 @@
   "settings": {
     "title": "设置",
     "button": "设置",
+    "nav": {
+      "appearance": "外观",
+      "groups": "分组管理",
+      "search": "搜索引擎",
+      "data": "数据管理",
+      "account": "账户"
+    },
     "background": "背景",
     "backgroundColors": "纯色",
     "colors": {

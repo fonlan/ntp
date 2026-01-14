@@ -184,15 +184,47 @@ const dom = {
 document.addEventListener('DOMContentLoaded', async () => {
     await i18n.init();
     loadSettings();
+    initSettingsPanelNavigation();
     try {
         await Promise.all([loadSearchEngines(), loadGroups(), loadBookmarks()]);
     } catch (error) {
         console.error('Failed to load initial data:', error);
-        // 如果是因为未授权导致的错误，会在 apiRequest 中处理重定向
-        // 这里只记录其他类型的错误
     }
     initEventListeners();
 });
+
+function initSettingsPanelNavigation() {
+    const navItems = document.querySelectorAll('.settings-nav-item');
+    const panels = document.querySelectorAll('.settings-panel');
+
+    navItems.forEach(item => {
+        item.addEventListener('click', () => {
+            const panelId = item.dataset.panel;
+
+            navItems.forEach(nav => nav.classList.remove('active'));
+            panels.forEach(panel => panel.classList.remove('active'));
+
+            item.classList.add('active');
+            const targetPanel = document.querySelector(`.settings-panel[data-panel="${panelId}"]`);
+            if (targetPanel) {
+                targetPanel.classList.add('active');
+            }
+        });
+    });
+}
+
+function resetSettingsPanel() {
+    const navItems = document.querySelectorAll('.settings-nav-item');
+    const panels = document.querySelectorAll('.settings-panel');
+
+    navItems.forEach(nav => nav.classList.remove('active'));
+    panels.forEach(panel => panel.classList.remove('active'));
+
+    const firstNav = document.querySelector('.settings-nav-item[data-panel="appearance"]');
+    const firstPanel = document.querySelector('.settings-panel[data-panel="appearance"]');
+    if (firstNav) firstNav.classList.add('active');
+    if (firstPanel) firstPanel.classList.add('active');
+}
 
 // ===================================
 // Utility Functions
@@ -750,6 +782,10 @@ function initBookmarkClickHandlers() {
             } else if (action === 'settings') {
                 checkAuthStatus().then(() => {
                     renderSettingsEngines();
+                    renderSettingsGroups();
+                    initGroupListActions();
+                    initEngineListActions();
+                    resetSettingsPanel();
                     i18n.updatePage();
                     document.getElementById('settingsModal').classList.add('show');
                 });
@@ -1239,7 +1275,7 @@ async function deleteGroup(id) {
     if (!confirm(i18n.t('group.deleteConfirm'))) return;
 
     try {
-        await apiRequest(`${API}/group/${id}`, { method: 'DELETE' });
+        await apiRequest(`${API}/groups/${id}`, { method: 'DELETE' });
         await loadGroups();
         renderSettingsGroups();
     } catch (err) {
@@ -1257,14 +1293,52 @@ function renderSettingsGroups() {
                 <div class="settings-item-url">${g.bookmark_count} ${i18n.t('group.bookmarks')}</div>
             </div>
             <div class="settings-item-actions">
-                <button class="btn btn-secondary btn-sm" onclick="editGroup(${g.id})">${i18n.t('actions.edit')}</button>
-                <button class="btn btn-danger btn-sm" onclick="deleteGroup(${g.id})">${i18n.t('actions.delete')}</button>
+                <button class="btn-icon" data-action="edit-group" data-id="${g.id}" title="${i18n.t('actions.edit')}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                </button>
+                <button class="btn-icon btn-icon-danger" data-action="delete-group" data-id="${g.id}" title="${i18n.t('actions.delete')}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                    </svg>
+                </button>
             </div>
         </div>
     `).join('');
 
-    // 绑定拖拽事件
     initGroupDragAndDrop();
+}
+
+function initGroupListActions() {
+    const container = document.getElementById('groupsList');
+    if (container._actionsInitialized) return;
+    container._actionsInitialized = true;
+
+    container.addEventListener('click', async (e) => {
+        const btn = e.target.closest('[data-action]');
+        if (!btn) return;
+
+        const action = btn.dataset.action;
+        const id = parseInt(btn.dataset.id);
+
+        if (action === 'edit-group') {
+            const group = state.groups.find(g => g.id === id);
+            if (group) showGroupModal(group);
+        } else if (action === 'delete-group') {
+            if (!confirm(i18n.t('group.deleteConfirm'))) return;
+            try {
+                await apiRequest(`${API}/groups/${id}`, { method: 'DELETE' });
+                await loadGroups();
+                renderSettingsGroups();
+            } catch (err) {
+                console.error(i18n.t('errors.deleteFailed'), err);
+                showError(i18n.t('errors.deleteFailed'));
+            }
+        }
+    });
 }
 
 // 分组拖拽排序
@@ -1340,11 +1414,50 @@ function renderSettingsEngines() {
                 <div class="settings-item-url">${escapeHtml(e.url)}</div>
             </div>
             <div class="settings-item-actions">
-                <button class="btn btn-secondary btn-sm" onclick="editEngine(${e.id})">${i18n.t('actions.edit')}</button>
-                ${!e.is_default ? `<button class="btn btn-danger btn-sm" onclick="deleteEngine(${e.id})">${i18n.t('actions.delete')}</button>` : ''}
+                <button class="btn-icon" data-action="edit-engine" data-id="${e.id}" title="${i18n.t('actions.edit')}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                </button>
+                ${!e.is_default ? `<button class="btn-icon btn-icon-danger" data-action="delete-engine" data-id="${e.id}" title="${i18n.t('actions.delete')}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                    </svg>
+                </button>` : ''}
             </div>
         </div>
     `).join('');
+}
+
+function initEngineListActions() {
+    const container = document.getElementById('enginesList');
+    if (container._actionsInitialized) return;
+    container._actionsInitialized = true;
+
+    container.addEventListener('click', async (e) => {
+        const btn = e.target.closest('[data-action]');
+        if (!btn) return;
+
+        const action = btn.dataset.action;
+        const id = parseInt(btn.dataset.id);
+
+        if (action === 'edit-engine') {
+            const engine = state.engines.find(eng => eng.id === id);
+            if (engine) showEngineModal(engine);
+        } else if (action === 'delete-engine') {
+            if (!confirm(i18n.t('searchEngine.deleteConfirm'))) return;
+            try {
+                await apiRequest(`${API}/search-engine/${id}`, { method: 'DELETE' });
+                await loadSearchEngines();
+                renderSettingsEngines();
+            } catch (err) {
+                console.error(i18n.t('errors.deleteFailed'), err);
+                showError(i18n.t('errors.deleteFailed'));
+            }
+        }
+    });
 }
 
 // ===================================
@@ -1713,8 +1826,15 @@ function escapeHtml(text) {
 
 // 统一的表单保存函数
 async function saveForm(resource, data, afterSave) {
-    const id = document.getElementById(`${resource}Id`).value;
-    const url = id ? `${API}/${resource}/${id}` : `${API}/${resource}s`;
+    const idFieldMap = { 'bookmark': 'bookmarkId', 'group': 'groupId', 'search-engine': 'engineId' };
+    const id = document.getElementById(idFieldMap[resource]).value;
+    const resourcePathMap = {
+        'bookmark': { list: 'bookmarks', single: 'bookmark' },
+        'group': { list: 'groups', single: 'groups' },
+        'search-engine': { list: 'search-engines', single: 'search-engine' }
+    };
+    const paths = resourcePathMap[resource];
+    const url = id ? `${API}/${paths.single}/${id}` : `${API}/${paths.list}`;
     const method = id ? 'PUT' : 'POST';
     const modalMap = { 'bookmark': 'bookmarkModal', 'group': 'groupModal', 'search-engine': 'engineEditModal' };
     const modal = document.getElementById(modalMap[resource]);
@@ -1723,7 +1843,7 @@ async function saveForm(resource, data, afterSave) {
         const response = await apiRequest(url, { method, body: JSON.stringify(data) });
         const result = await response.json();
         modal.classList.remove('show');
-        await afterSave(result, id);  // 传递后端返回的数据和 ID（编辑时有值）
+        await afterSave(result, id);
     } catch (err) {
         console.error(i18n.t('errors.saveFailed'), err);
         alert(i18n.t('errors.saveFailed'));
