@@ -258,6 +258,52 @@ async function loadData(url, errorMsg) {
     }
 }
 
+/**
+ * Initialize draggable items for sorting using event delegation
+ * @param {string} itemSelector - CSS selector for draggable items
+ * @param {Function} onUpdate - Callback function when order changes
+ */
+function initDraggable(itemSelector, onUpdate) {
+    const items = document.querySelectorAll(itemSelector);
+    if (items.length === 0) return;
+    
+    const container = items[0].parentElement;
+    if (!container || container._draggableInitialized) return;
+
+    container.addEventListener('dragstart', (e) => {
+        const item = e.target.closest(itemSelector);
+        if (!item) return;
+        item.classList.add('dragging');
+    });
+
+    container.addEventListener('dragend', (e) => {
+        const item = e.target.closest(itemSelector);
+        if (!item) return;
+        item.classList.remove('dragging');
+        if (onUpdate) onUpdate();
+    });
+
+    container.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        const item = e.target.closest(itemSelector);
+        if (!item) return;
+        
+        const dragging = container.querySelector('.dragging');
+        if (!dragging || dragging === item) return;
+
+        const rect = item.getBoundingClientRect();
+        const midpoint = rect.top + rect.height / 2;
+        
+        if (e.clientY < midpoint) {
+            container.insertBefore(dragging, item);
+        } else {
+            container.insertBefore(dragging, item.nextSibling);
+        }
+    });
+
+    container._draggableInitialized = true;
+}
+
 // ===================================
 // Settings
 // ===================================
@@ -545,7 +591,7 @@ function renderEngineDropdown() {
     dom.engineDropdown.innerHTML = state.engines.map(e => `
         <div class="engine-dropdown-item ${state.currentEngine?.id === e.id ? 'active' : ''}"
              data-engine-id="${e.id}">
-            <img src="${getFavicon(e.url, e.icon_path)}" alt="" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔍</text></svg>'">
+            <img src="${getFavicon(e.url, e.icon_path)}" alt="" onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E🔍%3C/text%3E%3C/svg%3E'">
             <span>${escapeHtml(e.name)}</span>
         </div>
     `).join('');
@@ -575,7 +621,7 @@ function getFavicon(url, iconPath) {
         const domain = new URL(url).hostname;
         return `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
     } catch {
-        return 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🔍</text></svg>';
+        return 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E🔍%3C/text%3E%3C/svg%3E';
     }
 }
 
@@ -917,8 +963,9 @@ function renderBookmarkCard(b) {
         iconHtml = `<img src="${getFavicon(b.url, b.icon_path || b.icon_url)}"
                  class="bookmark-icon"
                  alt="${escapeHtml(b.title || 'Bookmark')} icon"
-                 onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌐</text></svg>'">`;
+                 onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E🌐%3C/text%3E%3C/svg%3E'">`;
     }
+    const fallbackIcon = "data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E🌐%3C/text%3E%3C/svg%3E";
     return `
         <div class="bookmark-card" draggable="true" data-id="${b.id}" data-url="${escapeHtml(b.url)}" data-target="${target}">
             ${iconHtml}
@@ -1077,7 +1124,8 @@ function showIconPreview(iconUrl) {
     const preview = document.getElementById('iconPreview');
     preview.src = iconUrl;
     preview.onerror = () => {
-        preview.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🌐</text></svg>';
+        preview.onerror = null;
+        preview.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E🌐%3C/text%3E%3C/svg%3E';
     };
     container.style.display = 'flex';
 }
@@ -1180,7 +1228,7 @@ function createIconOptionHtml(icon, index) {
     return `
         <div class="icon-option" data-icon-url="${escapedUrl}" data-index="${index}" title="${escapedUrl}">
             <img src="${escapedUrl}" alt="Icon ${index + 1}"
-                 onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>❌</text></svg>'">
+                 onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E❌%3C/text%3E%3C/svg%3E'">
             <div class="icon-option-info">
                 <div class="icon-option-size">${sizeInfo}</div>
                 ${typeInfo ? `<div class="icon-option-type">${typeInfo}</div>` : ''}

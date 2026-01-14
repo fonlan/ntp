@@ -13,7 +13,7 @@ NTP 是一个轻量的书签导航（Start Page）服务：支持书签分组管
 
 ## 技术栈
 
-- **后端**：Go 1.19 + `net/http`
+- **后端**：Go 1.25.5 + `net/http`
 - **数据库**：SQLite（`mattn/go-sqlite3`，需要 CGO）
 - **前端**：原生 HTML/CSS/JavaScript
 - **部署**：Docker + Docker Compose
