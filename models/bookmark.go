@@ -149,6 +149,10 @@ func (r *BookmarkRepository) GetAll(groupID *int64) ([]Bookmark, error) {
 		bookmarks = append(bookmarks, b)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return bookmarks, nil
 }
 
@@ -246,6 +250,11 @@ func (r *BookmarkRepository) Search(query string) ([]Bookmark, error) {
 		bookmarks = append(bookmarks, b)
 	}
 
+	// 检查迭代过程中的错误
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return bookmarks, nil
 }
 
@@ -298,6 +307,11 @@ func (r *BookmarkRepository) GetBookmarksByURLs(urls []string) (map[string]*Book
 			return nil, err
 		}
 		bookmarkMap[b.URL] = &b
+	}
+
+	// 检查迭代过程中的错误
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return bookmarkMap, nil

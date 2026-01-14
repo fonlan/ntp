@@ -7,11 +7,11 @@ import (
 
 // Group 书签分组
 type Group struct {
-	ID          int64          `json:"id"`
-	Name        string         `json:"name"`
-	SortOrder   int            `json:"sort_order"`
-	CreatedAt   time.Time      `json:"created_at"`
-	BookmarkCount int          `json:"bookmark_count"`
+	ID            int64     `json:"id"`
+	Name          string    `json:"name"`
+	SortOrder     int       `json:"sort_order"`
+	CreatedAt     time.Time `json:"created_at"`
+	BookmarkCount int       `json:"bookmark_count"`
 }
 
 // GroupRepository 分组数据访问层
@@ -81,6 +81,10 @@ func (r *GroupRepository) GetAll() ([]Group, error) {
 			return nil, err
 		}
 		groups = append(groups, g)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return groups, nil

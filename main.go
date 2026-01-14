@@ -1,9 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -112,7 +112,8 @@ func main() {
 			return
 		}
 
-		searchURL := fmt.Sprintf(engine.URL, query)
+		// 使用 {q} 占位符替换，并对 query 进行 URL 编码，防止注入攻击
+		searchURL := strings.ReplaceAll(engine.URL, "{q}", url.QueryEscape(query))
 		http.Redirect(w, r, searchURL, http.StatusFound)
 	})
 

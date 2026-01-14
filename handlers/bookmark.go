@@ -424,39 +424,6 @@ func (h *BookmarkHandler) Import(w http.ResponseWriter, r *http.Request) {
 	// sort_order 计数器：避免 N+1 查询问题
 	groupSortOrders := make(map[int64]int)
 
-	// 批量查询所有 URL 以避免 N+1 查询问题（Merge 模式）
-	if mode == "merge" {
-		urls := make([]string, len(bookmarks))
-		for i, b := range bookmarks {
-			urls[i] = b.URL
-		}
-
-		// 构建占位符字符串
-		placeholders := strings.Repeat("?,", len(urls)-1) + "?"
-		query := fmt.Sprintf("SELECT id, title, url, icon_url, icon_path, icon_char, description, group_id, sort_order, is_new_window, created_at, updated_at FROM bookmarks WHERE url IN (%s)", placeholders)
-
-		// 批量查询
-		existingBookmarks := make([]*models.Bookmark, 0)
-		rows, err := h.bookmarkRepo.GetDB().Query(query, toInterfaceSlice(urls)...)
-		if err == nil {
-			defer rows.Close()
-			for rows.Next() {
-				var b models.Bookmark
-				err := rows.Scan(&b.ID, &b.Title, &b.URL, &b.IconURL, &b.IconPath, &b.IconChar,
-					&b.Description, &b.GroupID, &b.SortOrder, &b.IsNewWindow, &b.CreatedAt, &b.UpdatedAt)
-				if err == nil {
-					existingBookmarks = append(existingBookmarks, &b)
-				}
-			}
-		}
-
-		// 构建 URL -> Bookmark 映射
-		existingBookmarkMap := make(map[string]*models.Bookmark)
-		for _, b := range existingBookmarks {
-			existingBookmarkMap[b.URL] = b
-		}
-	}
-
 	for i := range bookmarks {
 		bookmark := &bookmarks[i]
 
@@ -844,7 +811,7 @@ func generateNetscapeBookmarks(bookmarks []models.Bookmark, groups []models.Grou
 		if b.IsNewWindow {
 			newWindow = ` NEW_WINDOW="1"`
 		}
-		sb.WriteString(fmt.Sprintf(`<DT><A HREF="%s" ADD_DATE="%d" ICON="%s"%s>%s</A>`+"\n",
+		sb.WriteString(fmt.Sprintf(`<DT><A HREF="%s" ADD_DATE="%d" ICON="%s"%s%s>%s</A>`+"\n",
 			escapeHTMLAttr(b.URL), b.CreatedAt.Unix(), escapeHTMLAttr(iconData), desc, newWindow, escapeHTMLContent(b.Title)))
 	}
 	sb.WriteString(`</DL><p>` + "\n")
@@ -855,48 +822,6 @@ func generateNetscapeBookmarks(bookmarks []models.Bookmark, groups []models.Grou
 		sb.WriteString(`<DL><p>` + "\n")
 		if bookmarks, ok := groupBookmarks[g.ID]; ok {
 			for _, b := range bookmarks {
-				iconData := iconToBase64(b.IconPath, b.IconURL, iconDir)
-				desc := ""
-				if b.Description != nil {
-					desc = fmt.Sprintf(` DESC="%s"`, escapeHTMLAttr(*b.Description))
-				}
-				newWindow := ""
-				if b.IsNewWindow {
-					newWindow = ` NEW_WINDOW="1"`
-				}
-				sb.WriteString(fmt.Sprintf(`<DT><A HREF="%s" ADD_DATE="%d" ICON="%s"%s>%s</A>`+"\n",
-					escapeHTMLAttr(b.URL), b.CreatedAt.Unix(), escapeHTMLAttr(iconData), desc, newWindow, escapeHTMLContent(b.Title)))
-			}
-		}
-		sb.WriteString(`</DL><p>` + "\n")
-	}
-
-	// 未分组书签
-	sb.WriteString(`<DT><H3 ADD_DATE="0">未分类</H3>` + "\n")
-	sb.WriteString(`<DL><p>` + "\n")
-	for _, b := range bookmarks {
-		if b.GroupID == nil {
-			iconData := iconToBase64(b.IconPath, b.IconURL, iconDir)
-			desc := ""
-			if b.Description != nil {
-				desc = fmt.Sprintf(` DESC="%s"`, escapeHTMLAttr(*b.Description))
-			}
-			newWindow := ""
-			if b.IsNewWindow {
-				newWindow = ` NEW_WINDOW="1"`
-			}
-			sb.WriteString(fmt.Sprintf(`<DT><A HREF="%s" ADD_DATE="%d" ICON="%s"%s%s>%s</A>`+"\n",
-				escapeHTMLAttr(b.URL), b.CreatedAt.Unix(), escapeHTMLAttr(iconData), desc, newWindow, escapeHTMLContent(b.Title)))
-		}
-	}
-	sb.WriteString(`</DL><p>` + "\n")
-
-	// 分组书签
-	for _, g := range groups {
-		sb.WriteString(fmt.Sprintf(`<DT><H3 ADD_DATE="%d">%s</H3>`+"\n", g.CreatedAt.Unix(), escapeHTMLContent(g.Name)))
-		sb.WriteString(`<DL><p>` + "\n")
-		for _, b := range bookmarks {
-			if b.GroupID != nil && *b.GroupID == g.ID {
 				iconData := iconToBase64(b.IconPath, b.IconURL, iconDir)
 				desc := ""
 				if b.Description != nil {
