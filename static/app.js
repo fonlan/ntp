@@ -194,23 +194,28 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function initSettingsPanelNavigation() {
-    const navItems = document.querySelectorAll('.settings-nav-item');
-    const panels = document.querySelectorAll('.settings-panel');
+    const navContainer = document.querySelector('.settings-sidebar');
+    if (!navContainer || navContainer._delegationInitialized) return;
 
-    navItems.forEach(item => {
-        item.addEventListener('click', () => {
-            const panelId = item.dataset.panel;
+    navContainer.addEventListener('click', (e) => {
+        const item = e.target.closest('.settings-nav-item');
+        if (!item) return;
 
-            navItems.forEach(nav => nav.classList.remove('active'));
-            panels.forEach(panel => panel.classList.remove('active'));
+        const panelId = item.dataset.panel;
+        const navItems = document.querySelectorAll('.settings-nav-item');
+        const panels = document.querySelectorAll('.settings-panel');
 
-            item.classList.add('active');
-            const targetPanel = document.querySelector(`.settings-panel[data-panel="${panelId}"]`);
-            if (targetPanel) {
-                targetPanel.classList.add('active');
-            }
-        });
+        navItems.forEach(nav => nav.classList.remove('active'));
+        panels.forEach(panel => panel.classList.remove('active'));
+
+        item.classList.add('active');
+        const targetPanel = document.querySelector(`.settings-panel[data-panel="${panelId}"]`);
+        if (targetPanel) {
+            targetPanel.classList.add('active');
+        }
     });
+
+    navContainer._delegationInitialized = true;
 }
 
 function resetSettingsPanel() {
@@ -545,16 +550,19 @@ function renderEngineDropdown() {
         </div>
     `).join('');
 
-    // Bind click events using event delegation would be better, but keeping current pattern for consistency
-    dom.engineDropdown.querySelectorAll('.engine-dropdown-item').forEach(item => {
-        item.addEventListener('click', () => {
+    // 使用事件委托（只绑定一次到容器）
+    if (!dom.engineDropdown._delegationInitialized) {
+        dom.engineDropdown.addEventListener('click', (e) => {
+            const item = e.target.closest('.engine-dropdown-item');
+            if (!item) return;
             const engineId = parseInt(item.dataset.engineId);
-            state.currentEngine = state.engines.find(e => e.id === engineId);
+            state.currentEngine = state.engines.find(eng => eng.id === engineId);
             renderCurrentEngine();
             renderEngineDropdown();
             dom.engineDropdown.classList.remove('show');
         });
-    });
+        dom.engineDropdown._delegationInitialized = true;
+    }
 }
 
 function getFavicon(url, iconPath) {
@@ -780,14 +788,21 @@ function initBookmarkClickHandlers() {
             if (action === 'add-bookmark') {
                 showBookmarkModal();
             } else if (action === 'settings') {
+                // 立即显示模态框，提升响应速度
+                resetSettingsPanel();
+                document.getElementById('settingsModal').classList.add('show');
+
+                // 异步加载数据和更新状态
                 checkAuthStatus().then(() => {
-                    renderSettingsEngines();
-                    renderSettingsGroups();
-                    initGroupListActions();
-                    initEngineListActions();
-                    resetSettingsPanel();
-                    i18n.updatePage();
-                    document.getElementById('settingsModal').classList.add('show');
+                    try {
+                        renderSettingsEngines();
+                        renderSettingsGroups();
+                        i18n.updatePage();
+                    } catch (e) {
+                        console.error('Error rendering settings content:', e);
+                    }
+                }).catch(e => {
+                    console.error('Auth check failed:', e);
                 });
             } else if (action === 'edit') {
                 // 处理书签操作
@@ -811,64 +826,72 @@ function initBookmarkClickHandlers() {
         menu._docHandlerAdded = true;
     }
 
-    // 添加空白处的右键菜单
-    document.addEventListener('contextmenu', (e) => {
-        // 只在非书签卡片和非输入框区域显示
-        if (!e.target.closest('.bookmark-card') &&
-            !e.target.closest('input') &&
-            !e.target.closest('textarea') &&
-            !e.target.closest('.modal') &&
-            !e.target.closest('.context-menu')) {
-            e.preventDefault();
-            showContextMenu(e, null);
-        }
-    });
+    // 添加空白处的右键菜单（只绑定一次，避免重复绑定导致内存泄漏）
+    if (!document._emptySpaceContextMenuAdded) {
+        document.addEventListener('contextmenu', (e) => {
+            // 只在非书签卡片和非输入框区域显示
+            if (!e.target.closest('.bookmark-card') &&
+                !e.target.closest('input') &&
+                !e.target.closest('textarea') &&
+                !e.target.closest('.modal') &&
+                !e.target.closest('.context-menu')) {
+                e.preventDefault();
+                showContextMenu(e, null);
+            }
+        });
+        document._emptySpaceContextMenuAdded = true;
+    }
 
-    // 添加空白处的长按菜单（移动设备）
-    const emptySpaceTouchState = { isLongPress: false, timer: null };
-    document.addEventListener('touchstart', (e) => {
-        // 只在非书签卡片区域处理
-        if (e.target.closest('.bookmark-card') ||
-            e.target.closest('input') ||
-            e.target.closest('textarea') ||
-            e.target.closest('.modal') ||
-            e.target.closest('.context-menu') ||
-            e.target.closest('.search-submit-btn')) {
-            return;
-        }
+    // 添加空白处的长按菜单（移动设备）- 只绑定一次
+    if (!document._emptySpaceTouchHandlersAdded) {
+        const emptySpaceTouchState = { isLongPress: false, timer: null };
+        
+        document.addEventListener('touchstart', (e) => {
+            // 只在非书签卡片区域处理
+            if (e.target.closest('.bookmark-card') ||
+                e.target.closest('input') ||
+                e.target.closest('textarea') ||
+                e.target.closest('.modal') ||
+                e.target.closest('.context-menu') ||
+                e.target.closest('.search-submit-btn')) {
+                return;
+            }
 
-        emptySpaceTouchState.isLongPress = false;
-        emptySpaceTouchState.timer = setTimeout(() => {
-            emptySpaceTouchState.isLongPress = true;
-            if (navigator.vibrate) navigator.vibrate(50);
-            const touch = e.touches[0];
-            showContextMenu({
-                preventDefault: () => {},
-                clientX: touch.clientX,
-                clientY: touch.clientY,
-                target: e.target
-            }, null);
-        }, 500);
-    }, { passive: true });
+            emptySpaceTouchState.isLongPress = false;
+            emptySpaceTouchState.timer = setTimeout(() => {
+                emptySpaceTouchState.isLongPress = true;
+                if (navigator.vibrate) navigator.vibrate(50);
+                const touch = e.touches[0];
+                showContextMenu({
+                    preventDefault: () => {},
+                    clientX: touch.clientX,
+                    clientY: touch.clientY,
+                    target: e.target
+                }, null);
+            }, 500);
+        }, { passive: true });
 
-    document.addEventListener('touchend', (e) => {
-        if (emptySpaceTouchState.timer) {
-            clearTimeout(emptySpaceTouchState.timer);
-            emptySpaceTouchState.timer = null;
-        }
-        if (emptySpaceTouchState.isLongPress) {
-            e.preventDefault();
-        }
-        emptySpaceTouchState.isLongPress = false;
-    });
+        document.addEventListener('touchend', (e) => {
+            if (emptySpaceTouchState.timer) {
+                clearTimeout(emptySpaceTouchState.timer);
+                emptySpaceTouchState.timer = null;
+            }
+            if (emptySpaceTouchState.isLongPress) {
+                e.preventDefault();
+            }
+            emptySpaceTouchState.isLongPress = false;
+        });
 
-    document.addEventListener('touchmove', () => {
-        if (emptySpaceTouchState.timer) {
-            clearTimeout(emptySpaceTouchState.timer);
-            emptySpaceTouchState.timer = null;
-        }
-        emptySpaceTouchState.isLongPress = false;
-    });
+        document.addEventListener('touchmove', () => {
+            if (emptySpaceTouchState.timer) {
+                clearTimeout(emptySpaceTouchState.timer);
+                emptySpaceTouchState.timer = null;
+            }
+            emptySpaceTouchState.isLongPress = false;
+        });
+        
+        document._emptySpaceTouchHandlersAdded = true;
+    }
 }
 
 // 事件委托辅助函数
@@ -909,41 +932,47 @@ function renderBookmarkCard(b) {
 }
 
 // ===================================
-// Drag and Drop
+// Drag and Drop（使用事件委托，避免重复绑定）
 // ===================================
-function initDraggable(selector, onDrop) {
-    const items = document.querySelectorAll(selector);
-
-    items.forEach(item => {
-        item.addEventListener('dragstart', (e) => {
-            state.draggedItem = item;
-            item.classList.add('dragging');
-        });
-
-        item.addEventListener('dragend', () => {
-            item.classList.remove('dragging');
-            state.draggedItem = null;
-        });
-
-        item.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            const dragging = document.querySelector('.dragging');
-            if (dragging && dragging !== item) {
-                const rect = item.getBoundingClientRect();
-                const midpoint = rect.y + rect.height / 2;
-                item.parentNode.insertBefore(dragging, e.clientY < midpoint ? item : item.nextSibling);
-            }
-        });
-
-        item.addEventListener('drop', async (e) => {
-            e.preventDefault();
-            await onDrop();
-        });
-    });
-}
-
 function initDragAndDrop() {
-    initDraggable('.bookmark-card', saveBookmarkOrder);
+    const container = dom.bookmarksContainer;
+    if (!container || container._dragDelegationInitialized) return;
+
+    container.addEventListener('dragstart', (e) => {
+        const card = e.target.closest('.bookmark-card');
+        if (!card) return;
+        state.draggedItem = card;
+        card.classList.add('dragging');
+    });
+
+    container.addEventListener('dragend', (e) => {
+        const card = e.target.closest('.bookmark-card');
+        if (!card) return;
+        card.classList.remove('dragging');
+        state.draggedItem = null;
+    });
+
+    container.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        const card = e.target.closest('.bookmark-card');
+        if (!card) return;
+        
+        const dragging = document.querySelector('.dragging');
+        if (dragging && dragging !== card) {
+            const rect = card.getBoundingClientRect();
+            const midpoint = rect.y + rect.height / 2;
+            card.parentNode.insertBefore(dragging, e.clientY < midpoint ? card : card.nextSibling);
+        }
+    });
+
+    container.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        const card = e.target.closest('.bookmark-card');
+        if (!card) return;
+        await saveBookmarkOrder();
+    });
+
+    container._dragDelegationInitialized = true;
 }
 
 async function saveBookmarkOrder() {
@@ -1167,18 +1196,25 @@ function showIconSelection(iconOptions, websiteUrl) {
     list.innerHTML = iconOptions.map((icon, index) => createIconOptionHtml(icon, index)).join('');
     container.style.display = 'block';
 
-    // 使用事件委托处理图标点击
-    list.addEventListener('click', (e) => {
-        const option = e.target.closest('.icon-option');
-        if (!option) return;
+    // 使用事件委托处理图标点击（只绑定一次）
+    if (!list._iconSelectionHandlerAdded) {
+        list.addEventListener('click', (e) => {
+            const option = e.target.closest('.icon-option');
+            if (!option) return;
 
-        list.querySelectorAll('.icon-option').forEach(o => o.classList.remove('selected'));
-        option.classList.add('selected');
-        selectIcon(option.dataset.iconUrl);
-    }, { once: true });
+            list.querySelectorAll('.icon-option').forEach(o => o.classList.remove('selected'));
+            option.classList.add('selected');
+            selectIcon(option.dataset.iconUrl);
+        });
+        list._iconSelectionHandlerAdded = true;
+    }
 
-    // 绑定"使用 Google 图标"按钮事件
-    document.getElementById('useGoogleIconBtn').onclick = () => selectIcon(getFavicon(websiteUrl));
+    // 绑定"使用 Google 图标"按钮事件（防止重复绑定）
+    const useGoogleBtn = document.getElementById('useGoogleIconBtn');
+    if (useGoogleBtn) {
+        // 使用 onclick 覆盖旧处理程序，或者是新的事件监听器
+        useGoogleBtn.onclick = () => selectIcon(getFavicon(websiteUrl));
+    }
 }
 
 // 选择图标并隐藏选择界面
@@ -1314,6 +1350,9 @@ function renderSettingsGroups() {
 
 function initGroupListActions() {
     const container = document.getElementById('groupsList');
+    if (!container) return;
+    
+    // 只有当没有初始化过才绑定
     if (container._actionsInitialized) return;
     container._actionsInitialized = true;
 
@@ -1433,6 +1472,9 @@ function renderSettingsEngines() {
 
 function initEngineListActions() {
     const container = document.getElementById('enginesList');
+    if (!container) return;
+
+    // 只有当没有初始化过才绑定
     if (container._actionsInitialized) return;
     container._actionsInitialized = true;
 
@@ -1815,6 +1857,10 @@ function initEventListeners() {
             applyBookmarkSize();
         }, 100);
     });
+
+    // 初始化设置列表的操作按钮事件（委托）
+    initGroupListActions();
+    initEngineListActions();
 }
 
 // HTML escape

@@ -935,8 +935,8 @@ func (h *BookmarkHandler) UploadIcon(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	// 读取文件数据
-	data, err := io.ReadAll(file)
+	// 读取文件数据（限制 512KB + 1字节用于检测）
+	data, err := io.ReadAll(io.LimitReader(file, 512*1024+1))
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, translator.T("upload.uploadFailed"))
 		return

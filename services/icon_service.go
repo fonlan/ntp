@@ -11,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -34,7 +33,6 @@ type IconService struct {
 	iconDir string
 	baseURL string
 	client  *http.Client
-	cache   *sync.Map
 }
 
 func NewIconService(iconDir, baseURL string) *IconService {
@@ -52,20 +50,21 @@ func NewIconService(iconDir, baseURL string) *IconService {
 			Timeout:   10 * time.Second,
 			Transport: transport,
 		},
-		cache: &sync.Map{},
 	}
 }
 
 func (s *IconService) DownloadIcon(iconURL string) (string, error) {
-	// 检查内存缓存
-	if cached, ok := s.cache.Load(iconURL); ok {
-		return cached.(string), nil
-	}
-
 	// 如果是本地路径，直接返回
 	if strings.HasPrefix(iconURL, localIconPrefix) {
-		s.cache.Store(iconURL, iconURL)
 		return iconURL, nil
+	}
+
+	// 检查本地是否已存在（替代内存缓存）
+	ext := extractExtFromURL(iconURL)
+	expectedPath := s.generateIconPath(iconURL, ext)
+	if _, err := os.Stat(expectedPath); err == nil {
+		// 文件已存在，直接返回
+		return localIconPrefix + filepath.Base(expectedPath), nil
 	}
 
 	// 下载图标（使用共享客户端）
@@ -79,20 +78,18 @@ func (s *IconService) DownloadIcon(iconURL string) (string, error) {
 		return "", fmt.Errorf("下载图标失败: HTTP %d", resp.StatusCode)
 	}
 
-	// 读取内容
-	data, err := io.ReadAll(resp.Body)
+	// 读取内容（限制 2MB）
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 2*1024*1024))
 	if err != nil {
 		return "", fmt.Errorf("读取图标数据失败: %w", err)
 	}
 
 	// 保存图标
-	path, err := s.saveIcon(iconURL, data, extractExtFromURL(iconURL))
+	path, err := s.saveIcon(iconURL, data, ext)
 	if err != nil {
 		return "", err
 	}
 
-	// 写入缓存
-	s.cache.Store(iconURL, path)
 	return path, nil
 }
 
@@ -170,7 +167,8 @@ func (s *IconService) DownloadFavicon(websiteURL string) (string, error) {
 		err  error
 	}
 
-	resultChan := make(chan downloadResult, 1)
+	// 修复：通道容量必须等于并发数量，防止 Goroutine 泄露
+	resultChan := make(chan downloadResult, len(faviconURLs))
 
 	for _, faviconURL := range faviconURLs {
 		go func(url string) {

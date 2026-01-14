@@ -27,18 +27,18 @@ type FetchRequest struct {
 
 // FetchResponse 获取元数据响应
 type FetchResponse struct {
-	Title        string        `json:"title"`
-	IconURL      string        `json:"icon_url,omitempty"`
-	IconOptions  []IconOption  `json:"icon_options,omitempty"`
+	Title       string       `json:"title"`
+	IconURL     string       `json:"icon_url,omitempty"`
+	IconOptions []IconOption `json:"icon_options,omitempty"`
 }
 
 // IconOption 图标选项
 type IconOption struct {
-	URL     string `json:"url"`
-	Type    string `json:"type,omitempty"`    // image/png, image/svg+xml 等
-	Sizes   string `json:"sizes,omitempty"`   // 任何尺寸，如 "64x64", "32x32 64x64"
-	Rel     string `json:"rel,omitempty"`     // icon, apple-touch-icon 等
-	IsFavicon bool `json:"is_favicon"`        // 是否为 /favicon.ico
+	URL       string `json:"url"`
+	Type      string `json:"type,omitempty"`  // image/png, image/svg+xml 等
+	Sizes     string `json:"sizes,omitempty"` // 任何尺寸，如 "64x64", "32x32 64x64"
+	Rel       string `json:"rel,omitempty"`   // icon, apple-touch-icon 等
+	IsFavicon bool   `json:"is_favicon"`      // 是否为 /favicon.ico
 }
 
 // FetchMetadata 获取网站元数据
@@ -65,12 +65,12 @@ func (h *FetchHandler) FetchMetadata(w http.ResponseWriter, r *http.Request) {
 
 // iconRelTypes 图标相关的 rel 类型
 var iconRelTypes = map[string]bool{
-	"icon":                       true,
-	"shortcut icon":              true,
-	"apple-touch-icon":           true,
+	"icon":                         true,
+	"shortcut icon":                true,
+	"apple-touch-icon":             true,
 	"apple-touch-icon-precomposed": true,
-	"fluid-icon":                 true,
-	"mask-icon":                  true,
+	"fluid-icon":                   true,
+	"mask-icon":                    true,
 }
 
 // buildBaseURL 从完整 URL 构建基础 URL
@@ -139,8 +139,8 @@ func FetchMetadataFromURL(inputURL string) (string, []IconOption, error) {
 	if err == nil && resp.StatusCode == http.StatusOK {
 		defer resp.Body.Close()
 
-		// 读取响应体
-		body, err := io.ReadAll(resp.Body)
+		// 读取响应体（限制 5MB，防止内存溢出）
+		body, err := io.ReadAll(io.LimitReader(resp.Body, 5*1024*1024))
 		if err == nil {
 			// 使用 goquery 解析 HTML
 			doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(body)))

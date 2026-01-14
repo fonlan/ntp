@@ -53,5 +53,6 @@ temp/
 .serena/
 .github/
 .claude/
+.sisphus/
 CLAUDE.md
 AGENTS.md
