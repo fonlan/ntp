@@ -4,9 +4,8 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
-	"time"
-
 	"ntp/middleware"
+	"time"
 )
 
 // AuthHandler handles authentication requests

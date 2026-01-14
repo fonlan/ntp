@@ -1,14 +1,23 @@
 package handlers
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"image"
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
+
 	"github.com/PuerkitoBio/goquery"
+	_ "golang.org/x/image/webp"
 	"ntp/middleware"
 )
 
@@ -202,25 +211,156 @@ func extractDomain(url string) string {
 
 // getFallbackIcons 获取备用图标选项
 func getFallbackIcons(domain string) []IconOption {
-	var options []IconOption
+	options := []IconOption{
+		{
+			URL:       fmt.Sprintf("https://www.google.com/s2/favicons?domain=%s&sz=128", domain),
+			Type:      "image/png",
+			Sizes:     "128x128",
+			Rel:       "icon",
+			IsFavicon: false,
+		},
+		{
+			URL:       fmt.Sprintf("https://icons.duckduckgo.com/ip3/%s.ico", domain),
+			Type:      "image/x-icon",
+			Rel:       "icon",
+			IsFavicon: false,
+		},
+	}
 
-	// Google Favicon Service
-	options = append(options, IconOption{
-		URL:       fmt.Sprintf("https://www.google.com/s2/favicons?domain=%s&sz=128", domain),
-		Type:      "image/png",
-		Rel:       "icon",
-		IsFavicon: false,
-	})
-
-	// DuckDuckGo Icon Service
-	options = append(options, IconOption{
-		URL:       fmt.Sprintf("https://icons.duckduckgo.com/ip3/%s.ico", domain),
-		Type:      "image/x-icon",
-		Rel:       "icon",
-		IsFavicon: false,
-	})
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if size := detectIconSize(ctx, options[1].URL); size != "" {
+		options[1].Sizes = size
+	}
 
 	return options
+}
+
+// detectIconSize 下载图标并检测尺寸，返回 "宽x高" 格式字符串
+func detectIconSize(ctx context.Context, iconURL string) string {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, iconURL, nil)
+	if err != nil {
+		return ""
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; NTP/1.0)")
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil || resp.StatusCode != http.StatusOK {
+		return ""
+	}
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 512*1024))
+	if err != nil {
+		return ""
+	}
+
+	contentType := resp.Header.Get("Content-Type")
+	reader := bytes.NewReader(data)
+
+	var width, height int
+
+	if strings.Contains(contentType, "svg") || strings.HasSuffix(strings.ToLower(iconURL), ".svg") {
+		if w, h := parseSVGSize(data); w > 0 && h > 0 {
+			width, height = w, h
+		}
+	} else if cfg, _, err := image.DecodeConfig(reader); err == nil {
+		width, height = cfg.Width, cfg.Height
+	} else if strings.Contains(contentType, "icon") || strings.HasSuffix(strings.ToLower(iconURL), ".ico") {
+		if w, h := parseICOSize(data); w > 0 && h > 0 {
+			width, height = w, h
+		}
+	}
+
+	if width > 0 && height > 0 {
+		return fmt.Sprintf("%dx%d", width, height)
+	}
+	return ""
+}
+
+func parseSVGSize(data []byte) (int, int) {
+	content := string(data)
+	var width, height int
+
+	if idx := strings.Index(content, "viewBox"); idx != -1 {
+		end := strings.Index(content[idx:], ">")
+		if end > 0 {
+			viewBox := content[idx : idx+end]
+			var x, y, w, h float64
+			if _, err := fmt.Sscanf(extractAttrValue(viewBox, "viewBox"), "%f %f %f %f", &x, &y, &w, &h); err == nil {
+				return int(w), int(h)
+			}
+		}
+	}
+
+	if idx := strings.Index(content, "<svg"); idx != -1 {
+		end := strings.Index(content[idx:], ">")
+		if end > 0 {
+			svgTag := content[idx : idx+end]
+			if w := extractNumericAttr(svgTag, "width"); w > 0 {
+				width = w
+			}
+			if h := extractNumericAttr(svgTag, "height"); h > 0 {
+				height = h
+			}
+		}
+	}
+
+	return width, height
+}
+
+func extractAttrValue(tag, attr string) string {
+	patterns := []string{attr + `="`, attr + `='`}
+	for _, p := range patterns {
+		if idx := strings.Index(tag, p); idx != -1 {
+			start := idx + len(p)
+			end := strings.IndexAny(tag[start:], `"'`)
+			if end > 0 {
+				return tag[start : start+end]
+			}
+		}
+	}
+	return ""
+}
+
+func extractNumericAttr(tag, attr string) int {
+	val := extractAttrValue(tag, attr)
+	if val == "" {
+		return 0
+	}
+	val = strings.TrimSuffix(strings.TrimSuffix(val, "px"), "pt")
+	var num int
+	fmt.Sscanf(val, "%d", &num)
+	return num
+}
+
+func parseICOSize(data []byte) (int, int) {
+	if len(data) < 6 {
+		return 0, 0
+	}
+
+	count := int(data[4]) | int(data[5])<<8
+	if count == 0 || len(data) < 6+count*16 {
+		return 0, 0
+	}
+
+	var maxW, maxH int
+	for i := 0; i < count; i++ {
+		offset := 6 + i*16
+		w := int(data[offset])
+		h := int(data[offset+1])
+		if w == 0 {
+			w = 256
+		}
+		if h == 0 {
+			h = 256
+		}
+		if w > maxW || h > maxH {
+			maxW, maxH = w, h
+		}
+	}
+	return maxW, maxH
 }
 
 // extractIconOptions 从 HTML 文档中提取所有图标选项
@@ -245,6 +385,34 @@ func extractIconOptions(doc *goquery.Document, pageURL, baseURL string) []IconOp
 			IsFavicon: false,
 		})
 	})
+
+	if len(options) == 0 {
+		return options
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	var wg sync.WaitGroup
+	results := make([]string, len(options))
+
+	for i, opt := range options {
+		if opt.Sizes != "" {
+			continue
+		}
+		wg.Add(1)
+		go func(idx int, url string) {
+			defer wg.Done()
+			results[idx] = detectIconSize(ctx, url)
+		}(i, opt.URL)
+	}
+	wg.Wait()
+
+	for i := range options {
+		if options[i].Sizes == "" && results[i] != "" {
+			options[i].Sizes = results[i]
+		}
+	}
 
 	return options
 }

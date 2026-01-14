@@ -2,7 +2,7 @@
 FROM golang:1.25.5-alpine AS builder
 
 # 安装构建依赖
-RUN apk add --no-cache gcc musl-dev sqlite-dev
+RUN apk add --no-cache gcc musl-dev sqlite-dev git
 
 WORKDIR /app
 
