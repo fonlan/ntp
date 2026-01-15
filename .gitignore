@@ -51,7 +51,6 @@ temp/
 
 .spec-workflow/
 .serena/
-.github/
 .claude/
 .sisphus/
 CLAUDE.md
