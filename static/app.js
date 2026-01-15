@@ -1983,7 +1983,9 @@ function initEventListeners() {
 
     // Icon upload button click
     document.getElementById('uploadIconBtn').addEventListener('click', () => {
-        document.getElementById('iconUpload').click();
+        const iconUpload = document.getElementById('iconUpload');
+        iconUpload.value = '';
+        iconUpload.click();
     });
 
     // Icon upload
