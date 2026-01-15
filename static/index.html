@@ -35,10 +35,7 @@
             </div>
         </div>
 
-        <!-- Group tabs -->
-        <div class="groups-tabs">
-            <button class="group-tab active" data-group-id="" data-i18n="actions.all">All</button>
-        </div>
+
 
         <!-- Bookmarks list -->
         <div id="bookmarksContainer" class="bookmarks-container">
@@ -452,55 +449,50 @@
                     <input type="text" id="bookmarkTitle" data-i18n-placeholder="bookmark.titlePlaceholder" placeholder="Leave empty to auto-fetch">
                 </div>
                 <div class="form-group">
-                    <label for="bookmarkIcon" data-i18n="bookmark.icon">Icon URL</label>
-                    <div class="icon-input-wrapper">
-                        <input type="text" id="bookmarkIcon" data-i18n-placeholder="bookmark.iconPlaceholder" placeholder="Leave empty to auto-fetch or upload icon">
-                        <button type="button" id="fetchIconBtn" class="btn btn-secondary btn-sm icon-only-btn" data-i18n-title="bookmark.fetchIcon" title="Fetch Icon">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
-                            </svg>
-                        </button>
-                        <button type="button" id="uploadIconBtn" class="btn btn-secondary btn-sm icon-only-btn" data-i18n-title="bookmark.uploadIcon" title="Upload Icon">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-                                <polyline points="17 8 12 3 7 8"/>
-                                <line x1="12" y1="3" x2="12" y2="15"/>
-                            </svg>
-                        </button>
-                        <label for="iconUpload" class="sr-only" data-i18n="bookmark.uploadIcon">Upload Icon</label>
-                        <input type="file" id="iconUpload" class="hidden" accept="image/png,image/jpeg,image/gif,image/svg+xml,image/x-icon" aria-hidden="true">
+                    <label data-i18n="bookmark.icon">Icon</label>
+                    <div class="icon-tabs">
+                        <button type="button" class="icon-tab active" data-tab="image" data-i18n="bookmark.iconTypeImage">Image</button>
+                        <button type="button" class="icon-tab" data-tab="char" data-i18n="bookmark.iconTypeChar">Character</button>
                     </div>
-                    <span id="uploadFileName" style="font-size: 12px; color: var(--text-secondary); margin-top: 4px; display: block;"></span>
-                    <div class="icon-preview-container" id="iconPreviewContainer" style="display: none;">
-                        <span class="icon-preview-label" data-i18n="bookmark.iconPreview">Icon Preview:</span>
-                        <img id="iconPreview" class="icon-preview-image" src="" alt="Bookmark icon preview">
+                    <input type="hidden" name="iconType" id="iconTypeInput" value="image">
+
+                    <div class="icon-tab-content active" id="tab-content-image">
+                        <div class="icon-input-wrapper">
+                            <input type="text" id="bookmarkIcon" data-i18n-placeholder="bookmark.iconPlaceholder" placeholder="Leave empty to auto-fetch or upload icon">
+                            <button type="button" id="fetchIconBtn" class="btn btn-secondary btn-sm icon-only-btn" data-i18n-title="bookmark.fetchIcon" title="Fetch Icon">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+                                </svg>
+                            </button>
+                            <button type="button" id="uploadIconBtn" class="btn btn-secondary btn-sm icon-only-btn" data-i18n-title="bookmark.uploadIcon" title="Upload Icon">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                                    <polyline points="17 8 12 3 7 8"/>
+                                    <line x1="12" y1="3" x2="12" y2="15"/>
+                                </svg>
+                            </button>
+                            <label for="iconUpload" class="sr-only" data-i18n="bookmark.uploadIcon">Upload Icon</label>
+                            <input type="file" id="iconUpload" class="hidden" accept="image/png,image/jpeg,image/gif,image/svg+xml,image/x-icon" aria-hidden="true">
+                        </div>
+                        <span id="uploadFileName" style="font-size: 12px; color: var(--text-secondary); margin-top: 4px; display: block;"></span>
+                        <div class="icon-selection-container" id="iconSelectionContainer" style="display: none;">
+                            <span class="icon-selection-label" data-i18n="bookmark.selectIcon">Select an icon:</span>
+                            <div class="icon-selection-list" id="iconSelectionList"></div>
+                            <button type="button" id="useGoogleIconBtn" class="btn btn-secondary btn-sm" style="margin-top: 10px;" data-i18n="bookmark.useGoogleIcon">Use Google Icon</button>
+                        </div>
                     </div>
-                    <div class="icon-selection-container" id="iconSelectionContainer" style="display: none;">
-                        <span class="icon-selection-label" data-i18n="bookmark.selectIcon">Select an icon:</span>
-                        <div class="icon-selection-list" id="iconSelectionList"></div>
-                        <button type="button" id="useGoogleIconBtn" class="btn btn-secondary btn-sm" style="margin-top: 10px;" data-i18n="bookmark.useGoogleIcon">Use Google Icon</button>
+
+                    <div class="icon-tab-content" id="tab-content-char">
+                        <input type="text" id="bookmarkIconChar" maxlength="4" data-i18n-placeholder="bookmark.iconCharPlaceholder" placeholder="Leave empty to use first 2 characters of title">
+                        <small data-i18n="bookmark.iconCharHint">Enter 1-4 characters to display as icon</small>
                     </div>
                 </div>
+
                 <div class="form-group">
-                    <label data-i18n="bookmark.iconType">Icon Type</label>
-                    <div class="icon-type-options">
-                        <label style="margin-right: 15px;">
-                            <input type="radio" name="iconType" value="image" checked>
-                            <span data-i18n="bookmark.iconTypeImage">Image</span>
-                        </label>
-                        <label>
-                            <input type="radio" name="iconType" value="char">
-                            <span data-i18n="bookmark.iconTypeChar">Character</span>
-                        </label>
-                    </div>
-                </div>
-                <div class="form-group" id="iconCharGroup" style="display: none;">
-                    <label for="bookmarkIconChar" data-i18n="bookmark.iconChar">Character Icon</label>
-                    <input type="text" id="bookmarkIconChar" maxlength="4" data-i18n-placeholder="bookmark.iconCharPlaceholder" placeholder="Leave empty to use first 2 characters of title">
-                    <small data-i18n="bookmark.iconCharHint">Enter 1-4 characters to display as icon</small>
-                    <div class="icon-char-preview" id="iconCharPreview" style="display: none;">
-                        <span class="icon-preview-label" data-i18n="bookmark.iconCharPreview">Character Preview:</span>
-                        <div class="icon-char-preview-box" id="iconCharPreviewBox">AB</div>
+                    <label data-i18n="bookmark.preview">Preview</label>
+                    <div class="common-icon-preview">
+                        <img id="iconPreview" class="icon-preview-image" src="" alt="Bookmark icon preview" style="display: none;">
+                        <div class="icon-char-preview-box" id="iconCharPreviewBox" style="display: none;">AB</div>
                     </div>
                 </div>
                 <div class="form-group">

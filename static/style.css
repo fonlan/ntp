@@ -347,40 +347,7 @@ body {
     transform: rotate(60deg);
 }
 
-/* ===================================
-   分组标签 - 精简版
-   =================================== */
-.groups-tabs {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 24px;
-    overflow-x: auto;
-    padding-bottom: 4px;
-}
 
-.group-tab {
-    padding: 8px 16px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-full);
-    cursor: pointer;
-    white-space: nowrap;
-    transition: all 0.2s ease;
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--text-secondary);
-}
-
-.group-tab:hover {
-    background: var(--bg-hover);
-    border-color: var(--secondary);
-    color: var(--text-primary);
-}
-
-.group-tab.active {
-    background: var(--primary);
-    color: white;
-}
 
 /* ===================================
    书签网格 - 按分组显示
@@ -1478,20 +1445,7 @@ body {
         height: 18px;
     }
 
-    /* 移动端分组标签 */
-    .groups-tabs {
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        gap: 8px;
-        padding-bottom: 4px;
-    }
 
-    .group-tab {
-        flex-shrink: 0;
-        padding: 8px 16px;
-        font-size: 14px;
-    }
 
     .bookmark-card {
         padding: 12px;
@@ -1728,8 +1682,7 @@ body {
    打印样式
    =================================== */
 @media print {
-    .top-bar,
-    .groups-tabs {
+    .top-bar {
         display: none;
     }
 
@@ -2034,4 +1987,58 @@ body {
     .group-quick-nav {
         display: none;
     }
+}
+
+.icon-tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--bg-hover);
+    padding: 4px;
+    border-radius: var(--radius-md);
+    margin-bottom: 16px;
+}
+
+.icon-tab {
+    flex: 1;
+    padding: 8px 16px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.icon-tab:hover {
+    color: var(--text-primary);
+}
+
+.icon-tab.active {
+    background: var(--bg-card);
+    color: var(--primary);
+    box-shadow: var(--shadow-sm);
+    font-weight: 600;
+}
+
+.icon-tab-content {
+    display: none;
+    animation: fadeIn 0.2s ease;
+}
+
+.icon-tab-content.active {
+    display: block;
+}
+
+.common-icon-preview {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    background: var(--bg-hover);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    justify-content: center;
+    min-height: 80px;
 }

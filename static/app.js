@@ -639,14 +639,11 @@ function toggleEngineDropdown() {
 // ===================================
 async function loadGroups() {
     state.groups = await loadData(`${API}/groups`, i18n.t('errors.loadGroupFailed'));
-    renderGroups();
     updateGroupSelect();
     renderSettingsGroups();
 }
 
-function renderGroups() {
-    document.querySelector('.groups-tabs').style.display = 'none';
-}
+
 
 function updateGroupSelect() {
     dom.bookmarkGroupSelect.innerHTML = `<option value="">${i18n.t('group.ungrouped')}</option>` +
@@ -1157,6 +1154,61 @@ async function performSearch() {
 }
 
 // ===================================
+// Icon Tab Management
+// ===================================
+function switchIconTab(type) {
+    // Update hidden input
+    const input = document.getElementById('iconTypeInput');
+    if (input) input.value = type;
+
+    // Update tab classes
+    document.querySelectorAll('.icon-tab').forEach(tab => {
+        if (tab.dataset.tab === type) {
+            tab.classList.add('active');
+        } else {
+            tab.classList.remove('active');
+        }
+    });
+
+    // Update content visibility
+    document.querySelectorAll('.icon-tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    const content = document.getElementById(`tab-content-${type}`);
+    if (content) content.classList.add('active');
+
+    // Update preview visibility
+    if (type === 'image') {
+        const iconUrl = document.getElementById('bookmarkIcon').value;
+        const url = document.getElementById('bookmarkUrl').value;
+        
+        if (iconUrl) {
+            showIconPreview(iconUrl);
+        } else if (url) {
+            showIconPreview(getFavicon(url, ''));
+        } else {
+            hideIconPreview();
+        }
+        hideCharIconPreview();
+    } else {
+        const char = document.getElementById('bookmarkIconChar').value.trim();
+        const title = document.getElementById('bookmarkTitle').value.trim();
+        
+        // If char is empty but title exists, auto-fill
+        if (!char && title) {
+             const autoChar = title.substring(0, 2);
+             document.getElementById('bookmarkIconChar').value = autoChar;
+             showCharIconPreview(autoChar);
+        } else if (char) {
+            showCharIconPreview(char);
+        } else {
+            hideCharIconPreview();
+        }
+        hideIconPreview();
+    }
+}
+
+// ===================================
 // Bookmark Management
 // ===================================
 function showBookmarkModal(bookmark = null) {
@@ -1178,22 +1230,12 @@ function showBookmarkModal(bookmark = null) {
         document.getElementById('bookmarkNewWindow').checked = bookmark.is_new_window !== false; // 默认true
 
         // 根据是否有字符图标设置图标类型
-        const iconTypeRadios = document.querySelectorAll('input[name="iconType"]');
         if (bookmark.icon_char && bookmark.icon_char.trim() !== '') {
             // 字符图标模式
-            iconTypeRadios.forEach(radio => {
-                radio.checked = (radio.value === 'char');
-            });
-            document.getElementById('iconCharGroup').style.display = 'block';
-            showCharIconPreview(bookmark.icon_char);
-            hideIconPreview();
+            switchIconTab('char');
         } else {
             // 图片图标模式
-            iconTypeRadios.forEach(radio => {
-                radio.checked = (radio.value === 'image');
-            });
-            document.getElementById('iconCharGroup').style.display = 'none';
-            hideCharIconPreview();
+            switchIconTab('image');
             // Show icon preview - use getFavicon to get correct icon
             const faviconUrl = getFavicon(bookmark.url, bookmark.icon_path || bookmark.icon_url);
             showIconPreview(faviconUrl);
@@ -1205,41 +1247,43 @@ function showBookmarkModal(bookmark = null) {
         document.getElementById('bookmarkForm').reset();
         document.getElementById('bookmarkId').value = '';
         document.getElementById('uploadFileName').textContent = '';
+        
+        // reset() 会重置 checkbox 和 radio，但需要重置 tab
+        document.getElementById('bookmarkNewWindow').checked = true;
+        switchIconTab('image');
         hideIconPreview();
         hideCharIconPreview();
-        // reset() 会重置 checkbox 和 radio，所以需要再次设置
-        document.getElementById('bookmarkNewWindow').checked = true;
-        document.querySelector('input[name="iconType"][value="image"]').checked = true;
-        document.getElementById('iconCharGroup').style.display = 'none';
     }
 
     modal.classList.add('show');
 }
 
 function showIconPreview(iconUrl) {
-    const container = document.getElementById('iconPreviewContainer');
     const preview = document.getElementById('iconPreview');
+    if (!preview) return;
     preview.src = iconUrl;
     preview.onerror = () => {
         preview.onerror = null;
         preview.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E🌐%3C/text%3E%3C/svg%3E';
     };
-    container.style.display = 'flex';
+    preview.style.display = 'block';
 }
 
 function hideIconPreview() {
-    document.getElementById('iconPreviewContainer').style.display = 'none';
+    const preview = document.getElementById('iconPreview');
+    if (preview) preview.style.display = 'none';
 }
 
 function showCharIconPreview(char) {
-    const container = document.getElementById('iconCharPreview');
     const preview = document.getElementById('iconCharPreviewBox');
+    if (!preview) return;
     preview.textContent = char || 'AB';
-    container.style.display = 'flex';
+    preview.style.display = 'flex';
 }
 
 function hideCharIconPreview() {
-    document.getElementById('iconCharPreview').style.display = 'none';
+    const preview = document.getElementById('iconCharPreviewBox');
+    if (preview) preview.style.display = 'none';
 }
 
 async function fetchIcon() {
@@ -1889,28 +1933,10 @@ function initEventListeners() {
         }
     });
 
-    // Icon type switching
-    document.querySelectorAll('input[name="iconType"]').forEach(radio => {
-        radio.addEventListener('change', (e) => {
-            const iconCharGroup = document.getElementById('iconCharGroup');
-            if (e.target.value === 'char') {
-                iconCharGroup.style.display = 'block';
-                hideIconPreview();
-                // 自动填充标题的前2个字符作为预览
-                const title = document.getElementById('bookmarkTitle').value.trim();
-                const currentChar = document.getElementById('bookmarkIconChar').value.trim();
-                if (!currentChar && title) {
-                    document.getElementById('bookmarkIconChar').value = title.substring(0, 2);
-                    showCharIconPreview(title.substring(0, 2));
-                }
-            } else {
-                iconCharGroup.style.display = 'none';
-                hideCharIconPreview();
-                const iconUrl = document.getElementById('bookmarkIcon').value;
-                if (iconUrl) {
-                    showIconPreview(iconUrl);
-                }
-            }
+    // Icon type switching (Tab)
+    document.querySelectorAll('.icon-tab').forEach(tab => {
+        tab.addEventListener('click', (e) => {
+            switchIconTab(e.target.dataset.tab);
         });
     });
 
@@ -1936,7 +1962,7 @@ function initEventListeners() {
     document.getElementById('bookmarkForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         // 获取图标类型
-        const iconType = document.querySelector('input[name="iconType"]:checked').value;
+        const iconType = document.getElementById('iconTypeInput').value;
         let iconChar = '';
         let iconUrl = document.getElementById('bookmarkIcon').value;
 
