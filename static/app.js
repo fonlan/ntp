@@ -1278,6 +1278,7 @@ function showBookmarkModal(bookmark = null) {
         document.getElementById('bookmarkForm').reset();
         document.getElementById('bookmarkId').value = '';
         document.getElementById('uploadFileName').textContent = '';
+        document.getElementById('iconUpload').value = '';
         document.getElementById('bookmarkIconBgColor').value = '';
         document.getElementById('bookmarkIconBgColorPicker').value = '#f1f5f9';
         
@@ -1991,6 +1992,8 @@ function initEventListeners() {
         if (file) {
             uploadIcon(file);
         }
+        // 清空 file input 的 value，确保下次选择相同文件时也能触发 change 事件
+        e.target.value = '';
     });
 
     // Icon type switching (Tab)
