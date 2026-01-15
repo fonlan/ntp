@@ -160,6 +160,7 @@ const dom = {
     get bookmarkGroupSelect() { return this._bookmarkGroupSelect ||= document.getElementById('bookmarkGroup'); },
     get groupsList() { return this._groupsList ||= document.getElementById('groupsList'); },
     get enginesList() { return this._enginesList ||= document.getElementById('enginesList'); },
+    get groupQuickNav() { return this._groupQuickNav ||= document.getElementById('groupQuickNav'); },
 
     // Reset cache when DOM changes significantly
     clear() {
@@ -177,6 +178,7 @@ const dom = {
         this._bookmarkGroupSelect = null;
         this._groupsList = null;
         this._enginesList = null;
+        this._groupQuickNav = null;
     }
 };
 
@@ -692,8 +694,8 @@ function renderBookmarks() {
     const html = sortedGroups
         .filter(group => groupedBookmarks[group.id]?.length > 0)
         .map(group => `
-            <div class="bookmark-group">
-                <h3 class="group-title">${escapeHtml(group.name)}</h3>
+            <div class="bookmark-group" data-group-id="${group.id}">
+                <h3 class="group-title" id="group-${group.id}">${escapeHtml(group.name)}</h3>
                 <div class="group-bookmarks">
                     ${groupedBookmarks[group.id].map(renderBookmarkCard).join('')}
                 </div>
@@ -701,8 +703,8 @@ function renderBookmarks() {
         `).join('');
 
     const ungroupedHtml = ungroupedBookmarks.length > 0 ? `
-        <div class="bookmark-group">
-            <h3 class="group-title">${i18n.t('group.ungrouped')}</h3>
+        <div class="bookmark-group" data-group-id="ungrouped">
+            <h3 class="group-title" id="group-ungrouped">${i18n.t('group.ungrouped')}</h3>
             <div class="group-bookmarks">
                 ${ungroupedBookmarks.map(renderBookmarkCard).join('')}
             </div>
@@ -711,9 +713,104 @@ function renderBookmarks() {
 
     dom.bookmarksContainer.innerHTML = html + ungroupedHtml;
     applyBookmarkSize();
-    applyCardOpacity();  // 确保透明度设置在渲染后应用
+    applyCardOpacity();
     initDragAndDrop();
     initBookmarkClickHandlers();
+    renderGroupQuickNav(sortedGroups, groupedBookmarks, ungroupedBookmarks.length > 0);
+}
+
+function renderGroupQuickNav(sortedGroups, groupedBookmarks, hasUngrouped) {
+    const nav = dom.groupQuickNav;
+    if (!nav) return;
+
+    const visibleGroups = sortedGroups.filter(g => groupedBookmarks[g.id]?.length > 0);
+    if (visibleGroups.length === 0 && !hasUngrouped) {
+        nav.style.display = 'none';
+        return;
+    }
+
+    let navHtml = visibleGroups.map(group => `
+        <button class="group-quick-nav-item" data-target="group-${group.id}" title="${escapeHtml(group.name)}">
+            <span class="group-quick-nav-dot"></span>
+            <span>${escapeHtml(group.name)}</span>
+        </button>
+    `).join('');
+
+    if (hasUngrouped) {
+        navHtml += `
+            <button class="group-quick-nav-item" data-target="group-ungrouped" title="${i18n.t('group.ungrouped')}">
+                <span class="group-quick-nav-dot"></span>
+                <span>${i18n.t('group.ungrouped')}</span>
+            </button>
+        `;
+    }
+
+    nav.innerHTML = navHtml;
+    nav.style.display = '';
+
+    initGroupQuickNavHandlers();
+    initScrollTracking();
+}
+
+function initGroupQuickNavHandlers() {
+    const nav = dom.groupQuickNav;
+    if (!nav || nav._clickHandlerInitialized) return;
+
+    nav.addEventListener('click', (e) => {
+        const item = e.target.closest('.group-quick-nav-item');
+        if (!item) return;
+
+        const targetId = item.dataset.target;
+        const targetEl = document.getElementById(targetId);
+        if (targetEl) {
+            targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            nav.querySelectorAll('.group-quick-nav-item').forEach(i => i.classList.remove('active'));
+            item.classList.add('active');
+        }
+    });
+
+    nav._clickHandlerInitialized = true;
+}
+
+function initScrollTracking() {
+    if (window._scrollTrackingInitialized) return;
+
+    const updateActiveGroup = throttle(() => {
+        const nav = dom.groupQuickNav;
+        if (!nav) return;
+
+        const groupTitles = document.querySelectorAll('.group-title[id]');
+        if (groupTitles.length === 0) return;
+
+        let currentGroupId = null;
+        const offset = 100;
+
+        const isAtBottom = (window.innerHeight + window.scrollY) >= (document.documentElement.scrollHeight - 50);
+        if (isAtBottom && groupTitles.length > 0) {
+            currentGroupId = groupTitles[groupTitles.length - 1].id;
+        } else {
+            groupTitles.forEach(title => {
+                const rect = title.getBoundingClientRect();
+                if (rect.top <= offset) {
+                    currentGroupId = title.id;
+                }
+            });
+
+            if (!currentGroupId && groupTitles.length > 0) {
+                currentGroupId = groupTitles[0].id;
+            }
+        }
+
+        nav.querySelectorAll('.group-quick-nav-item').forEach(item => {
+            item.classList.toggle('active', item.dataset.target === currentGroupId);
+        });
+    }, 100);
+
+    window.addEventListener('scroll', updateActiveGroup, { passive: true });
+    updateActiveGroup();
+
+    window._scrollTrackingInitialized = true;
 }
 
 // 初始化书签卡片点击事件
