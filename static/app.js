@@ -465,12 +465,21 @@ function updatePreview() {
     preview.style.width = previewWidth + 'px';
     preview.style.height = state.bookmarkHeight + 'px';
     preview.style.minHeight = state.bookmarkHeight + 'px';
+    
+    // Set icon size to match bookmark height
+    const previewIcon = preview.querySelector('.bookmark-icon');
+    if (previewIcon) {
+        previewIcon.style.width = state.bookmarkHeight + 'px';
+        previewIcon.style.height = state.bookmarkHeight + 'px';
+        previewIcon.style.minWidth = state.bookmarkHeight + 'px';
+    }
 }
 
 function applyBookmarkSize() {
     const mainContainer = document.querySelector('.container');
     const groupBookmarksContainers = document.querySelectorAll('.group-bookmarks');
     const cards = document.querySelectorAll('.bookmark-card');
+    const icons = document.querySelectorAll('.bookmark-icon');
     const isMobile = window.innerWidth <= 768;
 
     // 如果书签容器还不存在（页面刚加载时），直接返回
@@ -513,6 +522,13 @@ function applyBookmarkSize() {
         card.style.minHeight = state.bookmarkHeight + 'px';
         card.style.height = state.bookmarkHeight + 'px';
         card.style.overflow = 'hidden';
+    });
+
+    // 设置每个图标的尺寸与书签高度一致
+    icons.forEach(icon => {
+        icon.style.width = state.bookmarkHeight + 'px';
+        icon.style.height = state.bookmarkHeight + 'px';
+        icon.style.minWidth = state.bookmarkHeight + 'px';
     });
 }
 
@@ -1049,13 +1065,20 @@ function onEvent(container, eventType, selector, handler, options) {
 
 function renderBookmarkCard(b) {
     const target = b.is_new_window !== false ? '_blank' : '_self';
+    const iconBgStyle = b.icon_bg_color && b.icon_bg_color !== '' 
+        ? `background: ${escapeHtml(b.icon_bg_color)};` 
+        : '';
+    const iconSize = state.bookmarkHeight;
+    const iconSizeStyle = `width: ${iconSize}px; height: ${iconSize}px; min-width: ${iconSize}px;`;
+    
     // 如果有字符图标，显示字符图标；否则显示图片图标
     let iconHtml;
     if (b.icon_char && b.icon_char.trim() !== '') {
-        iconHtml = `<div class="bookmark-icon bookmark-icon-char" title="${escapeHtml(b.title || 'Bookmark')}">${escapeHtml(b.icon_char)}</div>`;
+        iconHtml = `<div class="bookmark-icon bookmark-icon-char" style="${iconSizeStyle} ${iconBgStyle}" title="${escapeHtml(b.title || 'Bookmark')}">${escapeHtml(b.icon_char)}</div>`;
     } else {
         iconHtml = `<img src="${getFavicon(b.url, b.icon_path || b.icon_url)}"
                  class="bookmark-icon"
+                 style="${iconSizeStyle} ${iconBgStyle}"
                  alt="${escapeHtml(b.title || 'Bookmark')} icon"
                  onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E🌐%3C/text%3E%3C/svg%3E'">`;
     }
@@ -1225,6 +1248,12 @@ function showBookmarkModal(bookmark = null) {
         document.getElementById('bookmarkTitle').value = bookmark.title;
         document.getElementById('bookmarkIcon').value = bookmark.icon_path || bookmark.icon_url || '';
         document.getElementById('bookmarkIconChar').value = bookmark.icon_char || '';
+        document.getElementById('bookmarkIconBgColor').value = bookmark.icon_bg_color || '';
+        if (bookmark.icon_bg_color && /^#[0-9A-Fa-f]{6}$/.test(bookmark.icon_bg_color)) {
+            document.getElementById('bookmarkIconBgColorPicker').value = bookmark.icon_bg_color;
+        } else {
+            document.getElementById('bookmarkIconBgColorPicker').value = '#f1f5f9';
+        }
         document.getElementById('bookmarkGroup').value = bookmark.group_id !== null && bookmark.group_id !== undefined ? bookmark.group_id : '';
         document.getElementById('bookmarkDesc').value = bookmark.description || '';
         document.getElementById('bookmarkNewWindow').checked = bookmark.is_new_window !== false; // 默认true
@@ -1240,6 +1269,7 @@ function showBookmarkModal(bookmark = null) {
             const faviconUrl = getFavicon(bookmark.url, bookmark.icon_path || bookmark.icon_url);
             showIconPreview(faviconUrl);
         }
+        updateIconBgColorPreview(bookmark.icon_bg_color || '');
     } else {
         title.textContent = i18n.t('bookmark.add');
         // 先设置默认值，再重置表单
@@ -1247,12 +1277,15 @@ function showBookmarkModal(bookmark = null) {
         document.getElementById('bookmarkForm').reset();
         document.getElementById('bookmarkId').value = '';
         document.getElementById('uploadFileName').textContent = '';
+        document.getElementById('bookmarkIconBgColor').value = '';
+        document.getElementById('bookmarkIconBgColorPicker').value = '#f1f5f9';
         
         // reset() 会重置 checkbox 和 radio，但需要重置 tab
         document.getElementById('bookmarkNewWindow').checked = true;
         switchIconTab('image');
         hideIconPreview();
         hideCharIconPreview();
+        updateIconBgColorPreview('');
     }
 
     modal.classList.add('show');
@@ -1284,6 +1317,19 @@ function showCharIconPreview(char) {
 function hideCharIconPreview() {
     const preview = document.getElementById('iconCharPreviewBox');
     if (preview) preview.style.display = 'none';
+}
+
+function updateIconBgColorPreview(color) {
+    const preview = document.getElementById('iconPreview');
+    const charPreview = document.getElementById('iconCharPreviewBox');
+    const bgColor = color && color !== '' ? color : 'var(--bg-hover)';
+    
+    if (preview) {
+        preview.style.background = bgColor;
+    }
+    if (charPreview) {
+        charPreview.style.background = bgColor;
+    }
 }
 
 async function fetchIcon() {
@@ -1950,6 +1996,26 @@ function initEventListeners() {
         }
     });
 
+    // Icon background color picker
+    document.getElementById('bookmarkIconBgColorPicker').addEventListener('input', (e) => {
+        document.getElementById('bookmarkIconBgColor').value = e.target.value;
+        updateIconBgColorPreview(e.target.value);
+    });
+
+    document.getElementById('bookmarkIconBgColor').addEventListener('input', (e) => {
+        const color = e.target.value.trim();
+        if (color && color !== 'transparent' && /^#[0-9A-Fa-f]{6}$/.test(color)) {
+            document.getElementById('bookmarkIconBgColorPicker').value = color;
+        }
+        updateIconBgColorPreview(color);
+    });
+
+    document.getElementById('clearIconBgColorBtn').addEventListener('click', () => {
+        document.getElementById('bookmarkIconBgColor').value = '';
+        document.getElementById('bookmarkIconBgColorPicker').value = '#f1f5f9';
+        updateIconBgColorPreview('');
+    });
+
     // Import/Export buttons
     document.getElementById('importBtn').addEventListener('click', showImportModal);
     document.getElementById('importSubmitBtn').addEventListener('click', importBookmarks);
@@ -1965,6 +2031,7 @@ function initEventListeners() {
         const iconType = document.getElementById('iconTypeInput').value;
         let iconChar = '';
         let iconUrl = document.getElementById('bookmarkIcon').value;
+        let iconBgColor = document.getElementById('bookmarkIconBgColor').value.trim();
 
         // 如果选择字符图标
         if (iconType === 'char') {
@@ -1979,6 +2046,7 @@ function initEventListeners() {
             title: document.getElementById('bookmarkTitle').value,
             icon_url: iconUrl,
             icon_char: iconChar,
+            icon_bg_color: iconBgColor,
             group_id: parseGroupId(document.getElementById('bookmarkGroup').value),
             description: document.getElementById('bookmarkDesc').value,
             is_new_window: document.getElementById('bookmarkNewWindow').checked

@@ -131,7 +131,11 @@
     "newWindow": "在新窗口打开",
     "deleteConfirm": "确定要删除这个书签吗？",
     "enterUrlFirst": "请先输入URL",
-    "empty": "暂无书签，点击设置添加"
+    "empty": "暂无书签，点击设置添加",
+    "iconBgColor": "图标背景色",
+    "iconBgColorPlaceholder": "如 #f1f5f9 或 transparent",
+    "iconBgColorHint": "留空使用默认背景，输入 transparent 表示透明",
+    "clearIconBgColor": "清除"
   },
   "upload": {
     "fileSizeLimit": "文件大小不能超过 512KB",

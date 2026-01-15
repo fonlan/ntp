@@ -55,6 +55,7 @@ type BookmarkCreateRequest struct {
 	Title       string  `json:"title,omitempty"`
 	IconURL     string  `json:"icon_url,omitempty"`
 	IconChar    *string `json:"icon_char,omitempty"`
+	IconBgColor *string `json:"icon_bg_color,omitempty"`
 	Description string  `json:"description,omitempty"`
 	IsNewWindow bool    `json:"is_new_window"`
 }
@@ -65,6 +66,7 @@ type BookmarkUpdateRequest struct {
 	Title       *string `json:"title,omitempty"`
 	IconURL     *string `json:"icon_url,omitempty"`
 	IconChar    *string `json:"icon_char,omitempty"`
+	IconBgColor *string `json:"icon_bg_color,omitempty"`
 	Description *string `json:"description,omitempty"`
 	GroupID     *int64  `json:"group_id"`
 	SortOrder   *int    `json:"sort_order,omitempty"`
@@ -128,6 +130,9 @@ func (h *BookmarkHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.IconChar != nil && *req.IconChar != "" {
 		bookmark.IconChar = req.IconChar
+	}
+	if req.IconBgColor != nil && *req.IconBgColor != "" {
+		bookmark.IconBgColor = req.IconBgColor
 	}
 	if req.Description != "" {
 		bookmark.Description = &req.Description
@@ -261,6 +266,9 @@ func (h *BookmarkHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Description != nil {
 		bookmark.Description = req.Description
+	}
+	if req.IconBgColor != nil {
+		bookmark.IconBgColor = req.IconBgColor
 	}
 	// GroupID 总是更新（因为移除了 omitempty）
 	bookmark.GroupID = req.GroupID
