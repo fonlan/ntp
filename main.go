@@ -19,6 +19,8 @@ import (
 )
 
 func main() {
+	log.Printf("NTP 版本: %s", Version)
+
 	// 确保数据目录存在
 	dataDir := "data"
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
@@ -52,6 +54,7 @@ func main() {
 	searchEngineHandler := handlers.NewSearchEngineHandler(searchEngineRepo, iconService)
 	fetchHandler := handlers.NewFetchHandler()
 	authHandler := handlers.NewAuthHandler()
+	versionHandler := handlers.NewVersionHandler(Version)
 
 	// 加载国际化翻译文件
 	if err := i18n.LoadTranslations("i18n"); err != nil {
@@ -88,6 +91,11 @@ func main() {
 	// 首页和 API 路由（需要认证）
 	mux.Handle("/", middleware.AuthMiddleware(cacheControlWrapper(http.FileServer(http.Dir("static")))))
 	registerAPIRoutes(mux, bookmarkHandler, groupHandler, searchEngineHandler, fetchHandler)
+
+	// 版本信息（公开访问，无需认证）
+	mux.HandleFunc("/api/version", methodRouter(map[string]http.HandlerFunc{
+		"GET": versionHandler.GetVersion,
+	}))
 
 	// 搜索跳转
 	mux.HandleFunc("/search", func(w http.ResponseWriter, r *http.Request) {

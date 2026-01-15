@@ -953,6 +953,7 @@ function initBookmarkClickHandlers() {
                     try {
                         renderSettingsEngines();
                         renderSettingsGroups();
+                        loadVersionInfo();
                         i18n.updatePage();
                     } catch (e) {
                         console.error('Error rendering settings content:', e);
@@ -1853,6 +1854,19 @@ async function handleLogout() {
     } catch (error) {
         console.error('Logout error:', error);
         alert(i18n.t('settings.logoutFailed'));
+    }
+}
+
+async function loadVersionInfo() {
+    try {
+        const response = await fetch('/api/version');
+        const data = await response.json();
+        const versionEl = document.getElementById('appVersion');
+        if (versionEl && data.version) {
+            versionEl.textContent = data.version;
+        }
+    } catch (error) {
+        console.error('Failed to load version:', error);
     }
 }
 

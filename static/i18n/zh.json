@@ -75,7 +75,9 @@
     "account": "账户",
     "logout": "登出",
     "logoutConfirm": "确定要登出吗？",
-    "logoutFailed": "登出失败，请重试"
+    "logoutFailed": "登出失败，请重试",
+    "about": "关于",
+    "version": "版本"
   },
   "group": {
     "add": "新建分组",

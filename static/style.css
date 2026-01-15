@@ -812,6 +812,14 @@ body {
     gap: 32px;
 }
 
+.settings-section {
+    margin-bottom: 24px;
+}
+
+.settings-section:last-child {
+    margin-bottom: 0;
+}
+
 .settings-section h3 {
     font-size: 16px;
     font-weight: 700;
@@ -1078,6 +1086,17 @@ body {
 
 .language-select:hover {
     border-color: var(--secondary);
+}
+
+.version-info {
+    font-size: 14px;
+    color: var(--text-secondary);
+    padding: 8px 0;
+}
+
+.version-info #appVersion {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    color: var(--text-primary);
 }
 
 /* 书签预览 */

@@ -13,8 +13,9 @@ RUN go mod download
 # 复制源代码
 COPY . .
 
-# 编译
-RUN CGO_ENABLED=1 GOOS=linux go build -o ntp .
+# 编译（注入 git commit hash 作为版本号）
+ARG GIT_COMMIT=unknown
+RUN CGO_ENABLED=1 GOOS=linux go build -ldflags "-X main.Version=${GIT_COMMIT}" -o ntp .
 
 # 最终镜像
 FROM alpine:latest

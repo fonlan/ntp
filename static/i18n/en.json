@@ -75,7 +75,9 @@
     "account": "Account",
     "logout": "Logout",
     "logoutConfirm": "Are you sure you want to logout?",
-    "logoutFailed": "Logout failed, please try again"
+    "logoutFailed": "Logout failed, please try again",
+    "about": "About",
+    "version": "Version"
   },
   "group": {
     "add": "Add Group",
