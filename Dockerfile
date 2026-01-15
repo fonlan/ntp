@@ -13,6 +13,10 @@ RUN go mod download
 # 复制源代码
 COPY . .
 
+# 为静态资源添加内容哈希（cache busting）
+RUN chmod +x scripts/hash-assets.sh && \
+    sh scripts/hash-assets.sh static
+
 # 编译（注入 git commit hash 作为版本号）
 ARG GIT_COMMIT=unknown
 RUN CGO_ENABLED=1 GOOS=linux go build -ldflags "-X main.Version=${GIT_COMMIT}" -o ntp .

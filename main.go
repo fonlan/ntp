@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -17,6 +18,8 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 )
+
+var hashedAssetPattern = regexp.MustCompile(`\.[a-f0-9]{8}\.(js|css)$`)
 
 func main() {
 	log.Printf("NTP 版本: %s", Version)
@@ -227,6 +230,7 @@ func enableCORS(next http.Handler) http.Handler {
 		w.Header().Set("Content-Security-Policy",
 			"frame-ancestors 'self'; "+
 				"default-src 'self'; "+
+				"script-src 'self' 'unsafe-inline'; "+
 				"style-src 'self' 'unsafe-inline'; "+
 				"img-src 'self' data: https: http:; "+
 				"font-src 'self' data:")
@@ -258,26 +262,24 @@ type cacheControlResponseWriter struct {
 
 func (w *cacheControlResponseWriter) WriteHeader(statusCode int) {
 	if !w.headersSet {
-		// 根据文件类型设置不同的缓存策略
 		path := w.Request.URL.Path
 
 		var cacheControl string
 		if strings.HasSuffix(path, ".html") {
-			// HTML 文件：不缓存，确保始终获取最新版本
 			cacheControl = "no-cache, no-store, must-revalidate"
-		} else if strings.HasSuffix(path, ".css") || strings.HasSuffix(path, ".js") ||
-			strings.HasSuffix(path, ".png") || strings.HasSuffix(path, ".jpg") ||
+		} else if hashedAssetPattern.MatchString(path) {
+			cacheControl = "public, max-age=31536000, immutable"
+		} else if strings.HasSuffix(path, ".css") || strings.HasSuffix(path, ".js") {
+			cacheControl = "public, max-age=3600"
+		} else if strings.HasSuffix(path, ".png") || strings.HasSuffix(path, ".jpg") ||
 			strings.HasSuffix(path, ".jpeg") || strings.HasSuffix(path, ".gif") ||
 			strings.HasSuffix(path, ".svg") || strings.HasSuffix(path, ".ico") ||
 			strings.HasSuffix(path, ".woff") || strings.HasSuffix(path, ".woff2") {
-			// 静态资源：长期缓存（1 年）
 			cacheControl = "public, max-age=31536000, immutable"
 		} else {
-			// 其他文件：默认缓存策略（1 天）
 			cacheControl = "public, max-age=86400"
 		}
 
-		// 设置 Cache-Control，移除 Expires
 		w.Header().Set("Cache-Control", cacheControl)
 		w.Header().Del("Expires")
 		w.headersSet = true
