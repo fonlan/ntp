@@ -403,7 +403,7 @@ func (h *BookmarkHandler) Import(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	for groupName := range groupNames {
+	for _, groupName := range groupNames {
 		if _, exists := groupMap[groupName]; !exists {
 			maxOrder++
 			newGroup := &models.Group{
@@ -566,9 +566,9 @@ func (h *BookmarkHandler) Import(w http.ResponseWriter, r *http.Request) {
 }
 
 // parseNetscapeBookmarksWithGroups 解析 Netscape 书签格式，同时解析分组关联
-func parseNetscapeBookmarksWithGroups(html string) ([]models.Bookmark, map[string]string, map[string]int64, error) {
+func parseNetscapeBookmarksWithGroups(html string) ([]models.Bookmark, []string, map[string]int64, error) {
 	var bookmarks []models.Bookmark
-	groups := make(map[string]string)          // 记录所有出现的分组名
+	var groupNames []string                    // 有序的分组名列表
 	groupNameToIndex := make(map[string]int64) // 分组名 -> 临时索引
 	var currentGroupName string
 	groupIndex := int64(1)
@@ -589,8 +589,8 @@ func parseNetscapeBookmarksWithGroups(html string) ([]models.Bookmark, map[strin
 					end := strings.Index(line[start:], `</H3>`)
 					if end != -1 {
 						currentGroupName = line[start : start+end]
-						groups[currentGroupName] = currentGroupName
 						if _, exists := groupNameToIndex[currentGroupName]; !exists {
+							groupNames = append(groupNames, currentGroupName)
 							groupNameToIndex[currentGroupName] = groupIndex
 							groupIndex++
 						}
@@ -621,52 +621,65 @@ func parseNetscapeBookmarksWithGroups(html string) ([]models.Bookmark, map[strin
 				URL:   url,
 			}
 
-			// 提取图标 (支持 base64 数据和 URL)
-			var iconURL string
-			// 优先检查标准 ICON 字段
-			iconTag := `ICON="`
-			if iconStart := strings.Index(line, iconTag); iconStart != -1 {
-				iconStart += len(iconTag)
-				// 找到属性值结束位置：下一个属性开始 或 标签结束
-				iconEnd := len(line)
-				if nextPos := strings.Index(line[iconStart:], ` DESC="`); nextPos != -1 {
-					iconEnd = iconStart + nextPos
-				}
-				if nextPos := strings.Index(line[iconStart:], ` NEW_WINDOW="`); nextPos != -1 && iconStart+nextPos < iconEnd {
-					iconEnd = iconStart + nextPos
-				}
-				if nextPos := strings.Index(line[iconStart:], `>`); nextPos != -1 && iconStart+nextPos < iconEnd {
-					iconEnd = iconStart + nextPos
-				}
-				// 回退到最后一个引号
-				lastQuote := strings.LastIndex(line[iconStart:iconEnd], `"`)
-				if lastQuote != -1 {
-					iconURL = line[iconStart : iconStart+lastQuote]
-				}
-				if iconURL != "" {
-					bookmark.IconURL = &iconURL
-				}
-			} else if iconStart := strings.Index(line, `ICON_URI="`); iconStart != -1 {
-				// 向后兼容 ICON_URI 字段
-				iconStart += 10 // ICON_URI=" 的长度
-				// 找到属性值结束位置：下一个属性开始 或 标签结束
-				iconEnd := len(line)
-				if nextPos := strings.Index(line[iconStart:], ` DESC="`); nextPos != -1 {
-					iconEnd = iconStart + nextPos
-				}
-				if nextPos := strings.Index(line[iconStart:], ` NEW_WINDOW="`); nextPos != -1 && iconStart+nextPos < iconEnd {
-					iconEnd = iconStart + nextPos
-				}
-				if nextPos := strings.Index(line[iconStart:], `>`); nextPos != -1 && iconStart+nextPos < iconEnd {
-					iconEnd = iconStart + nextPos
-				}
-				// 回退到最后一个引号
-				lastQuote := strings.LastIndex(line[iconStart:iconEnd], `"`)
-				if lastQuote != -1 {
-					iconURL = line[iconStart : iconStart+lastQuote]
-				}
-				if iconURL != "" {
-					bookmark.IconURL = &iconURL
+			// 解析图标相关属性
+			iconType := extractAttr(line, "ICON_TYPE")
+			iconBgColor := extractAttr(line, "ICON_BG_COLOR")
+			iconChar := extractAttr(line, "ICON_CHAR")
+
+			if iconBgColor != "" {
+				bookmark.IconBgColor = &iconBgColor
+			}
+
+			if iconType == "text" && iconChar != "" {
+				bookmark.IconChar = &iconChar
+			} else {
+				// 图片图标：从 ICON 或 ICON_URI 获取
+				var iconURL string
+				iconTag := `ICON="`
+				if iconStart := strings.Index(line, iconTag); iconStart != -1 {
+					iconStart += len(iconTag)
+					iconEnd := len(line)
+					if nextPos := strings.Index(line[iconStart:], ` DESC="`); nextPos != -1 {
+						iconEnd = iconStart + nextPos
+					}
+					if nextPos := strings.Index(line[iconStart:], ` NEW_WINDOW="`); nextPos != -1 && iconStart+nextPos < iconEnd {
+						iconEnd = iconStart + nextPos
+					}
+					if nextPos := strings.Index(line[iconStart:], ` ICON_TYPE="`); nextPos != -1 && iconStart+nextPos < iconEnd {
+						iconEnd = iconStart + nextPos
+					}
+					if nextPos := strings.Index(line[iconStart:], ` ICON_BG_COLOR="`); nextPos != -1 && iconStart+nextPos < iconEnd {
+						iconEnd = iconStart + nextPos
+					}
+					if nextPos := strings.Index(line[iconStart:], `>`); nextPos != -1 && iconStart+nextPos < iconEnd {
+						iconEnd = iconStart + nextPos
+					}
+					lastQuote := strings.LastIndex(line[iconStart:iconEnd], `"`)
+					if lastQuote != -1 {
+						iconURL = line[iconStart : iconStart+lastQuote]
+					}
+					if iconURL != "" {
+						bookmark.IconURL = &iconURL
+					}
+				} else if iconStart := strings.Index(line, `ICON_URI="`); iconStart != -1 {
+					iconStart += 10
+					iconEnd := len(line)
+					if nextPos := strings.Index(line[iconStart:], ` DESC="`); nextPos != -1 {
+						iconEnd = iconStart + nextPos
+					}
+					if nextPos := strings.Index(line[iconStart:], ` NEW_WINDOW="`); nextPos != -1 && iconStart+nextPos < iconEnd {
+						iconEnd = iconStart + nextPos
+					}
+					if nextPos := strings.Index(line[iconStart:], `>`); nextPos != -1 && iconStart+nextPos < iconEnd {
+						iconEnd = iconStart + nextPos
+					}
+					lastQuote := strings.LastIndex(line[iconStart:iconEnd], `"`)
+					if lastQuote != -1 {
+						iconURL = line[iconStart : iconStart+lastQuote]
+					}
+					if iconURL != "" {
+						bookmark.IconURL = &iconURL
+					}
 				}
 			}
 
@@ -698,7 +711,7 @@ func parseNetscapeBookmarksWithGroups(html string) ([]models.Bookmark, map[strin
 		}
 	}
 
-	return bookmarks, groups, groupNameToIndex, nil
+	return bookmarks, groupNames, groupNameToIndex, nil
 }
 
 // Export 导出书签
@@ -769,12 +782,53 @@ func escapeHTMLAttr(s string) string {
 	return s
 }
 
+// extractAttr 从 HTML 标签行中提取指定属性的值
+func extractAttr(line, attrName string) string {
+	tag := attrName + `="`
+	start := strings.Index(line, tag)
+	if start == -1 {
+		return ""
+	}
+	start += len(tag)
+	end := strings.Index(line[start:], `"`)
+	if end == -1 {
+		return ""
+	}
+	return line[start : start+end]
+}
+
 // 辅助函数：转义 HTML 内容
 func escapeHTMLContent(s string) string {
 	s = strings.ReplaceAll(s, "&", "&amp;")
 	s = strings.ReplaceAll(s, "<", "&lt;")
 	s = strings.ReplaceAll(s, ">", "&gt;")
 	return s
+}
+
+// 辅助函数：生成书签的图标属性字符串
+// 包含 ICON_TYPE（image/text）、ICON（base64 或空）、ICON_CHAR（文字图标字符）、ICON_BG_COLOR（背景色）
+func buildIconAttrs(b models.Bookmark, iconDir string) string {
+	var attrs strings.Builder
+
+	// 判断图标类型
+	hasImageIcon := (b.IconPath != nil && *b.IconPath != "") || (b.IconURL != nil && *b.IconURL != "")
+	hasTextIcon := b.IconChar != nil && *b.IconChar != ""
+
+	if hasImageIcon {
+		// 图片图标
+		iconData := iconToBase64(b.IconPath, b.IconURL, iconDir)
+		attrs.WriteString(fmt.Sprintf(` ICON_TYPE="image" ICON="%s"`, escapeHTMLAttr(iconData)))
+	} else if hasTextIcon {
+		// 文字图标
+		attrs.WriteString(fmt.Sprintf(` ICON_TYPE="text" ICON_CHAR="%s"`, escapeHTMLAttr(*b.IconChar)))
+	}
+
+	// 背景色（无论图标类型都输出）
+	if b.IconBgColor != nil && *b.IconBgColor != "" {
+		attrs.WriteString(fmt.Sprintf(` ICON_BG_COLOR="%s"`, escapeHTMLAttr(*b.IconBgColor)))
+	}
+
+	return attrs.String()
 }
 
 // generateNetscapeBookmarks 生成 Netscape 书签格式
@@ -810,7 +864,7 @@ func generateNetscapeBookmarks(bookmarks []models.Bookmark, groups []models.Grou
 	sb.WriteString(`<DT><H3 ADD_DATE="0">未分类</H3>` + "\n")
 	sb.WriteString(`<DL><p>` + "\n")
 	for _, b := range groupBookmarks[-1] {
-		iconData := iconToBase64(b.IconPath, b.IconURL, iconDir)
+		iconAttrs := buildIconAttrs(b, iconDir)
 		desc := ""
 		if b.Description != nil {
 			desc = fmt.Sprintf(` DESC="%s"`, escapeHTMLAttr(*b.Description))
@@ -819,8 +873,8 @@ func generateNetscapeBookmarks(bookmarks []models.Bookmark, groups []models.Grou
 		if b.IsNewWindow {
 			newWindow = ` NEW_WINDOW="1"`
 		}
-		sb.WriteString(fmt.Sprintf(`<DT><A HREF="%s" ADD_DATE="%d" ICON="%s"%s%s>%s</A>`+"\n",
-			escapeHTMLAttr(b.URL), b.CreatedAt.Unix(), escapeHTMLAttr(iconData), desc, newWindow, escapeHTMLContent(b.Title)))
+		sb.WriteString(fmt.Sprintf(`<DT><A HREF="%s" ADD_DATE="%d"%s%s%s>%s</A>`+"\n",
+			escapeHTMLAttr(b.URL), b.CreatedAt.Unix(), iconAttrs, desc, newWindow, escapeHTMLContent(b.Title)))
 	}
 	sb.WriteString(`</DL><p>` + "\n")
 
@@ -830,7 +884,7 @@ func generateNetscapeBookmarks(bookmarks []models.Bookmark, groups []models.Grou
 		sb.WriteString(`<DL><p>` + "\n")
 		if bookmarks, ok := groupBookmarks[g.ID]; ok {
 			for _, b := range bookmarks {
-				iconData := iconToBase64(b.IconPath, b.IconURL, iconDir)
+				iconAttrs := buildIconAttrs(b, iconDir)
 				desc := ""
 				if b.Description != nil {
 					desc = fmt.Sprintf(` DESC="%s"`, escapeHTMLAttr(*b.Description))
@@ -839,8 +893,8 @@ func generateNetscapeBookmarks(bookmarks []models.Bookmark, groups []models.Grou
 				if b.IsNewWindow {
 					newWindow = ` NEW_WINDOW="1"`
 				}
-				sb.WriteString(fmt.Sprintf(`<DT><A HREF="%s" ADD_DATE="%d" ICON="%s"%s%s>%s</A>`+"\n",
-					escapeHTMLAttr(b.URL), b.CreatedAt.Unix(), escapeHTMLAttr(iconData), desc, newWindow, escapeHTMLContent(b.Title)))
+				sb.WriteString(fmt.Sprintf(`<DT><A HREF="%s" ADD_DATE="%d"%s%s%s>%s</A>`+"\n",
+					escapeHTMLAttr(b.URL), b.CreatedAt.Unix(), iconAttrs, desc, newWindow, escapeHTMLContent(b.Title)))
 			}
 		}
 		sb.WriteString(`</DL><p>` + "\n")

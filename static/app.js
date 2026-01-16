@@ -1632,6 +1632,7 @@ function initGroupDragAndDrop() {
                 body: JSON.stringify(groupItems)
             });
             await loadGroups();
+            renderBookmarks();
         } catch (err) {
             console.error(i18n.t('errors.saveOrderFailed'), err);
             showError(i18n.t('errors.saveOrderFailed'));
@@ -1755,18 +1756,24 @@ function showImportModal() {
 async function importBookmarks() {
     const fileInput = document.getElementById('importFile');
     const result = document.getElementById('importResult');
+    const submitBtn = document.getElementById('importSubmitBtn');
 
     if (!fileInput.files.length) {
         alert(i18n.t('errors.noFileSelected'));
         return;
     }
 
-    // 获取选择的导入模式
     const mode = document.querySelector('input[name="importMode"]:checked').value;
 
     const formData = new FormData();
     formData.append('file', fileInput.files[0]);
     formData.append('mode', mode);
+
+    const originalHTML = submitBtn.innerHTML;
+    submitBtn.innerHTML = `<span>${submitBtn.textContent}</span>`;
+    submitBtn.classList.add('btn-loading');
+    submitBtn.disabled = true;
+    result.style.display = 'none';
 
     try {
         const res = await apiRequest(`${API}/bookmarks/import`, {
@@ -1780,7 +1787,6 @@ async function importBookmarks() {
         result.style.display = 'block';
 
         if (data.imported > 0) {
-            // 先加载分组数据，再加载书签数据并渲染
             await loadGroups();
             await loadBookmarks();
         }
@@ -1788,6 +1794,10 @@ async function importBookmarks() {
         result.className = 'import-result error';
         result.textContent = i18n.t('import.failed') + err.message;
         result.style.display = 'block';
+    } finally {
+        submitBtn.classList.remove('btn-loading');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalHTML;
     }
 }
 

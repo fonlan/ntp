@@ -166,6 +166,7 @@
       "merge": "Merge (Merge by URL, update existing)"
     },
     "submit": "Import",
+    "importing": "Importing...",
     "success": "Import successful!<br>Imported: ${imported}<br>Failed: ${failed}",
     "failed": "Import failed: "
   },
