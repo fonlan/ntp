@@ -1334,6 +1334,223 @@ function updateIconBgColorPreview(color) {
     }
 }
 
+// ===================================
+// 前端图标解析（优先用于内网地址）
+// ===================================
+
+/**
+ * 规范化 URL，确保有协议前缀
+ */
+function normalizeUrl(inputUrl) {
+    let url = inputUrl.trim();
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
+    }
+    return url;
+}
+
+/**
+ * 从 URL 构建基础 URL（协议 + 域名）
+ */
+function buildBaseUrl(fullUrl) {
+    try {
+        const urlObj = new URL(fullUrl);
+        return urlObj.origin;
+    } catch {
+        return fullUrl;
+    }
+}
+
+/**
+ * 将相对图标 URL 转换为绝对 URL
+ */
+function normalizeIconUrl(iconUrl, baseUrl, pageUrl) {
+    if (!iconUrl) return null;
+    
+    // 已经是绝对 URL
+    if (iconUrl.startsWith('http://') || iconUrl.startsWith('https://')) {
+        return iconUrl;
+    }
+    
+    // 协议相对 URL
+    if (iconUrl.startsWith('//')) {
+        const protocol = pageUrl.startsWith('http://') ? 'http:' : 'https:';
+        return protocol + iconUrl;
+    }
+    
+    // 绝对路径
+    if (iconUrl.startsWith('/')) {
+        return baseUrl + iconUrl;
+    }
+    
+    // 相对路径
+    return baseUrl + '/' + iconUrl;
+}
+
+/**
+ * 检查 link 标签的 rel 属性是否表示图标
+ */
+function isIconRel(rel) {
+    if (!rel) return false;
+    const relLower = rel.toLowerCase();
+    const iconRels = ['icon', 'shortcut icon', 'apple-touch-icon', 'apple-touch-icon-precomposed', 'fluid-icon', 'mask-icon'];
+    return iconRels.some(r => relLower === r || relLower.includes(r));
+}
+
+/**
+ * 从 HTML 字符串中提取图标选项
+ */
+function extractIconsFromHTML(html, pageUrl, baseUrl) {
+    const icons = [];
+    
+    // 使用 DOMParser 解析 HTML
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    
+    // 提取标题
+    const titleEl = doc.querySelector('title');
+    const title = titleEl ? titleEl.textContent.trim() : '';
+    
+    // 提取所有图标相关的 link 标签
+    const linkElements = doc.querySelectorAll('link[rel]');
+    linkElements.forEach(link => {
+        const rel = link.getAttribute('rel');
+        const href = link.getAttribute('href');
+        
+        if (!href || !isIconRel(rel)) return;
+        
+        const iconUrl = normalizeIconUrl(href, baseUrl, pageUrl);
+        if (!iconUrl) return;
+        
+        icons.push({
+            url: iconUrl,
+            type: link.getAttribute('type') || '',
+            sizes: link.getAttribute('sizes') || '',
+            rel: rel,
+            is_favicon: false
+        });
+    });
+    
+    // 如果没有找到图标，尝试 /favicon.ico
+    if (icons.length === 0) {
+        icons.push({
+            url: baseUrl + '/favicon.ico',
+            type: 'image/x-icon',
+            sizes: '',
+            rel: 'icon',
+            is_favicon: true
+        });
+    }
+    
+    return { title, icons };
+}
+
+/**
+ * 获取第三方 API 提供的 fallback 图标
+ */
+function getFallbackIcons(domain) {
+    return [
+        {
+            url: `https://www.google.com/s2/favicons?domain=${domain}&sz=128`,
+            type: 'image/png',
+            sizes: '128×128',
+            rel: 'icon',
+            is_favicon: false
+        },
+        {
+            url: `https://icons.duckduckgo.com/ip3/${domain}.ico`,
+            type: 'image/x-icon',
+            sizes: '',
+            rel: 'icon',
+            is_favicon: false
+        }
+    ];
+}
+
+/**
+ * 检测是否为内网/私有 IP 地址
+ */
+function isPrivateAddress(hostname) {
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') {
+        return true;
+    }
+    const privatePatterns = [
+        /^10\./,
+        /^172\.(1[6-9]|2[0-9]|3[0-1])\./,
+        /^192\.168\./,
+        /^169\.254\./,
+        /^fc00:/i,
+        /^fd[0-9a-f]{2}:/i,
+        /^fe80:/i
+    ];
+    return privatePatterns.some(p => p.test(hostname));
+}
+
+/**
+ * 前端直接解析 URL 获取图标
+ * 对于内网地址，由于 Mixed Content 和 CORS 限制，直接返回 /favicon.ico 路径
+ */
+async function fetchIconFromClient(inputUrl) {
+    const url = normalizeUrl(inputUrl);
+    const baseUrl = buildBaseUrl(url);
+    
+    let hostname;
+    try {
+        hostname = new URL(url).hostname;
+    } catch {
+        return null;
+    }
+    
+    // 内网地址：直接返回 favicon.ico 路径，让 <img> 标签处理
+    // 避免 Mixed Content (HTTPS->HTTP) 和 CORS 问题
+    if (isPrivateAddress(hostname)) {
+        console.log(`[fetchIconFromClient] 检测到内网地址 ${hostname}，直接使用 favicon.ico`);
+        return {
+            title: '',
+            icons: [
+                {
+                    url: baseUrl + '/favicon.ico',
+                    type: 'image/x-icon',
+                    sizes: '',
+                    rel: 'icon',
+                    is_favicon: true
+                }
+            ]
+        };
+    }
+    
+    // 外网地址：尝试 fetch 解析 HTML
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        const response = await fetch(url, {
+            method: 'GET',
+            signal: controller.signal,
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+            console.warn(`[fetchIconFromClient] HTTP ${response.status} for ${url}`);
+            return null;
+        }
+        
+        const html = await response.text();
+        const result = extractIconsFromHTML(html, url, baseUrl);
+        
+        console.log(`[fetchIconFromClient] 成功解析 ${url}，找到 ${result.icons.length} 个图标`);
+        return result;
+        
+    } catch (err) {
+        console.warn(`[fetchIconFromClient] 解析失败: ${err.message}`);
+        return null;
+    }
+}
+
+/**
+ * 获取图标 - 优先使用前端解析（支持内网），失败后回退到后端 API
+ */
 async function fetchIcon() {
     const url = document.getElementById('bookmarkUrl').value.trim();
     if (!url) {
@@ -1341,29 +1558,46 @@ async function fetchIcon() {
         return;
     }
 
+    let data = null;
+    let usedClientParsing = false;
+    
     try {
-        // 调用新的 API 获取网站元数据（包括所有图标）
-        const response = await apiRequest(`${API}/fetch-metadata`, {
-            method: 'POST',
-            body: JSON.stringify({ url })
-        });
+        // 策略 1: 优先尝试前端直接解析（支持内网地址）
+        console.log('[fetchIcon] 尝试前端解析...');
+        const clientResult = await fetchIconFromClient(url);
+        
+        if (clientResult && clientResult.icons && clientResult.icons.length > 0) {
+            // 前端解析成功
+            data = {
+                title: clientResult.title,
+                icon_options: clientResult.icons
+            };
+            usedClientParsing = true;
+            console.log('[fetchIcon] 前端解析成功');
+        } else {
+            // 策略 2: 前端解析失败，回退到后端 API
+            console.log('[fetchIcon] 前端解析失败，回退到后端 API...');
+            const response = await apiRequest(`${API}/fetch-metadata`, {
+                method: 'POST',
+                body: JSON.stringify({ url })
+            });
 
-        if (!response.ok) {
-            // 尝试读取服务器返回的错误信息
-            let errorMsg = 'Failed to fetch metadata';
-            try {
-                const errorData = await response.json();
-                if (errorData.error) {
-                    errorMsg = errorData.error;
+            if (!response.ok) {
+                let errorMsg = 'Failed to fetch metadata';
+                try {
+                    const errorData = await response.json();
+                    if (errorData.error) {
+                        errorMsg = errorData.error;
+                    }
+                } catch (e) {
+                    errorMsg = `HTTP ${response.status}: ${response.statusText}`;
                 }
-            } catch (e) {
-                // 如果无法解析 JSON，使用状态码作为错误信息
-                errorMsg = `HTTP ${response.status}: ${response.statusText}`;
+                throw new Error(errorMsg);
             }
-            throw new Error(errorMsg);
-        }
 
-        const data = await response.json();
+            data = await response.json();
+            console.log('[fetchIcon] 后端 API 成功');
+        }
 
         // 如果有图标选项，显示选择界面
         if (data.icon_options && data.icon_options.length > 0) {
@@ -1375,6 +1609,16 @@ async function fetchIcon() {
                 if (!titleInput.value.trim()) {
                     titleInput.value = data.title;
                 }
+            }
+        } else {
+            // 最终 fallback：使用第三方 API
+            console.log('[fetchIcon] 无图标选项，使用第三方 API fallback');
+            try {
+                const domain = new URL(normalizeUrl(url)).hostname;
+                const fallbackIcons = getFallbackIcons(domain);
+                showIconSelection(fallbackIcons, url);
+            } catch (e) {
+                throw new Error('无法获取图标');
             }
         }
     } catch (err) {

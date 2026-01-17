@@ -227,13 +227,15 @@ func enableCORS(next http.Handler) http.Handler {
 
 		// Content-Security-Policy 替代 X-Frame-Options
 		// frame-ancestors 'self' 只允许同源页面嵌入（等同于 X-Frame-Options: SAMEORIGIN）
+		// connect-src 允许前端 fetch 任意 http/https 地址（用于获取内网书签图标）
 		w.Header().Set("Content-Security-Policy",
 			"frame-ancestors 'self'; "+
 				"default-src 'self'; "+
 				"script-src 'self' 'unsafe-inline'; "+
 				"style-src 'self' 'unsafe-inline'; "+
 				"img-src 'self' data: https: http:; "+
-				"font-src 'self' data:")
+				"font-src 'self' data:; "+
+				"connect-src 'self' https: http:")
 
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
