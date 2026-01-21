@@ -2147,3 +2147,18 @@ body {
         margin-left: 4px !important;
     }
 }
+
+/* ===================================
+   懒加载样式
+   =================================== */
+.bookmark-icon {
+    transition: opacity 0.3s ease;
+}
+
+.bookmark-icon.lazy-icon {
+    opacity: 0.6;
+}
+
+.bookmark-icon.icon-loaded {
+    opacity: 1;
+}

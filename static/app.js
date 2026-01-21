@@ -91,6 +91,38 @@ const state = {
 // ===================================
 // 滚动性能优化
 // ===================================
+// 图片懒加载观察器
+window.lazyImageObserver = new IntersectionObserver((entries, observer) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            const img = entry.target;
+            if (img.dataset.src) {
+                // 并行加载：浏览器会自动处理多个图片的并发请求
+                img.src = img.dataset.src;
+                img.removeAttribute('data-src');
+                
+                // 图片加载完成后添加类名以显示过渡效果
+                img.onload = () => {
+                    img.classList.remove('lazy-icon');
+                    img.classList.add('icon-loaded');
+                };
+                
+                // 加载失败时显示默认图标
+                img.onerror = () => {
+                    img.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E🌐%3C/text%3E%3C/svg%3E';
+                    img.classList.remove('lazy-icon');
+                    img.classList.add('icon-loaded');
+                };
+                
+                observer.unobserve(img);
+            }
+        }
+    });
+}, {
+    rootMargin: '50px 0px', // 提前 50px 加载
+    threshold: 0.01
+});
+
 // 使用 requestAnimationFrame 优化滚动事件
 const scrollOptimizer = {
     ticking: false,
@@ -530,6 +562,14 @@ function applyBookmarkSize() {
         icon.style.height = state.bookmarkHeight + 'px';
         icon.style.minWidth = state.bookmarkHeight + 'px';
     });
+
+    // 重新观察新添加的图片（如果使用了懒加载）
+    if (window.lazyImageObserver) {
+        const lazyImages = document.querySelectorAll('.lazy-icon');
+        lazyImages.forEach(img => {
+            window.lazyImageObserver.observe(img);
+        });
+    }
 }
 
 function applyCardOpacity() {
@@ -1077,13 +1117,15 @@ function renderBookmarkCard(b) {
     if (b.icon_char && b.icon_char.trim() !== '') {
         iconHtml = `<div class="bookmark-icon bookmark-icon-char" style="${iconSizeStyle} ${iconBgStyle}" title="${escapeHtml(b.title || 'Bookmark')}">${escapeHtml(b.icon_char)}</div>`;
     } else {
-        iconHtml = `<img src="${getFavicon(b.url, b.icon_path || b.icon_url)}"
-                 class="bookmark-icon"
+        const fallbackIcon = "data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E🌐%3C/text%3E%3C/svg%3E";
+        const realIconUrl = getFavicon(b.url, b.icon_path || b.icon_url);
+        
+        iconHtml = `<img src="${fallbackIcon}"
+                 data-src="${realIconUrl}"
+                 class="bookmark-icon lazy-icon"
                  style="${iconSizeStyle} ${iconBgStyle}"
-                 alt="${escapeHtml(b.title || 'Bookmark')} icon"
-                 onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E🌐%3C/text%3E%3C/svg%3E'">`;
+                 alt="${escapeHtml(b.title || 'Bookmark')} icon">`;
     }
-    const fallbackIcon = "data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E🌐%3C/text%3E%3C/svg%3E";
     return `
         <div class="bookmark-card" draggable="true" data-id="${b.id}" data-url="${escapeHtml(b.url)}" data-target="${target}">
             ${iconHtml}
