@@ -71,10 +71,18 @@ body {
     background: var(--bg-primary);
     color: var(--text-primary);
     line-height: 1.6;
-    min-height: 100vh;
+    height: 100vh;
+    overflow: hidden; /* 禁止 body 滚动 */
     -webkit-font-smoothing: antialiased;
     transition: background 0.3s ease;
-    /* 滚动性能优化 */
+}
+
+/* 独立滚动容器 */
+.scroll-container {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
     overflow-x: hidden;
     overflow-y: auto;
     /* 平滑滚动 */
@@ -389,7 +397,8 @@ body {
     padding: 0;
     padding-right: 12px;
     box-shadow: var(--shadow-sm);
-    transition: all 0.2s ease;
+    /* 性能优化：明确指定过渡属性，避免 transition: all 引起的重排 */
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
     position: relative;
     cursor: pointer;
     display: flex;
@@ -399,6 +408,10 @@ body {
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     overflow: hidden;
+    /* 性能优化：提示浏览器该元素会发生变化 */
+    will-change: transform;
+    /* 性能优化：创建新的堆叠上下文 */
+    transform: translateZ(0);
 }
 
 .bookmark-card:hover {
@@ -1447,6 +1460,23 @@ body {
     .group-bookmarks {
         /* 移动端列数由JavaScript内联样式控制 */
         gap: 12px;
+    }
+
+    /* 移动端性能优化：移除昂贵的模糊效果 */
+    .bookmark-card {
+        padding: 0;
+        padding-right: 8px;
+        min-height: 70px;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        background: rgba(255, 255, 255, 0.9); /* 提高不透明度补偿 */
+    }
+    
+    /* 移动端暗色模式下的背景调整 */
+    @media (prefers-color-scheme: dark) {
+        .bookmark-card {
+            background: rgba(30, 41, 59, 0.9);
+        }
     }
 
     /* 移动端顶部栏优化 */

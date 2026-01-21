@@ -33,23 +33,31 @@ if (document.readyState === 'loading') {
     adjustMobileLayout();
 }
 
-// 窗口大小改变时重新检查
-window.addEventListener('resize', () => {
-    if (window.innerWidth <= 768) {
-        adjustMobileLayout();
-    } else {
-        // 桌面端恢复原始位置
-        const topBar = document.querySelector('.top-bar');
-        const buttonsContainer = document.querySelector('.top-right-buttons');
-        if (topBar && buttonsContainer && buttonsContainer.classList.contains('mobile-bottom-buttons')) {
-            // 将按钮容器放回 .top-bar 的最后
-            topBar.appendChild(buttonsContainer);
-            buttonsContainer.classList.remove('mobile-bottom-buttons');
+    // 窗口大小改变时重新检查 - 使用防抖优化
+    window.addEventListener('resize', debounce(() => {
+        if (window.innerWidth <= 768) {
+            adjustMobileLayout();
+        } else {
+            // 桌面端恢复原始位置
+            const topBar = document.querySelector('.top-bar');
+            const buttonsContainer = document.querySelector('.top-right-buttons');
+            if (topBar && buttonsContainer && buttonsContainer.classList.contains('mobile-bottom-buttons')) {
+                // 将按钮容器放回 .top-bar 的最后
+                topBar.appendChild(buttonsContainer);
+                buttonsContainer.classList.remove('mobile-bottom-buttons');
+            }
         }
-    }
-});
+        
+        // 更新容器高度（解决移动端地址栏遮挡问题）
+        const vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
+    }, 200));
 
-// Helper function to make API requests with language header
+    // 初始化视口高度变量
+    const vh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--vh', `${vh}px`);
+    
+    // Helper function to make API requests with language header
 async function apiRequest(url, options = {}) {
     const headers = {
         ...i18n.getRequestHeaders(),
@@ -193,6 +201,7 @@ const dom = {
     get groupsList() { return this._groupsList ||= document.getElementById('groupsList'); },
     get enginesList() { return this._enginesList ||= document.getElementById('enginesList'); },
     get groupQuickNav() { return this._groupQuickNav ||= document.getElementById('groupQuickNav'); },
+    get scrollContainer() { return this._scrollContainer ||= document.getElementById('app-scroll-container'); },
 
     // Reset cache when DOM changes significantly
     clear() {
@@ -829,39 +838,49 @@ function initGroupQuickNavHandlers() {
 function initScrollTracking() {
     if (window._scrollTrackingInitialized) return;
 
-    const updateActiveGroup = throttle(() => {
-        const nav = dom.groupQuickNav;
-        if (!nav) return;
+    const nav = dom.groupQuickNav;
+    if (!nav) return;
 
-        const groupTitles = document.querySelectorAll('.group-title[id]');
-        if (groupTitles.length === 0) return;
+    // 使用 IntersectionObserver 替代 scroll 事件监听
+    // 这种方式性能更好，不会在滚动时频繁触发重排
+    const observerOptions = {
+        root: null,
+        // 调整检测区域：视口中间偏上的位置
+        // 当元素进入视口高度的 15% ~ 45% 区域时触发
+        rootMargin: '-15% 0px -45% 0px',
+        threshold: 0
+    };
 
-        let currentGroupId = null;
-        const offset = 100;
-
-        const isAtBottom = (window.innerHeight + window.scrollY) >= (document.documentElement.scrollHeight - 50);
-        if (isAtBottom && groupTitles.length > 0) {
-            currentGroupId = groupTitles[groupTitles.length - 1].id;
-        } else {
-            groupTitles.forEach(title => {
-                const rect = title.getBoundingClientRect();
-                if (rect.top <= offset) {
-                    currentGroupId = title.id;
-                }
-            });
-
-            if (!currentGroupId && groupTitles.length > 0) {
-                currentGroupId = groupTitles[0].id;
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const groupId = entry.target.dataset.groupId;
+                // 更新导航高亮
+                nav.querySelectorAll('.group-quick-nav-item').forEach(item => {
+                    // 处理 "ungrouped" 的特殊情况
+                    const targetId = groupId === 'ungrouped' ? 'group-ungrouped' : `group-${groupId}`;
+                    if (item.dataset.target === targetId) {
+                        item.classList.add('active');
+                        // 移除其他项的 active 类
+                        nav.querySelectorAll('.group-quick-nav-item').forEach(other => {
+                            if (other !== item) other.classList.remove('active');
+                        });
+                    }
+                });
             }
-        }
-
-        nav.querySelectorAll('.group-quick-nav-item').forEach(item => {
-            item.classList.toggle('active', item.dataset.target === currentGroupId);
         });
-    }, 100);
+    }, observerOptions);
 
-    window.addEventListener('scroll', updateActiveGroup, { passive: true });
-    updateActiveGroup();
+    // 观察所有书签分组容器
+    const groups = document.querySelectorAll('.bookmark-group');
+    groups.forEach(group => observer.observe(group));
+
+    // 兼容逻辑：如果页面很短，Observer 可能无法触发，默认选中第一个
+    const scrollContainer = dom.scrollContainer || document.documentElement;
+    if (scrollContainer.scrollTop < 50) {
+        const firstItem = nav.querySelector('.group-quick-nav-item');
+        if (firstItem) firstItem.classList.add('active');
+    }
 
     window._scrollTrackingInitialized = true;
 }
