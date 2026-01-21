@@ -115,6 +115,7 @@ body {
         opacity: 0;
         transform: translateY(10px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -260,6 +261,7 @@ body {
         opacity: 0;
         transform: translateY(-10px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -418,7 +420,6 @@ body {
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 4px;
     overflow: hidden;
     padding: 8px 0;
     margin-left: 12px;
@@ -434,12 +435,13 @@ body {
 }
 
 .bookmark-desc {
-    font-size: 13px;
+    font-size: 12px;
     color: var(--text-muted);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    flex-shrink: 0; /* 在空间不足时优先被隐藏 */
+    flex-shrink: 0;
+    /* 在空间不足时优先被隐藏 */
 }
 
 .bookmark-url {
@@ -449,7 +451,8 @@ body {
     text-overflow: ellipsis;
     white-space: nowrap;
     font-family: 'Monaco', 'Consolas', monospace;
-    flex-shrink: 0; /* 在空间不足时优先被隐藏 */
+    flex-shrink: 0;
+    /* 在空间不足时优先被隐藏 */
 }
 
 /* 书签图标 - 左侧（与卡片无间隙，尺寸由JS动态设置） */
@@ -510,7 +513,8 @@ body {
 }
 
 /* 状态样式 */
-.loading, .empty-state {
+.loading,
+.empty-state {
     grid-column: 1 / -1;
     text-align: center;
     padding: 60px 20px;
@@ -578,6 +582,7 @@ body {
         opacity: 0;
         transform: translateY(20px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -585,8 +590,13 @@ body {
 }
 
 @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .btn-loading {
@@ -894,7 +904,7 @@ body {
     border: var(--preview-border);
 }
 
-.color-option input[type="radio"]:checked ~ .color-preview {
+.color-option input[type="radio"]:checked~.color-preview {
     border-color: var(--primary);
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
@@ -907,7 +917,7 @@ body {
     display: block;
 }
 
-.color-option input[type="radio"]:checked ~ .color-name {
+.color-option input[type="radio"]:checked~.color-name {
     color: var(--primary);
     font-weight: 600;
 }
@@ -1591,7 +1601,8 @@ body {
     .form-group input,
     .form-group select,
     .form-group textarea {
-        font-size: 16px; /* 防止 iOS 缩放 */
+        font-size: 16px;
+        /* 防止 iOS 缩放 */
     }
 }
 
@@ -1832,7 +1843,7 @@ body {
     transition: all 0.2s ease;
 }
 
-.pattern-option input[type="radio"]:checked ~ .pattern-preview {
+.pattern-option input[type="radio"]:checked~.pattern-preview {
     border-color: var(--primary);
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
@@ -1845,7 +1856,7 @@ body {
     display: block;
 }
 
-.pattern-option input[type="radio"]:checked ~ .pattern-name {
+.pattern-option input[type="radio"]:checked~.pattern-name {
     color: var(--primary);
     font-weight: 600;
 }
@@ -2121,7 +2132,7 @@ body {
         height: 60px !important;
         min-height: 60px !important;
     }
-    
+
     .bookmark-icon {
         width: 60px !important;
         height: 60px !important;
