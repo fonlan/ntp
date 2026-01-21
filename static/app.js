@@ -85,7 +85,7 @@ const state = {
     bookmarkHeight: 80,
     bookmarkColumns: 0,
     mobileColumns: 2,
-    cardOpacity: 95
+    cardOpacity: 70
 };
 
 // ===================================
@@ -372,7 +372,7 @@ function loadSettings() {
     state.bookmarkHeight = parseInt(localStorage.getItem('bookmarkHeight')) || 80;
     state.bookmarkColumns = parseInt(localStorage.getItem('bookmarkColumns')) || 0;
     state.mobileColumns = parseInt(localStorage.getItem('mobileColumns')) || 2;
-    state.cardOpacity = parseInt(localStorage.getItem('cardOpacity')) || 95;
+    state.cardOpacity = parseInt(localStorage.getItem('cardOpacity')) || 70;
 
     // Set values to DOM elements only if they exist
     const containerWidthEl = document.getElementById('containerWidth');

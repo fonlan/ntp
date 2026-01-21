@@ -2114,3 +2114,25 @@ body {
     height: 36px;
     flex-shrink: 0;
 }
+
+/* 移动端特别优化 (Mobile Optimization) */
+@media (max-width: 768px) {
+    .bookmark-card {
+        height: 60px !important;
+        min-height: 60px !important;
+    }
+    
+    .bookmark-icon {
+        width: 60px !important;
+        height: 60px !important;
+        min-width: 60px !important;
+    }
+
+    .bookmark-url {
+        display: none !important;
+    }
+
+    .bookmark-content {
+        margin-left: 4px !important;
+    }
+}
