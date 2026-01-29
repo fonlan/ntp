@@ -12,10 +12,10 @@ import (
 
 // AuthConfig holds authentication configuration
 type AuthConfig struct {
-	Username     string
-	Password     string
+	Username      string
+	Password      string
 	SessionSecret string
-	Enabled      bool
+	Enabled       bool
 }
 
 var (
@@ -26,8 +26,8 @@ var (
 )
 
 type sessionInfo struct {
-	Username   string
-	ExpiresAt  time.Time
+	Username  string
+	ExpiresAt time.Time
 }
 
 // GetAuthConfig returns the authentication configuration (lazy loaded)
@@ -141,11 +141,11 @@ func CreateSession(username string) (string, error) {
 	}
 	sessionID := base64.StdEncoding.EncodeToString(randomBytes)
 
-	// Store session (24 hour expiration)
+	// Store session (7 day expiration)
 	sessionMutex.Lock()
 	sessionStore[sessionID] = &sessionInfo{
 		Username:  username,
-		ExpiresAt: time.Now().Add(24 * time.Hour),
+		ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
 	}
 	sessionMutex.Unlock()
 
