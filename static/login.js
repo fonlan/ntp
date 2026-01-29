@@ -1,59 +1,4 @@
 // Login page functionality
-let currentLocale = 'en';
-
-// Load translations
-async function loadTranslations() {
-    try {
-        const response = await fetch(`/static/i18n/${currentLocale}.json`);
-        const translations = await response.json();
-        return translations;
-    } catch (error) {
-        console.error('Failed to load translations:', error);
-        return {};
-    }
-}
-
-// Translate function
-function t(key, translations) {
-    const keys = key.split('.');
-    let value = translations;
-    for (const k of keys) {
-        value = value?.[k];
-    }
-    return value || key;
-}
-
-// Apply translations to the page
-async function applyTranslations() {
-    const translations = await loadTranslations();
-
-    // Update elements with data-i18n attribute
-    document.querySelectorAll('[data-i18n]').forEach(el => {
-        const key = el.getAttribute('data-i18n');
-        const translation = t(key, translations);
-        if (translation && translation !== key) {
-            el.textContent = translation;
-        }
-    });
-
-    // Update placeholders
-    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
-        const key = el.getAttribute('data-i18n-placeholder');
-        const translation = t(key, translations);
-        if (translation && translation !== key) {
-            el.setAttribute('placeholder', translation);
-        }
-    });
-
-    // Update titles
-    document.querySelectorAll('[data-i18n-title]').forEach(el => {
-        const key = el.getAttribute('data-i18n-title');
-        const translation = t(key, translations);
-        if (translation && translation !== key) {
-            el.setAttribute('title', translation);
-        }
-    });
-}
 
 // Check if user is already authenticated
 async function checkAuth() {
@@ -82,7 +27,7 @@ async function handleLogin(event) {
     // Disable button and show loading
     loginBtn.disabled = true;
     const originalText = loginBtn.innerHTML;
-    loginBtn.innerHTML = '<span data-i18n="login.logging">Logging in...</span>';
+    loginBtn.innerHTML = `<span data-i18n="login.logging">${i18n.t('login.logging')}</span>`;
     errorDiv.classList.remove('show');
 
     try {
@@ -98,7 +43,7 @@ async function handleLogin(event) {
 
         if (data.success) {
             // Login successful, show success message and redirect
-            loginBtn.innerHTML = '<span data-i18n="login.success">Success!</span>';
+            loginBtn.innerHTML = `<span data-i18n="login.success">${i18n.t('login.success')}</span>`;
 
             // Wait a short delay to ensure cookie is set before redirect
             setTimeout(() => {
@@ -124,27 +69,22 @@ async function handleLogin(event) {
 function initLanguageSelector() {
     const languageSelect = document.getElementById('languageSelect');
 
-    // Load saved language preference
-    const savedLang = localStorage.getItem('ntp-language');
-    if (savedLang) {
-        currentLocale = savedLang;
-        languageSelect.value = savedLang;
-    }
+    // Set initial value
+    languageSelect.value = i18n.getCurrentLocale();
 
-    languageSelect.addEventListener('change', (e) => {
-        currentLocale = e.target.value;
-        localStorage.setItem('ntp-language', currentLocale);
-        applyTranslations();
+    languageSelect.addEventListener('change', async (e) => {
+        const newLocale = e.target.value;
+        await i18n.setLocale(newLocale);
     });
 }
 
 // Initialize page
 document.addEventListener('DOMContentLoaded', async () => {
-    // Initialize language selector first (to load saved language preference)
-    initLanguageSelector();
+    // Initialize i18n
+    await i18n.init();
 
-    // Apply translations
-    await applyTranslations();
+    // Initialize language selector
+    initLanguageSelector();
 
     // Check authentication status
     await checkAuth();

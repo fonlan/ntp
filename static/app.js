@@ -732,6 +732,22 @@ async function loadBookmarks() {
     renderBookmarks();
 }
 
+function renderBookmarkGroup(id, title, bookmarks) {
+    if (!bookmarks || bookmarks.length === 0) return '';
+    
+    // Determine the ID for the title element (used for navigation)
+    const titleId = id === 'ungrouped' ? 'group-ungrouped' : `group-${id}`;
+    
+    return `
+        <div class="bookmark-group" data-group-id="${id}">
+            <h3 class="group-title" id="${titleId}">${escapeHtml(title)}</h3>
+            <div class="group-bookmarks">
+                ${bookmarks.map(renderBookmarkCard).join('')}
+            </div>
+        </div>
+    `;
+}
+
 function renderBookmarks() {
     if (state.bookmarks.length === 0) {
         dom.bookmarksContainer.innerHTML = `<div class="empty-state">${i18n.t('bookmark.empty')}</div>`;
@@ -755,23 +771,12 @@ function renderBookmarks() {
     // 渲染 HTML
     const html = sortedGroups
         .filter(group => groupedBookmarks[group.id]?.length > 0)
-        .map(group => `
-            <div class="bookmark-group" data-group-id="${group.id}">
-                <h3 class="group-title" id="group-${group.id}">${escapeHtml(group.name)}</h3>
-                <div class="group-bookmarks">
-                    ${groupedBookmarks[group.id].map(renderBookmarkCard).join('')}
-                </div>
-            </div>
-        `).join('');
+        .map(group => renderBookmarkGroup(group.id, group.name, groupedBookmarks[group.id]))
+        .join('');
 
-    const ungroupedHtml = ungroupedBookmarks.length > 0 ? `
-        <div class="bookmark-group" data-group-id="ungrouped">
-            <h3 class="group-title" id="group-ungrouped">${i18n.t('group.ungrouped')}</h3>
-            <div class="group-bookmarks">
-                ${ungroupedBookmarks.map(renderBookmarkCard).join('')}
-            </div>
-        </div>
-    ` : '';
+    const ungroupedHtml = ungroupedBookmarks.length > 0 
+        ? renderBookmarkGroup('ungrouped', i18n.t('group.ungrouped'), ungroupedBookmarks)
+        : '';
 
     dom.bookmarksContainer.innerHTML = html + ungroupedHtml;
     applyBookmarkSize();
@@ -885,229 +890,175 @@ function initScrollTracking() {
     window._scrollTrackingInitialized = true;
 }
 
+const ContextMenu = {
+    menu: null,
+    
+    init() {
+        this.menu = dom.contextMenu;
+        this.bindEvents();
+    },
+
+    bindEvents() {
+        if (this.menu._menuHandlerAdded) return;
+        
+        // Menu item clicks
+        this.menu.addEventListener('click', (e) => this.handleMenuClick(e));
+        
+        // Hide on outside click
+        document.addEventListener('click', (e) => {
+            if (!this.menu.contains(e.target)) this.hide();
+        });
+        
+        // Global right click (empty space)
+        document.addEventListener('contextmenu', (e) => this.handleGlobalContextMenu(e));
+        
+        // Global touch (empty space)
+        this.initGlobalTouch();
+
+        this.menu._menuHandlerAdded = true;
+    },
+
+    show(e, card = null) {
+        const isBookmarkCard = !!card;
+        
+        // Toggle menu items
+        this.menu.querySelectorAll('.global-action').forEach(el => 
+            el.style.display = isBookmarkCard ? 'none' : 'flex');
+        this.menu.querySelectorAll('.bookmark-action').forEach(el => 
+            el.style.display = isBookmarkCard ? 'flex' : 'none');
+        this.menu.querySelector('.context-menu-divider').style.display = 'none';
+
+        this.menu.dataset.currentBookmarkId = card ? card.dataset.id : null;
+        i18n.updateElement(this.menu);
+
+        // Position logic
+        const menuWidth = 180;
+        const menuHeight = isBookmarkCard ? 100 : 160;
+        const offset = 5;
+        
+        let x = e.clientX + offset;
+        let y = e.clientY + offset;
+
+        if (x + menuWidth > window.innerWidth) x = Math.max(5, e.clientX - menuWidth - offset);
+        if (y + menuHeight > window.innerHeight) y = Math.max(5, e.clientY - menuHeight - offset);
+
+        this.menu.style.left = x + 'px';
+        this.menu.style.top = y + 'px';
+        this.menu.style.display = 'block';
+    },
+
+    hide() {
+        this.menu.style.display = 'none';
+        this.menu.dataset.currentBookmarkId = null;
+    },
+
+    handleMenuClick(e) {
+        const item = e.target.closest('.context-menu-item');
+        if (!item) return;
+
+        const action = item.dataset.action;
+        const bookmarkId = parseInt(this.menu.dataset.currentBookmarkId);
+
+        switch (action) {
+            case 'add-bookmark': showBookmarkModal(); break;
+            case 'settings': this.openSettings(); break;
+            case 'edit': editBookmark(bookmarkId); break;
+            case 'delete': deleteBookmark(bookmarkId); break;
+        }
+        this.hide();
+    },
+
+    openSettings() {
+        resetSettingsPanel();
+        document.getElementById('settingsModal').classList.add('show');
+        checkAuthStatus().then(() => {
+            try {
+                renderSettingsEngines();
+                renderSettingsGroups();
+                loadVersionInfo();
+                i18n.updatePage();
+            } catch (e) {
+                console.error('Error rendering settings:', e);
+            }
+        });
+    },
+
+    handleGlobalContextMenu(e) {
+        if (this.shouldIgnoreEvent(e.target)) return;
+        e.preventDefault();
+        this.show(e, null);
+    },
+
+    initGlobalTouch() {
+        if (document._emptySpaceTouchHandlersAdded) return;
+        
+        let timer;
+        const clear = () => { clearTimeout(timer); timer = null; };
+
+        document.addEventListener('touchstart', (e) => {
+            if (this.shouldIgnoreEvent(e.target)) return;
+            
+            timer = setTimeout(() => {
+                if (navigator.vibrate) navigator.vibrate(50);
+                const touch = e.touches[0];
+                this.show({ clientX: touch.clientX, clientY: touch.clientY }, null);
+            }, 500);
+        }, { passive: true });
+
+        document.addEventListener('touchend', clear);
+        document.addEventListener('touchmove', clear);
+        
+        document._emptySpaceTouchHandlersAdded = true;
+    },
+
+    shouldIgnoreEvent(target) {
+        return target.closest('.bookmark-card') || 
+               target.closest('input') || 
+               target.closest('textarea') || 
+               target.closest('.modal') || 
+               target.closest('.context-menu') ||
+               target.closest('.search-submit-btn');
+    }
+};
+
 // 初始化书签卡片点击事件
 function initBookmarkClickHandlers() {
-    const cards = document.querySelectorAll('.bookmark-card');
-    const menu = dom.contextMenu;
-
-    // 使用事件委托来处理卡片事件（减少事件监听器数量）
-    const bookmarksContainer = dom.bookmarksContainer;
-
+    ContextMenu.init();
+    
+    const container = dom.bookmarksContainer;
+    
     // 移除旧的监听器（如果存在）
-    bookmarksContainer._cardClickHandler?.();
-    bookmarksContainer._cardContextMenuHandler?.();
-    bookmarksContainer._cardTouchStartHandler?.();
-    bookmarksContainer._cardTouchEndHandler?.();
-    bookmarksContainer._cardTouchMoveHandler?.();
+    container._cardClickHandler?.();
+    container._cardContextMenuHandler?.();
+    container._cardTouchStartHandler?.();
 
     // 点击事件 - 打开书签
-    bookmarksContainer._cardClickHandler = onEvent(bookmarksContainer, 'click', '.bookmark-card', (e, card) => {
+    container._cardClickHandler = onEvent(container, 'click', '.bookmark-card', (e, card) => {
         const url = card.dataset.url;
         const target = card.dataset.target || '_blank';
         if (url) window.open(url, target);
     });
 
     // 右键菜单事件
-    bookmarksContainer._cardContextMenuHandler = onEvent(bookmarksContainer, 'contextmenu', '.bookmark-card', (e, card) => {
+    container._cardContextMenuHandler = onEvent(container, 'contextmenu', '.bookmark-card', (e, card) => {
         e.preventDefault();
-        showContextMenu(e, card);
+        ContextMenu.show(e, card);
     });
 
     // 触摸设备长按处理
-    const touchState = new WeakMap();
-    bookmarksContainer._cardTouchStartHandler = onEvent(bookmarksContainer, 'touchstart', '.bookmark-card', (e, card) => {
-        touchState.set(card, { isLongPress: false, timer: setTimeout(() => {
-            touchState.get(card).isLongPress = true;
+    let touchTimer;
+    container._cardTouchStartHandler = onEvent(container, 'touchstart', '.bookmark-card', (e, card) => {
+        touchTimer = setTimeout(() => {
             if (navigator.vibrate) navigator.vibrate(50);
             const touch = e.touches[0];
-            showContextMenu({ preventDefault: () => {}, clientX: touch.clientX, clientY: touch.clientY, target: card }, card);
-        }, 500) });
+            ContextMenu.show({ clientX: touch.clientX, clientY: touch.clientY }, card);
+        }, 500);
     }, { passive: true });
 
-    bookmarksContainer._cardTouchEndHandler = onEvent(bookmarksContainer, 'touchend', '.bookmark-card', (e, card) => {
-        const state = touchState.get(card);
-        if (state) {
-            clearTimeout(state.timer);
-            if (state.isLongPress) e.preventDefault();
-            touchState.delete(card);
-        }
-    });
-
-    bookmarksContainer._cardTouchMoveHandler = onEvent(bookmarksContainer, 'touchmove', '.bookmark-card', (e, card) => {
-        const state = touchState.get(card);
-        if (state) {
-            clearTimeout(state.timer);
-            touchState.delete(card);
-        }
-    });
-
-    // 显示右键菜单
-    function showContextMenu(e, card) {
-        // 根据是否是书签卡片显示不同的菜单项
-        const isBookmarkCard = !!card;
-
-        // 显示/隐藏相应的菜单项
-        menu.querySelectorAll('.global-action').forEach(el => {
-            el.style.display = isBookmarkCard ? 'none' : 'flex';
-        });
-        menu.querySelectorAll('.bookmark-action').forEach(el => {
-            el.style.display = isBookmarkCard ? 'flex' : 'none';
-        });
-        // 分割线暂时不使用（菜单分为空白处菜单和书签菜单两种独立场景）
-        menu.querySelector('.context-menu-divider').style.display = 'none';
-
-        if (isBookmarkCard) {
-            menu.dataset.currentBookmarkId = card.dataset.id;
-        } else {
-            menu.dataset.currentBookmarkId = null;
-        }
-
-        i18n.updateElement(menu);
-
-        // 简单的边界检测，使用固定菜单尺寸
-        const menuWidth = 180;
-        const menuHeight = isBookmarkCard ? 100 : 160;
-        const offset = 5;
-
-        let x = e.clientX + offset;
-        let y = e.clientY + offset;
-
-        // 右边界检测
-        if (x + menuWidth > window.innerWidth) {
-            x = Math.max(5, e.clientX - menuWidth - offset);
-        }
-
-        // 下边界检测
-        if (y + menuHeight > window.innerHeight) {
-            y = Math.max(5, e.clientY - menuHeight - offset);
-        }
-
-        menu.style.left = x + 'px';
-        menu.style.top = y + 'px';
-        menu.style.display = 'block';
-    }
-
-    function hideContextMenu() {
-        menu.style.display = 'none';
-        menu.dataset.currentBookmarkId = null;
-    }
-
-    // 上下文菜单事件监听器（只绑定一次）
-    if (!menu._menuHandlerAdded) {
-        menu.addEventListener('click', (e) => {
-            const item = e.target.closest('.context-menu-item');
-            if (!item) return;
-            const action = item.dataset.action;
-
-            // 处理全局操作（空白处菜单）
-            if (action === 'add-bookmark') {
-                showBookmarkModal();
-            } else if (action === 'settings') {
-                // 立即显示模态框，提升响应速度
-                resetSettingsPanel();
-                document.getElementById('settingsModal').classList.add('show');
-
-                // 异步加载数据和更新状态
-                checkAuthStatus().then(() => {
-                    try {
-                        renderSettingsEngines();
-                        renderSettingsGroups();
-                        loadVersionInfo();
-                        i18n.updatePage();
-                    } catch (e) {
-                        console.error('Error rendering settings content:', e);
-                    }
-                }).catch(e => {
-                    console.error('Auth check failed:', e);
-                });
-            } else if (action === 'edit') {
-                // 处理书签操作
-                const bookmarkId = parseInt(menu.dataset.currentBookmarkId);
-                editBookmark(bookmarkId);
-            } else if (action === 'delete') {
-                const bookmarkId = parseInt(menu.dataset.currentBookmarkId);
-                deleteBookmark(bookmarkId);
-            }
-
-            hideContextMenu();
-        });
-        menu._menuHandlerAdded = true;
-    }
-
-    // 点击其他地方隐藏菜单（只绑定一次）
-    if (!menu._docHandlerAdded) {
-        document.addEventListener('click', (e) => {
-            if (!menu.contains(e.target)) hideContextMenu();
-        });
-        menu._docHandlerAdded = true;
-    }
-
-    // 添加空白处的右键菜单（只绑定一次，避免重复绑定导致内存泄漏）
-    if (!document._emptySpaceContextMenuAdded) {
-        document.addEventListener('contextmenu', (e) => {
-            // 只在非书签卡片和非输入框区域显示
-            if (!e.target.closest('.bookmark-card') &&
-                !e.target.closest('input') &&
-                !e.target.closest('textarea') &&
-                !e.target.closest('.modal') &&
-                !e.target.closest('.context-menu')) {
-                e.preventDefault();
-                showContextMenu(e, null);
-            }
-        });
-        document._emptySpaceContextMenuAdded = true;
-    }
-
-    // 添加空白处的长按菜单（移动设备）- 只绑定一次
-    if (!document._emptySpaceTouchHandlersAdded) {
-        const emptySpaceTouchState = { isLongPress: false, timer: null };
-        
-        document.addEventListener('touchstart', (e) => {
-            // 只在非书签卡片区域处理
-            if (e.target.closest('.bookmark-card') ||
-                e.target.closest('input') ||
-                e.target.closest('textarea') ||
-                e.target.closest('.modal') ||
-                e.target.closest('.context-menu') ||
-                e.target.closest('.search-submit-btn')) {
-                return;
-            }
-
-            emptySpaceTouchState.isLongPress = false;
-            emptySpaceTouchState.timer = setTimeout(() => {
-                emptySpaceTouchState.isLongPress = true;
-                if (navigator.vibrate) navigator.vibrate(50);
-                const touch = e.touches[0];
-                showContextMenu({
-                    preventDefault: () => {},
-                    clientX: touch.clientX,
-                    clientY: touch.clientY,
-                    target: e.target
-                }, null);
-            }, 500);
-        }, { passive: true });
-
-        document.addEventListener('touchend', (e) => {
-            if (emptySpaceTouchState.timer) {
-                clearTimeout(emptySpaceTouchState.timer);
-                emptySpaceTouchState.timer = null;
-            }
-            if (emptySpaceTouchState.isLongPress) {
-                e.preventDefault();
-            }
-            emptySpaceTouchState.isLongPress = false;
-        });
-
-        document.addEventListener('touchmove', () => {
-            if (emptySpaceTouchState.timer) {
-                clearTimeout(emptySpaceTouchState.timer);
-                emptySpaceTouchState.timer = null;
-            }
-            emptySpaceTouchState.isLongPress = false;
-        });
-        
-        document._emptySpaceTouchHandlersAdded = true;
-    }
+    // Global touch cleanup for bookmark cards (simplification)
+    const clearTouch = () => clearTimeout(touchTimer);
+    container.addEventListener('touchend', clearTouch);
+    container.addEventListener('touchmove', clearTouch);
 }
 
 // 事件委托辅助函数
