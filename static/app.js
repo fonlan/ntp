@@ -101,37 +101,6 @@ let groupScrollObserver = null;
 // ===================================
 // 滚动性能优化
 // ===================================
-// 图片懒加载观察器
-window.lazyImageObserver = new IntersectionObserver((entries, observer) => {
-    entries.forEach(entry => {
-        if (entry.isIntersecting) {
-            const img = entry.target;
-            if (img.dataset.src) {
-                // 并行加载：浏览器会自动处理多个图片的并发请求
-                img.src = img.dataset.src;
-                img.removeAttribute('data-src');
-                
-                // 图片加载完成后添加类名以显示过渡效果
-                img.onload = () => {
-                    img.classList.remove('lazy-icon');
-                    img.classList.add('icon-loaded');
-                };
-                
-                // 加载失败时显示默认图标
-                img.onerror = () => {
-                    img.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E🌐%3C/text%3E%3C/svg%3E';
-                    img.classList.remove('lazy-icon');
-                    img.classList.add('icon-loaded');
-                };
-                
-                observer.unobserve(img);
-            }
-        }
-    });
-}, {
-    rootMargin: '50px 0px', // 提前 50px 加载
-    threshold: 0.01
-});
 
 // 使用 requestAnimationFrame 优化滚动事件
 const scrollOptimizer = {
@@ -574,13 +543,6 @@ function applyBookmarkSize() {
         icon.style.minWidth = state.bookmarkHeight + 'px';
     });
 
-    // 重新观察新添加的图片（如果使用了懒加载）
-    if (window.lazyImageObserver) {
-        const lazyImages = document.querySelectorAll('.lazy-icon');
-        lazyImages.forEach(img => {
-            window.lazyImageObserver.observe(img);
-        });
-    }
 }
 
 function applyCardOpacity() {
@@ -1097,10 +1059,10 @@ function renderBookmarkCard(b) {
         const fallbackIcon = "data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E🌐%3C/text%3E%3C/svg%3E";
         const realIconUrl = getFavicon(b.url, b.icon_path || b.icon_url);
         
-        iconHtml = `<img src="${fallbackIcon}"
-                 data-src="${realIconUrl}"
-                 class="bookmark-icon lazy-icon"
+        iconHtml = `<img src="${realIconUrl}"
+                 class="bookmark-icon"
                  style="${iconSizeStyle} ${iconBgStyle}"
+                 onerror="this.onerror=null;this.src='${fallbackIcon}'"
                  alt="${escapeHtml(b.title || 'Bookmark')} icon">`;
     }
     return `
