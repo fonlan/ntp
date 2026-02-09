@@ -53,7 +53,17 @@
     "fileSizeLimit": "文件大小不能超过 512KB",
     "uploadFailed": "上传图标失败"
   },
+  "icon": {
+    "fileSizeLimit": "文件大小不能超过 512KB",
+    "saveFailed": "保存图标失败"
+  },
   "fetch": {
     "fetchFailed": "获取失败"
+  },
+  "auth": {
+    "disabled": "认证已关闭",
+    "loginSuccess": "登录成功",
+    "logoutSuccess": "登出成功",
+    "invalidCredentials": "用户名或密码错误"
   }
 }

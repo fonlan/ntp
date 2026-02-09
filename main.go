@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 	"net/url"
@@ -124,7 +125,10 @@ func main() {
 		}
 
 		if engine == nil {
-			http.Error(w, "没有可用的搜索引擎", http.StatusInternalServerError)
+			translator := middleware.TranslatorFromContext(r.Context())
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": translator.T("common.internalError")})
 			return
 		}
 
@@ -221,7 +225,10 @@ func methodRouter(handlers map[string]http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		handler, ok := handlers[r.Method]
 		if !ok {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			translator := middleware.TranslatorFromContext(r.Context())
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": translator.T("common.methodNotAllowed")})
 			return
 		}
 		handler(w, r)

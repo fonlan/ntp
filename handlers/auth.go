@@ -1,11 +1,12 @@
-// Package handles HTTP handlers for authentication
 package handlers
 
 import (
 	"encoding/json"
 	"net/http"
-	"ntp/middleware"
+	"strings"
 	"time"
+
+	"ntp/middleware"
 )
 
 // AuthHandler handles authentication requests
@@ -37,17 +38,24 @@ type AuthCheckResponse struct {
 
 // Login handles login requests
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+	translator := middleware.TranslatorFromContext(r.Context())
 	config := middleware.GetAuthConfig()
 
 	// If authentication is disabled, return success
 	if !config.Enabled {
-		http.Error(w, "Authentication is disabled", http.StatusBadRequest)
+		respondJSON(w, http.StatusBadRequest, LoginResponse{
+			Success: false,
+			Message: translator.T("auth.disabled"),
+		})
 		return
 	}
 
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		respondJSON(w, http.StatusBadRequest, LoginResponse{
+			Success: false,
+			Message: translator.T("common.invalidRequest"),
+		})
 		return
 	}
 
@@ -56,7 +64,10 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		// Create session
 		sessionID, err := middleware.CreateSession(req.Username)
 		if err != nil {
-			http.Error(w, "Failed to create session", http.StatusInternalServerError)
+			respondJSON(w, http.StatusInternalServerError, LoginResponse{
+				Success: false,
+				Message: translator.T("common.internalError"),
+			})
 			return
 		}
 
@@ -74,26 +85,24 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			Secure:   isSecure,
 		})
 
-		// Return success
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(LoginResponse{
+		respondJSON(w, http.StatusOK, LoginResponse{
 			Success: true,
-			Message: "Login successful",
+			Message: translator.T("auth.loginSuccess"),
 		})
 		return
 	}
 
 	// Invalid credentials
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusUnauthorized)
-	json.NewEncoder(w).Encode(LoginResponse{
+	respondJSON(w, http.StatusUnauthorized, LoginResponse{
 		Success: false,
-		Message: "Invalid username or password",
+		Message: translator.T("auth.invalidCredentials"),
 	})
 }
 
 // Logout handles logout requests
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	translator := middleware.TranslatorFromContext(r.Context())
+
 	// Get session cookie
 	sessionCookie, err := r.Cookie("session")
 	if err == nil {
@@ -116,10 +125,9 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	})
 
 	// Return success
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(LoginResponse{
+	respondJSON(w, http.StatusOK, LoginResponse{
 		Success: true,
-		Message: "Logout successful",
+		Message: translator.T("auth.logoutSuccess"),
 	})
 }
 
@@ -142,11 +150,10 @@ func (h *AuthHandler) CheckAuth(w http.ResponseWriter, r *http.Request) {
 			session := middleware.GetSession(sessionCookie.Value)
 			if session != nil {
 				response.Authenticated = true
-				response.Username = session.Username
+				response.Username = strings.TrimSpace(session.Username)
 			}
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	respondJSON(w, http.StatusOK, response)
 }

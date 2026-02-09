@@ -53,7 +53,17 @@
     "fileSizeLimit": "File size cannot exceed 512KB",
     "uploadFailed": "Failed to upload icon"
   },
+  "icon": {
+    "fileSizeLimit": "File size cannot exceed 512KB",
+    "saveFailed": "Failed to save icon"
+  },
   "fetch": {
     "fetchFailed": "Failed to fetch"
+  },
+  "auth": {
+    "disabled": "Authentication is disabled",
+    "loginSuccess": "Login successful",
+    "logoutSuccess": "Logout successful",
+    "invalidCredentials": "Invalid username or password"
   }
 }

@@ -296,7 +296,7 @@ func (h *BookmarkHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondJSON(w, http.StatusOK, map[string]string{"message": "删除成功"})
+	respondJSON(w, http.StatusOK, map[string]string{"message": translator.T("bookmark.deleteSuccess")})
 }
 
 // Reorder 批量排序
@@ -320,7 +320,7 @@ func (h *BookmarkHandler) Reorder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondJSON(w, http.StatusOK, map[string]string{"message": "排序成功"})
+	respondJSON(w, http.StatusOK, map[string]string{"message": translator.T("bookmark.reorderSuccess")})
 }
 
 // Search 搜索书签
@@ -328,7 +328,7 @@ func (h *BookmarkHandler) Search(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
 	translator := middleware.TranslatorFromContext(r.Context())
 	if query == "" {
-		respondError(w, http.StatusBadRequest, "Missing search keyword")
+		respondError(w, http.StatusBadRequest, translator.T("bookmark.invalidRequest"))
 		return
 	}
 
@@ -1010,14 +1010,14 @@ func (h *BookmarkHandler) UploadIcon(w http.ResponseWriter, r *http.Request) {
 
 	// 验证文件大小（最大 512KB）
 	if len(data) > 512*1024 {
-		respondError(w, http.StatusBadRequest, "文件大小不能超过 512KB")
+		respondError(w, http.StatusBadRequest, translator.T("icon.fileSizeLimit"))
 		return
 	}
 
 	// 保存图标
 	iconPath, err := h.iconService.SaveUploadedIcon(header.Filename, data)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "保存图标失败: "+err.Error())
+		respondError(w, http.StatusInternalServerError, translator.T("icon.saveFailed")+": "+err.Error())
 		return
 	}
 
