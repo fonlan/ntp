@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -24,11 +23,12 @@ func InitDB(dataSourceName string) error {
 		return fmt.Errorf("数据库连接失败: %w", err)
 	}
 
-	// 配置数据库连接池（SQLite WAL 模式优化参数）
-	DB.SetMaxOpenConns(25)                 // 最大连接数
-	DB.SetMaxIdleConns(5)                  // 最大空闲连接数
-	DB.SetConnMaxLifetime(5 * time.Minute) // 连接最大生命周期
-	DB.SetConnMaxIdleTime(2 * time.Minute) // 空闲连接超时
+	// 配置数据库连接池
+	// SQLite 的部分 PRAGMA 是连接级别的（例如 foreign_keys、busy_timeout），为了确保配置生效并减少锁竞争，这里使用单连接。
+	DB.SetMaxOpenConns(1)
+	DB.SetMaxIdleConns(1)
+	DB.SetConnMaxLifetime(0)
+	DB.SetConnMaxIdleTime(0)
 
 	// 设置 SQLite 为 WAL 模式以提升并发性能，并添加其他性能优化 PRAGMA
 	if _, err := DB.Exec(`

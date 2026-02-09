@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"ntp/handlers"
 	"ntp/i18n"
@@ -142,7 +143,15 @@ func main() {
 	log.Printf("服务器启动在 http://0.0.0.0:%s", port)
 
 	handler := middleware.LocaleMiddleware(enableCORS(mux))
-	if err := http.ListenAndServe(addr, handler); err != nil {
+	server := &http.Server{
+		Addr:              addr,
+		Handler:           handler,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+	if err := server.ListenAndServe(); err != nil {
 		log.Fatalf("服务器启动失败: %v", err)
 	}
 }
