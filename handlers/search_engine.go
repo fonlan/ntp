@@ -1,13 +1,13 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
-	"strconv"
-	"strings"
 
-	"ntp/models"
 	"ntp/middleware"
+	"ntp/models"
 	"ntp/services"
 )
 
@@ -73,23 +73,27 @@ func (h *SearchEngineHandler) Create(w http.ResponseWriter, r *http.Request) {
 		iconPathPtr = &iconPath
 	}
 
+	// 默认引擎由 SetDefault 统一维护，避免出现多个默认引擎。
 	engine := &models.SearchEngine{
 		Name:        req.Name,
 		URL:         req.URL,
 		Placeholder: req.Placeholder,
 		IconPath:    iconPathPtr,
-		IsDefault:   req.IsDefault,
+		IsDefault:   false,
 		SortOrder:   req.SortOrder,
-	}
-
-	// 如果设置为默认，先清除其他默认标记
-	if engine.IsDefault {
-		h.searchEngineRepo.SetDefault(0) // 清除所有默认
 	}
 
 	if err := h.searchEngineRepo.Create(engine); err != nil {
 		respondError(w, http.StatusInternalServerError, translator.T("searchEngine.createFailed")+": "+err.Error())
 		return
+	}
+
+	if req.IsDefault {
+		if err := h.searchEngineRepo.SetDefault(engine.ID); err != nil {
+			respondError(w, http.StatusInternalServerError, translator.T("searchEngine.setDefaultFailed")+": "+err.Error())
+			return
+		}
+		engine.IsDefault = true
 	}
 
 	respondJSON(w, http.StatusCreated, engine)
@@ -101,7 +105,11 @@ func (h *SearchEngineHandler) Update(w http.ResponseWriter, r *http.Request) {
 	id := extractPathID(r, "/api/search-engine/")
 
 	engine, err := h.searchEngineRepo.GetByID(id)
-	if err != nil || engine == nil {
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, translator.T("searchEngine.updateFailed")+": "+err.Error())
+		return
+	}
+	if engine == nil {
 		respondError(w, http.StatusNotFound, translator.T("searchEngine.notFound"))
 		return
 	}
@@ -111,6 +119,9 @@ func (h *SearchEngineHandler) Update(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, translator.T("common.invalidRequest"))
 		return
 	}
+
+	// 仅当用户显式选择“设为默认”时才执行切换；不允许通过 false 清空默认。
+	setDefault := req.IsDefault != nil && *req.IsDefault
 
 	if req.Name != nil {
 		engine.Name = *req.Name
@@ -126,12 +137,6 @@ func (h *SearchEngineHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if req.Placeholder != nil {
 		engine.Placeholder = *req.Placeholder
 	}
-	if req.IsDefault != nil {
-		engine.IsDefault = *req.IsDefault
-		if engine.IsDefault {
-			h.searchEngineRepo.SetDefault(0) // 清除其他默认
-		}
-	}
 	if req.SortOrder != nil {
 		engine.SortOrder = *req.SortOrder
 	}
@@ -139,6 +144,18 @@ func (h *SearchEngineHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if err := h.searchEngineRepo.Update(engine); err != nil {
 		respondError(w, http.StatusInternalServerError, translator.T("searchEngine.updateFailed")+": "+err.Error())
 		return
+	}
+
+	if setDefault {
+		if err := h.searchEngineRepo.SetDefault(engine.ID); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				respondError(w, http.StatusNotFound, translator.T("searchEngine.notFound"))
+				return
+			}
+			respondError(w, http.StatusInternalServerError, translator.T("searchEngine.setDefaultFailed")+": "+err.Error())
+			return
+		}
+		engine.IsDefault = true
 	}
 
 	respondJSON(w, http.StatusOK, engine)
@@ -150,9 +167,12 @@ func (h *SearchEngineHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	id := extractPathID(r, "/api/search-engine/")
 
 	if err := h.searchEngineRepo.Delete(id); err != nil {
-		if err.Error() == "sql: transaction is already closed" || err.Error() == "sql: Tx is closed" {
+		switch {
+		case errors.Is(err, models.ErrCannotDeleteLastSearchEngine):
 			respondError(w, http.StatusBadRequest, translator.T("searchEngine.cannotDeleteLast"))
-		} else {
+		case errors.Is(err, sql.ErrNoRows):
+			respondError(w, http.StatusNotFound, translator.T("searchEngine.notFound"))
+		default:
 			respondError(w, http.StatusInternalServerError, translator.T("searchEngine.deleteFailed")+": "+err.Error())
 		}
 		return
@@ -161,25 +181,20 @@ func (h *SearchEngineHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]string{"message": translator.T("searchEngine.deleteSuccess")})
 }
 
-// SetDefault 设置默认引擎
+// SetDefault 设置默认引擎（POST /api/search-engine/{id}）
 func (h *SearchEngineHandler) SetDefault(w http.ResponseWriter, r *http.Request) {
 	translator := middleware.TranslatorFromContext(r.Context())
-
-	// 路径格式: /api/search-engines/:id/set-default
-	path := strings.TrimPrefix(r.URL.Path, "/api/search-engines/")
-	parts := strings.Split(path, "/")
-	if len(parts) < 2 {
-		respondError(w, http.StatusBadRequest, translator.T("common.invalidPath"))
-		return
-	}
-
-	id, err := strconv.ParseInt(parts[0], 10, 64)
-	if err != nil {
+	id := extractPathID(r, "/api/search-engine/")
+	if id <= 0 {
 		respondError(w, http.StatusBadRequest, translator.T("common.invalidID"))
 		return
 	}
 
 	if err := h.searchEngineRepo.SetDefault(id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			respondError(w, http.StatusNotFound, translator.T("searchEngine.notFound"))
+			return
+		}
 		respondError(w, http.StatusInternalServerError, translator.T("searchEngine.setDefaultFailed")+": "+err.Error())
 		return
 	}

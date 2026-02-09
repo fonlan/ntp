@@ -41,7 +41,8 @@
     "notFound": "资源不存在",
     "methodNotAllowed": "不允许的请求方法",
     "invalidPath": "无效的路径",
-    "invalidID": "无效的 ID"
+    "invalidID": "无效的 ID",
+    "invalidIconPath": "无效的图标路径"
   },
   "import": {
     "parseFailed": "解析书签失败",

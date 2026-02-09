@@ -2,7 +2,12 @@ package models
 
 import (
 	"database/sql"
+	"errors"
+	"fmt"
 )
+
+// ErrCannotDeleteLastSearchEngine 表示不能删除最后一个搜索引擎
+var ErrCannotDeleteLastSearchEngine = errors.New("cannot delete the last search engine")
 
 // SearchEngine 搜索引擎
 type SearchEngine struct {
@@ -108,19 +113,62 @@ func (r *SearchEngineRepository) Update(engine *SearchEngine) error {
 
 // Delete 删除搜索引擎
 func (r *SearchEngineRepository) Delete(id int64) error {
-	// 检查是否是最后一个搜索引擎
-	var count int
-	r.db.QueryRow("SELECT COUNT(*) FROM search_engines").Scan(&count)
-	if count <= 1 {
-		return sql.ErrTxDone // 使用错误表示不能删除最后一个
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
 	}
 
-	_, err := r.db.Exec("DELETE FROM search_engines WHERE id = ?", id)
-	return err
+	var count int
+	if err := tx.QueryRow("SELECT COUNT(*) FROM search_engines").Scan(&count); err != nil {
+		tx.Rollback()
+		return err
+	}
+	if count <= 1 {
+		tx.Rollback()
+		return ErrCannotDeleteLastSearchEngine
+	}
+
+	var isDefault bool
+	if err := tx.QueryRow("SELECT is_default FROM search_engines WHERE id = ?", id).Scan(&isDefault); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// 如果删除的是默认引擎，需要先指定新的默认引擎，避免出现没有默认引擎的状态。
+	if isDefault {
+		var newDefaultID int64
+		if err := tx.QueryRow(
+			"SELECT id FROM search_engines WHERE id != ? ORDER BY sort_order ASC, id ASC LIMIT 1",
+			id,
+		).Scan(&newDefaultID); err != nil {
+			tx.Rollback()
+			return err
+		}
+
+		if _, err := tx.Exec("UPDATE search_engines SET is_default = 0"); err != nil {
+			tx.Rollback()
+			return err
+		}
+		if _, err := tx.Exec("UPDATE search_engines SET is_default = 1 WHERE id = ?", newDefaultID); err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	if _, err := tx.Exec("DELETE FROM search_engines WHERE id = ?", id); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit()
 }
 
 // SetDefault 设置默认搜索引擎
 func (r *SearchEngineRepository) SetDefault(id int64) error {
+	if id <= 0 {
+		return fmt.Errorf("无效的搜索引擎 ID")
+	}
+
 	tx, err := r.db.Begin()
 	if err != nil {
 		return err
@@ -133,7 +181,45 @@ func (r *SearchEngineRepository) SetDefault(id int64) error {
 	}
 
 	// 设置新的默认引擎
-	if _, err := tx.Exec("UPDATE search_engines SET is_default = 1 WHERE id = ?", id); err != nil {
+	result, err := tx.Exec("UPDATE search_engines SET is_default = 1 WHERE id = ?", id)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	if rows == 0 {
+		tx.Rollback()
+		return sql.ErrNoRows
+	}
+
+	return tx.Commit()
+}
+
+// NormalizeDefault 规范化默认引擎：保证存在且仅存在一个默认引擎
+func (r *SearchEngineRepository) NormalizeDefault() error {
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+
+	var id int64
+	err = tx.QueryRow(
+		"SELECT id FROM search_engines ORDER BY (is_default = 1) DESC, sort_order ASC, id ASC LIMIT 1",
+	).Scan(&id)
+	if err == sql.ErrNoRows {
+		return tx.Commit()
+	}
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if _, err := tx.Exec("UPDATE search_engines SET is_default = CASE WHEN id = ? THEN 1 ELSE 0 END", id); err != nil {
 		tx.Rollback()
 		return err
 	}

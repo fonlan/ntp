@@ -53,12 +53,49 @@ func NewIconService(iconDir, baseURL string) *IconService {
 	}
 }
 
+// IsValidLocalIconPath 判断 iconPath 是否为合法的本地图标路径。
+//
+// 为了避免路径穿越，只允许 `/data/icons/<filename>` 且 filename 不包含路径分隔符，扩展名必须是支持的图片格式。
+func (s *IconService) IsValidLocalIconPath(iconPath string) bool {
+	if !strings.HasPrefix(iconPath, localIconPrefix) {
+		return false
+	}
+
+	name := strings.TrimPrefix(iconPath, localIconPrefix)
+	if name == "" || name == "." || name == ".." {
+		return false
+	}
+
+	// 防止路径穿越：只允许文件名，不允许包含路径分隔符。
+	if strings.ContainsAny(name, `/\\`) {
+		return false
+	}
+
+	ext := strings.ToLower(filepath.Ext(name))
+	if ext == "" {
+		return false
+	}
+	return validImageExts[ext]
+}
+
+// LocalIconFilePath 将 /data/icons/... 转为本地文件路径，并校验路径合法性。
+func (s *IconService) LocalIconFilePath(iconPath string) (string, error) {
+	if !s.IsValidLocalIconPath(iconPath) {
+		return "", fmt.Errorf("无效的图标路径")
+	}
+	name := strings.TrimPrefix(iconPath, localIconPrefix)
+	return filepath.Join(s.iconDir, name), nil
+}
+
 func (s *IconService) DownloadIcon(iconURL string) (string, error) {
 	return s.downloadIconWithContext(context.Background(), iconURL)
 }
 
 func (s *IconService) downloadIconWithContext(ctx context.Context, iconURL string) (string, error) {
 	if strings.HasPrefix(iconURL, localIconPrefix) {
+		if !s.IsValidLocalIconPath(iconURL) {
+			return "", fmt.Errorf("无效的图标路径")
+		}
 		return iconURL, nil
 	}
 
@@ -213,7 +250,10 @@ func (s *IconService) DeleteIcon(iconPath string) error {
 		return nil // 不是本地文件，不删除
 	}
 
-	filePath := filepath.Join(s.iconDir, strings.TrimPrefix(iconPath, localIconPrefix))
+	filePath, err := s.LocalIconFilePath(iconPath)
+	if err != nil {
+		return err
+	}
 
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		return nil // 文件不存在，无需删除

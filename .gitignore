@@ -53,5 +53,11 @@ temp/
 .serena/
 .claude/
 .sisphus/
+.agents/
+.codex/
+.cursor/
+.opencode/
+.trae/
+skills/
 CLAUDE.md
 AGENTS.md

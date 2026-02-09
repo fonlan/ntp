@@ -165,6 +165,10 @@ func (h *BookmarkHandler) Create(w http.ResponseWriter, r *http.Request) {
 			iconURL := *bookmark.IconURL
 			// 如果已经是本地图标路径，直接使用
 			if strings.HasPrefix(iconURL, "/data/icons/") {
+				if !h.iconService.IsValidLocalIconPath(iconURL) {
+					respondError(w, http.StatusBadRequest, translator.T("common.invalidIconPath"))
+					return
+				}
 				bookmark.IconPath = &iconURL
 				bookmark.IconURL = nil // 使用本地图标后清空URL字段
 			} else {
@@ -244,6 +248,10 @@ func (h *BookmarkHandler) Update(w http.ResponseWriter, r *http.Request) {
 		if iconURL == "" {
 			// 不做任何更改，保持原有的 icon_path 和 icon_url
 		} else if strings.HasPrefix(iconURL, "/data/icons/") {
+			if !h.iconService.IsValidLocalIconPath(iconURL) {
+				respondError(w, http.StatusBadRequest, translator.T("common.invalidIconPath"))
+				return
+			}
 			// 删除旧图标
 			if bookmark.IconPath != nil && *bookmark.IconPath != "" && *bookmark.IconPath != iconURL {
 				h.iconService.DeleteIcon(*bookmark.IconPath)
@@ -503,7 +511,9 @@ func (h *BookmarkHandler) Import(w http.ResponseWriter, r *http.Request) {
 				}
 			} else {
 				// 已经是本地图标路径，直接使用
-				bookmark.IconPath = &iconURL
+				if h.iconService.IsValidLocalIconPath(iconURL) {
+					bookmark.IconPath = &iconURL
+				}
 				bookmark.IconURL = nil
 			}
 		}
@@ -731,7 +741,7 @@ func (h *BookmarkHandler) Export(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 生成 Netscape 书签 HTML 格式
-	html := generateNetscapeBookmarks(bookmarks, groups, h.iconService.GetIconDir())
+	html := generateNetscapeBookmarks(bookmarks, groups, h.iconService)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="bookmarks.html"`)
@@ -740,28 +750,30 @@ func (h *BookmarkHandler) Export(w http.ResponseWriter, r *http.Request) {
 }
 
 // 辅助函数：将图标转换为 base64
-func iconToBase64(iconPath *string, iconURL *string, iconDir string) string {
+func iconToBase64(iconPath *string, iconURL *string, iconService *services.IconService) string {
 	// 优先使用本地图标
 	if iconPath != nil && *iconPath != "" {
-		// 读取本地文件
-		filePath := strings.TrimPrefix(*iconPath, "/data/icons/")
-		fullPath := filepath.Join(iconDir, filePath)
-		data, err := os.ReadFile(fullPath)
+		fullPath, err := iconService.LocalIconFilePath(*iconPath)
 		if err == nil {
-			// 根据扩展名确定 MIME 类型
-			mimeType := "image/png"
-			if strings.HasSuffix(filePath, ".jpg") || strings.HasSuffix(filePath, ".jpeg") {
-				mimeType = "image/jpeg"
-			} else if strings.HasSuffix(filePath, ".gif") {
-				mimeType = "image/gif"
-			} else if strings.HasSuffix(filePath, ".svg") {
-				mimeType = "image/svg+xml"
-			} else if strings.HasSuffix(filePath, ".webp") {
-				mimeType = "image/webp"
-			} else if strings.HasSuffix(filePath, ".ico") {
-				mimeType = "image/x-icon"
+			data, err := os.ReadFile(fullPath)
+			if err == nil {
+				// 根据扩展名确定 MIME 类型
+				ext := strings.ToLower(filepath.Ext(fullPath))
+				mimeType := "image/png"
+				switch ext {
+				case ".jpg", ".jpeg":
+					mimeType = "image/jpeg"
+				case ".gif":
+					mimeType = "image/gif"
+				case ".svg":
+					mimeType = "image/svg+xml"
+				case ".webp":
+					mimeType = "image/webp"
+				case ".ico":
+					mimeType = "image/x-icon"
+				}
+				return "data:" + mimeType + ";base64," + base64.StdEncoding.EncodeToString(data)
 			}
-			return "data:" + mimeType + ";base64," + base64.StdEncoding.EncodeToString(data)
 		}
 	}
 
@@ -807,7 +819,7 @@ func escapeHTMLContent(s string) string {
 
 // 辅助函数：生成书签的图标属性字符串
 // 包含 ICON_TYPE（image/text）、ICON（base64 或空）、ICON_CHAR（文字图标字符）、ICON_BG_COLOR（背景色）
-func buildIconAttrs(b models.Bookmark, iconDir string) string {
+func buildIconAttrs(b models.Bookmark, iconService *services.IconService) string {
 	var attrs strings.Builder
 
 	// 判断图标类型
@@ -816,7 +828,7 @@ func buildIconAttrs(b models.Bookmark, iconDir string) string {
 
 	if hasImageIcon {
 		// 图片图标
-		iconData := iconToBase64(b.IconPath, b.IconURL, iconDir)
+		iconData := iconToBase64(b.IconPath, b.IconURL, iconService)
 		attrs.WriteString(fmt.Sprintf(` ICON_TYPE="image" ICON="%s"`, escapeHTMLAttr(iconData)))
 	} else if hasTextIcon {
 		// 文字图标
@@ -832,7 +844,7 @@ func buildIconAttrs(b models.Bookmark, iconDir string) string {
 }
 
 // generateNetscapeBookmarks 生成 Netscape 书签格式
-func generateNetscapeBookmarks(bookmarks []models.Bookmark, groups []models.Group, iconDir string) string {
+func generateNetscapeBookmarks(bookmarks []models.Bookmark, groups []models.Group, iconService *services.IconService) string {
 	var sb strings.Builder
 
 	sb.WriteString(`<!DOCTYPE NETSCAPE-Bookmark-file-1>` + "\n")
@@ -864,7 +876,7 @@ func generateNetscapeBookmarks(bookmarks []models.Bookmark, groups []models.Grou
 	sb.WriteString(`<DT><H3 ADD_DATE="0">未分类</H3>` + "\n")
 	sb.WriteString(`<DL><p>` + "\n")
 	for _, b := range groupBookmarks[-1] {
-		iconAttrs := buildIconAttrs(b, iconDir)
+		iconAttrs := buildIconAttrs(b, iconService)
 		desc := ""
 		if b.Description != nil {
 			desc = fmt.Sprintf(` DESC="%s"`, escapeHTMLAttr(*b.Description))
@@ -884,7 +896,7 @@ func generateNetscapeBookmarks(bookmarks []models.Bookmark, groups []models.Grou
 		sb.WriteString(`<DL><p>` + "\n")
 		if bookmarks, ok := groupBookmarks[g.ID]; ok {
 			for _, b := range bookmarks {
-				iconAttrs := buildIconAttrs(b, iconDir)
+				iconAttrs := buildIconAttrs(b, iconService)
 				desc := ""
 				if b.Description != nil {
 					desc = fmt.Sprintf(` DESC="%s"`, escapeHTMLAttr(*b.Description))

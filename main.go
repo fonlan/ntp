@@ -46,6 +46,10 @@ func main() {
 	bookmarkRepo := models.NewBookmarkRepository(models.DB)
 	groupRepo := models.NewGroupRepository(models.DB)
 	searchEngineRepo := models.NewSearchEngineRepository(models.DB)
+	// 规范化默认搜索引擎，避免出现多个/没有默认的状态
+	if err := searchEngineRepo.NormalizeDefault(); err != nil {
+		log.Printf("规范化默认搜索引擎失败: %v", err)
+	}
 	iconService := services.NewIconService(iconDir, "/data/icons")
 
 	// 为现有搜索引擎填充图标（如果 icon_path 为空）
@@ -305,12 +309,19 @@ func initializeSearchEngineIcons(repo *models.SearchEngineRepository, iconServic
 			// icon_path 为空，需要下载
 			needDownload = true
 		} else {
-			// icon_path 不为空，检查文件是否存在
-			iconFilePath := filepath.Join("data/icons", strings.TrimPrefix(*engine.IconPath, "/data/icons/"))
-			if _, err := os.Stat(iconFilePath); os.IsNotExist(err) {
-				// 文件不存在，需要重新下载
-				log.Printf("搜索引擎 %s 的图标文件不存在，需要重新下载", engine.Name)
+			// icon_path 不为空，检查格式是否合法
+			if !iconService.IsValidLocalIconPath(*engine.IconPath) {
 				needDownload = true
+			} else {
+				// icon_path 不为空，检查文件是否存在
+				iconFilePath, err := iconService.LocalIconFilePath(*engine.IconPath)
+				if err != nil {
+					needDownload = true
+				} else if _, err := os.Stat(iconFilePath); os.IsNotExist(err) {
+					// 文件不存在，需要重新下载
+					log.Printf("搜索引擎 %s 的图标文件不存在，需要重新下载", engine.Name)
+					needDownload = true
+				}
 			}
 		}
 

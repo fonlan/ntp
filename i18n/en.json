@@ -41,7 +41,8 @@
     "notFound": "Resource not found",
     "methodNotAllowed": "Method not allowed",
     "invalidPath": "Invalid path",
-    "invalidID": "Invalid ID"
+    "invalidID": "Invalid ID",
+    "invalidIconPath": "Invalid icon path"
   },
   "import": {
     "parseFailed": "Failed to parse bookmarks",
