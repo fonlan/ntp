@@ -72,8 +72,8 @@ func (r *BookmarkRepository) BatchCreate(bookmarks []*Bookmark) error {
 	}
 
 	stmt, err := tx.Prepare(
-		`INSERT INTO bookmarks (title, url, icon_url, icon_path, icon_char, icon_bg_color, description, group_id, sort_order, is_new_window, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+		`INSERT INTO bookmarks (title, url, icon_url, icon_path, icon_char, icon_bg_color, description, group_id, sort_order, is_new_window)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -84,7 +84,6 @@ func (r *BookmarkRepository) BatchCreate(bookmarks []*Bookmark) error {
 		if _, err := stmt.Exec(
 			b.Title, b.URL, b.IconURL, b.IconPath, b.IconChar, b.IconBgColor,
 			b.Description, b.GroupID, b.SortOrder, b.IsNewWindow,
-			b.CreatedAt, b.UpdatedAt,
 		); err != nil {
 			tx.Rollback()
 			return err
@@ -92,6 +91,110 @@ func (r *BookmarkRepository) BatchCreate(bookmarks []*Bookmark) error {
 	}
 
 	return tx.Commit()
+}
+
+// GetMaxSortOrders 获取每个分组的最大 sort_order（group_id 为空时使用 -1 作为 key）
+func (r *BookmarkRepository) GetMaxSortOrders() (map[int64]int, error) {
+	rows, err := r.db.Query(`
+		SELECT COALESCE(group_id, -1) as gid, COALESCE(MAX(sort_order), -1) as max_sort_order
+		FROM bookmarks
+		GROUP BY gid
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	maxSortOrders := make(map[int64]int)
+	for rows.Next() {
+		var groupID int64
+		var maxSortOrder int
+		if err := rows.Scan(&groupID, &maxSortOrder); err != nil {
+			return nil, err
+		}
+		maxSortOrders[groupID] = maxSortOrder
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return maxSortOrders, nil
+}
+
+// BatchApplyImportChanges 在单个事务中批量执行创建与更新。
+//
+// 返回的 errors slice 与输入 slice 一一对应，nil 表示该条执行成功。
+func (r *BookmarkRepository) BatchApplyImportChanges(create []*Bookmark, update []*Bookmark) ([]error, []error, error) {
+	if len(create) == 0 && len(update) == 0 {
+		return nil, nil, nil
+	}
+
+	createErrs := make([]error, len(create))
+	updateErrs := make([]error, len(update))
+
+	tx, err := r.db.Begin()
+	if err != nil {
+		return nil, nil, err
+	}
+	defer tx.Rollback()
+
+	createStmt, err := tx.Prepare(`
+		INSERT INTO bookmarks (title, url, icon_url, icon_path, icon_char, icon_bg_color, description, group_id, sort_order, is_new_window)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer createStmt.Close()
+
+	updateStmt, err := tx.Prepare(`
+		UPDATE bookmarks
+		SET title = ?, url = ?, icon_url = ?, icon_path = ?, icon_char = ?, icon_bg_color = ?, description = ?, group_id = ?, sort_order = ?, is_new_window = ?, updated_at = CURRENT_TIMESTAMP
+		WHERE id = ?
+	`)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer updateStmt.Close()
+
+	for i, b := range update {
+		if b == nil {
+			updateErrs[i] = fmt.Errorf("空的书签数据")
+			continue
+		}
+		_, err := updateStmt.Exec(
+			b.Title, b.URL, b.IconURL, b.IconPath, b.IconChar, b.IconBgColor,
+			b.Description, b.GroupID, b.SortOrder, b.IsNewWindow,
+			b.ID,
+		)
+		if err != nil {
+			updateErrs[i] = err
+		}
+	}
+
+	for i, b := range create {
+		if b == nil {
+			createErrs[i] = fmt.Errorf("空的书签数据")
+			continue
+		}
+		result, err := createStmt.Exec(
+			b.Title, b.URL, b.IconURL, b.IconPath, b.IconChar, b.IconBgColor,
+			b.Description, b.GroupID, b.SortOrder, b.IsNewWindow,
+		)
+		if err != nil {
+			createErrs[i] = err
+			continue
+		}
+		if id, err := result.LastInsertId(); err == nil {
+			b.ID = id
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, nil, err
+	}
+
+	return createErrs, updateErrs, nil
 }
 
 // GetByID 根据 ID 获取书签

@@ -373,9 +373,15 @@ func (h *BookmarkHandler) Import(w http.ResponseWriter, r *http.Request) {
 	// 覆盖模式：先删除所有现有书签和分组
 	if mode == "overwrite" {
 		// 删除所有书签
-		h.bookmarkRepo.DeleteAll()
+		if err := h.bookmarkRepo.DeleteAll(); err != nil {
+			respondError(w, http.StatusInternalServerError, translator.T("bookmark.deleteFailed")+": "+err.Error())
+			return
+		}
 		// 删除所有分组
-		h.groupRepo.DeleteAll()
+		if err := h.groupRepo.DeleteAll(); err != nil {
+			respondError(w, http.StatusInternalServerError, translator.T("group.deleteFailed")+": "+err.Error())
+			return
+		}
 	}
 
 	// 解析 HTML 书签格式，同时解析书签及其所属分组
@@ -434,10 +440,21 @@ func (h *BookmarkHandler) Import(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// 批量插入书签
-	imported := 0
-	failed := 0
-	errors := []string{}
+	// 预加载各分组最大 sort_order，用于追加/合并时避免 sort_order 冲突
+	maxSortOrders, err := h.bookmarkRepo.GetMaxSortOrders()
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, translator.T("bookmark.listFailed")+": "+err.Error())
+		return
+	}
+	groupSortOrders := make(map[int64]int, len(maxSortOrders))
+	for gid, maxSortOrder := range maxSortOrders {
+		groupSortOrders[gid] = maxSortOrder
+	}
+
+	// 收集批量变更（一次事务写入）
+	toCreate := make([]*models.Bookmark, 0, len(bookmarks))
+	toUpdate := make([]*models.Bookmark, 0, len(existingByURL))
+	updateIconPathsToDelete := make([]string, 0, len(existingByURL))
 
 	// 创建一个从临时索引到实际分组 ID 的映射
 	indexToGroupID := make(map[int64]*int64)
@@ -446,9 +463,6 @@ func (h *BookmarkHandler) Import(w http.ResponseWriter, r *http.Request) {
 			indexToGroupID[tempIdx] = &actualGroupID
 		}
 	}
-
-	// sort_order 计数器：避免 N+1 查询问题
-	groupSortOrders := make(map[int64]int)
 
 	for i := range bookmarks {
 		bookmark := &bookmarks[i]
@@ -528,15 +542,20 @@ func (h *BookmarkHandler) Import(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		// 获取最大 sort_order（使用内存计数器避免 N+1 查询）
-		groupID := bookmark.GroupID
-		key := int64(-1)
-		if groupID != nil {
-			key = *groupID
+		// 计算该分组下一个 sort_order（从 max_sort_order + 1 开始递增）
+		nextSortOrder := func(groupID *int64) int {
+			key := int64(-1)
+			if groupID != nil {
+				key = *groupID
+			}
+			currentMax, ok := groupSortOrders[key]
+			if !ok {
+				currentMax = -1
+			}
+			next := currentMax + 1
+			groupSortOrders[key] = next
+			return next
 		}
-		currentMax := groupSortOrders[key]
-		groupSortOrders[key] = currentMax + 1
-		bookmark.SortOrder = groupSortOrders[key]
 
 		// 合并模式：检查 URL 是否已存在
 		if mode == "merge" {
@@ -545,37 +564,75 @@ func (h *BookmarkHandler) Import(w http.ResponseWriter, r *http.Request) {
 				// URL 已存在，更新现有书签
 				existingBookmark.Title = bookmark.Title
 				existingBookmark.Description = bookmark.Description
-				existingBookmark.GroupID = bookmark.GroupID
-				existingBookmark.SortOrder = bookmark.SortOrder
 				existingBookmark.IsNewWindow = bookmark.IsNewWindow
+
+				// 分组发生变化时，将其追加到目标分组末尾；否则保留原排序
+				groupChanged := false
+				switch {
+				case existingBookmark.GroupID == nil && bookmark.GroupID != nil:
+					groupChanged = true
+				case existingBookmark.GroupID != nil && bookmark.GroupID == nil:
+					groupChanged = true
+				case existingBookmark.GroupID != nil && bookmark.GroupID != nil && *existingBookmark.GroupID != *bookmark.GroupID:
+					groupChanged = true
+				}
+				existingBookmark.GroupID = bookmark.GroupID
+				if groupChanged {
+					existingBookmark.SortOrder = nextSortOrder(bookmark.GroupID)
+				}
+
 				// 更新图标（如果有新图标）
+				iconPathToDelete := ""
 				if bookmark.IconPath != nil {
-					// 删除旧图标
-					if existingBookmark.IconPath != nil && *existingBookmark.IconPath != "" {
-						h.iconService.DeleteIcon(*existingBookmark.IconPath)
+					if existingBookmark.IconPath != nil && *existingBookmark.IconPath != "" && *existingBookmark.IconPath != *bookmark.IconPath {
+						iconPathToDelete = *existingBookmark.IconPath
 					}
 					existingBookmark.IconPath = bookmark.IconPath
 				}
 				if bookmark.IconURL != nil {
 					existingBookmark.IconURL = bookmark.IconURL
 				}
-				if err := h.bookmarkRepo.Update(existingBookmark); err != nil {
-					failed++
-					errors = append(errors, fmt.Sprintf("%s: %s", bookmark.Title, err.Error()))
-				} else {
-					imported++
-				}
+
+				toUpdate = append(toUpdate, existingBookmark)
+				updateIconPathsToDelete = append(updateIconPathsToDelete, iconPathToDelete)
 				continue
 			}
 		}
 
-		// 插入新书签（追加模式或合并模式中 URL 不存在的情况）
-		if err := h.bookmarkRepo.Create(bookmark); err != nil {
+		// 新书签：追加到分组末尾
+		bookmark.SortOrder = nextSortOrder(bookmark.GroupID)
+		toCreate = append(toCreate, bookmark)
+	}
+
+	createErrs, updateErrs, err := h.bookmarkRepo.BatchApplyImportChanges(toCreate, toUpdate)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, translator.T("bookmark.createFailed")+": "+err.Error())
+		return
+	}
+
+	imported := 0
+	failed := 0
+	errors := []string{}
+
+	for i, err := range updateErrs {
+		if err != nil {
 			failed++
-			errors = append(errors, fmt.Sprintf("%s: %s", bookmark.Title, err.Error()))
-		} else {
-			imported++
+			errors = append(errors, fmt.Sprintf("%s: %s", toUpdate[i].Title, err.Error()))
+			continue
 		}
+		imported++
+		if i < len(updateIconPathsToDelete) && updateIconPathsToDelete[i] != "" {
+			_ = h.iconService.DeleteIcon(updateIconPathsToDelete[i])
+		}
+	}
+
+	for i, err := range createErrs {
+		if err != nil {
+			failed++
+			errors = append(errors, fmt.Sprintf("%s: %s", toCreate[i].Title, err.Error()))
+			continue
+		}
+		imported++
 	}
 
 	respondJSON(w, http.StatusOK, map[string]interface{}{
