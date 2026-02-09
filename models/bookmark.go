@@ -284,35 +284,68 @@ func (r *BookmarkRepository) GetBookmarksByURLs(urls []string) (map[string]*Book
 		return nil, nil
 	}
 
-	placeholders := strings.Repeat("?,", len(urls))
-	query := fmt.Sprintf("SELECT id, title, url, icon_url, icon_path, icon_char, icon_bg_color, description, group_id, sort_order, is_new_window, created_at, updated_at FROM bookmarks WHERE url IN (%s)", placeholders)
-
-	args := make([]interface{}, len(urls))
-	for i, url := range urls {
-		args[i] = url
+	// 去重后再查询，降低 SQL 变量数量，避免触发 SQLite 变量上限。
+	seen := make(map[string]struct{}, len(urls))
+	unique := make([]string, 0, len(urls))
+	for _, u := range urls {
+		if u == "" {
+			continue
+		}
+		if _, ok := seen[u]; ok {
+			continue
+		}
+		seen[u] = struct{}{}
+		unique = append(unique, u)
+	}
+	if len(unique) == 0 {
+		return nil, nil
 	}
 
 	bookmarkMap := make(map[string]*Bookmark)
-	rows, err := r.db.Query(query, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
 
-	for rows.Next() {
-		var b Bookmark
-		err := rows.Scan(&b.ID, &b.Title, &b.URL, &b.IconURL, &b.IconPath, &b.IconChar, &b.IconBgColor,
-			&b.Description, &b.GroupID, &b.SortOrder, &b.IsNewWindow,
-			&b.CreatedAt, &b.UpdatedAt)
+	// SQLite 默认变量上限通常为 999，这里留出余量。
+	const maxVarsPerQuery = 500
+
+	for start := 0; start < len(unique); start += maxVarsPerQuery {
+		end := start + maxVarsPerQuery
+		if end > len(unique) {
+			end = len(unique)
+		}
+		chunk := unique[start:end]
+
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(chunk)), ",")
+		query := fmt.Sprintf(
+			"SELECT id, title, url, icon_url, icon_path, icon_char, icon_bg_color, description, group_id, sort_order, is_new_window, created_at, updated_at FROM bookmarks WHERE url IN (%s)",
+			placeholders,
+		)
+
+		args := make([]interface{}, len(chunk))
+		for i, u := range chunk {
+			args[i] = u
+		}
+
+		rows, err := r.db.Query(query, args...)
 		if err != nil {
 			return nil, err
 		}
-		bookmarkMap[b.URL] = &b
-	}
-
-	// 检查迭代过程中的错误
-	if err := rows.Err(); err != nil {
-		return nil, err
+		for rows.Next() {
+			b := &Bookmark{}
+			err := rows.Scan(
+				&b.ID, &b.Title, &b.URL, &b.IconURL, &b.IconPath, &b.IconChar, &b.IconBgColor,
+				&b.Description, &b.GroupID, &b.SortOrder, &b.IsNewWindow,
+				&b.CreatedAt, &b.UpdatedAt,
+			)
+			if err != nil {
+				rows.Close()
+				return nil, err
+			}
+			bookmarkMap[b.URL] = b
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		rows.Close()
 	}
 
 	return bookmarkMap, nil

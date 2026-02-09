@@ -18,15 +18,6 @@ import (
 	"ntp/services"
 )
 
-// toInterfaceSlice 将字符串切片转换为 interface{} 切片（用于 SQL IN 查询）
-func toInterfaceSlice(slice []string) []interface{} {
-	result := make([]interface{}, len(slice))
-	for i, v := range slice {
-		result[i] = v
-	}
-	return result
-}
-
 // BookmarkHandler 书签处理器
 type BookmarkHandler struct {
 	bookmarkRepo *models.BookmarkRepository
@@ -424,6 +415,25 @@ func (h *BookmarkHandler) Import(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// merge 模式下预加载现有书签，避免 N+1 查询
+	existingByURL := make(map[string]*models.Bookmark)
+	if mode == "merge" {
+		urls := make([]string, 0, len(bookmarks))
+		for i := range bookmarks {
+			if bookmarks[i].URL != "" {
+				urls = append(urls, bookmarks[i].URL)
+			}
+		}
+		m, err := h.bookmarkRepo.GetBookmarksByURLs(urls)
+		if err != nil {
+			respondError(w, http.StatusInternalServerError, translator.T("bookmark.listFailed")+": "+err.Error())
+			return
+		}
+		for u, b := range m {
+			existingByURL[u] = b
+		}
+	}
+
 	// 批量插入书签
 	imported := 0
 	failed := 0
@@ -530,8 +540,8 @@ func (h *BookmarkHandler) Import(w http.ResponseWriter, r *http.Request) {
 
 		// 合并模式：检查 URL 是否已存在
 		if mode == "merge" {
-			existingBookmark, err := h.bookmarkRepo.GetByURL(bookmark.URL)
-			if err == nil && existingBookmark != nil {
+			existingBookmark := existingByURL[bookmark.URL]
+			if existingBookmark != nil {
 				// URL 已存在，更新现有书签
 				existingBookmark.Title = bookmark.Title
 				existingBookmark.Description = bookmark.Description
