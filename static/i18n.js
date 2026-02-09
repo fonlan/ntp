@@ -4,6 +4,9 @@ class I18n {
     this.currentLocale = 'en';
     this.messages = {};
     this.supportedLocales = ['en', 'zh'];
+    this.messageCache = new Map();
+    this.missingKeys = new Set();
+    this.initPromise = null;
     this.ready = false;
   }
 
@@ -13,38 +16,63 @@ class I18n {
       return;
     }
 
-    // Get saved language preference from localStorage
-    const savedLocale = localStorage.getItem('ntp-language');
-    if (savedLocale && this.supportedLocales.includes(savedLocale)) {
-      this.currentLocale = savedLocale;
-    } else {
-      // Detect browser language
-      const browserLang = navigator.language || navigator.userLanguage;
-      if (browserLang.startsWith('zh')) {
-        this.currentLocale = 'zh';
-      } else {
-        this.currentLocale = 'en';
-      }
+    if (this.initPromise) {
+      return this.initPromise;
     }
 
-    // Load messages
-    await this.loadMessages(this.currentLocale);
-    this.ready = true;
-    // Update page after loading translations
-    this.updatePage();
+    this.initPromise = (async () => {
+      // Get saved language preference from localStorage
+      const savedLocale = localStorage.getItem('ntp-language');
+      if (savedLocale && this.supportedLocales.includes(savedLocale)) {
+        this.currentLocale = savedLocale;
+      } else {
+        // Detect browser language
+        const browserLang = navigator.language || navigator.userLanguage || 'en';
+        this.currentLocale = browserLang.startsWith('zh') ? 'zh' : 'en';
+      }
+
+      // Load messages
+      await this.loadMessages(this.currentLocale);
+      this.ready = true;
+      document.documentElement.lang = this.currentLocale;
+      // Update page after loading translations
+      this.updatePage();
+    })();
+
+    try {
+      await this.initPromise;
+    } finally {
+      this.initPromise = null;
+    }
   }
 
   async loadMessages(locale) {
+    const targetLocale = this.supportedLocales.includes(locale) ? locale : 'en';
+
+    const cachedMessages = this.messageCache.get(targetLocale);
+    if (cachedMessages) {
+      this.messages = cachedMessages;
+      this.currentLocale = targetLocale;
+      localStorage.setItem('ntp-language', targetLocale);
+      return;
+    }
+
     try {
-      const response = await fetch(`/static/i18n/${locale}.json`);
-      this.messages = await response.json();
-      this.currentLocale = locale;
+      const response = await fetch(`/static/i18n/${targetLocale}.json`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const messages = await response.json();
+      this.messageCache.set(targetLocale, messages);
+      this.messages = messages;
+      this.currentLocale = targetLocale;
       // Save preference
-      localStorage.setItem('ntp-language', locale);
+      localStorage.setItem('ntp-language', targetLocale);
     } catch (error) {
       console.error('Failed to load messages:', error);
       // Fallback to English if translation fails
-      if (locale !== 'en') {
+      if (targetLocale !== 'en') {
         await this.loadMessages('en');
       }
     }
@@ -61,21 +89,19 @@ class I18n {
       // Update all translated elements
       this.updatePage();
       // Update HTML lang attribute
-      document.documentElement.lang = locale;
+      document.documentElement.lang = this.currentLocale;
     }
   }
 
   t(key, params = {}) {
-    const keys = key.split('.');
-    let value = this.messages;
+    const value = key.split('.').reduce((acc, currentKey) => acc?.[currentKey], this.messages);
 
-    for (const k of keys) {
-      if (value && value[k] !== undefined) {
-        value = value[k];
-      } else {
+    if (value === undefined) {
+      if (!this.missingKeys.has(key)) {
         console.warn(`Translation not found for key: ${key}`);
-        return key;
+        this.missingKeys.add(key);
       }
+      return key;
     }
 
     // Replace parameters like ${param}
@@ -106,7 +132,7 @@ class I18n {
   _updateElements(container) {
     // Update data-i18n elements
     container.querySelectorAll('[data-i18n]').forEach(el => {
-      const translation = this.t(el.getAttribute('data-i18n'));
+      const translation = this.t(el.dataset.i18n);
       if (el.tagName === 'INPUT' && el.hasAttribute('placeholder')) {
         el.placeholder = translation;
       } else {

@@ -96,6 +96,8 @@ const state = {
     cardOpacity: 70
 };
 
+let groupScrollObserver = null;
+
 // ===================================
 // 滚动性能优化
 // ===================================
@@ -841,10 +843,12 @@ function initGroupQuickNavHandlers() {
 }
 
 function initScrollTracking() {
-    if (window._scrollTrackingInitialized) return;
-
     const nav = dom.groupQuickNav;
     if (!nav) return;
+
+    if (groupScrollObserver) {
+        groupScrollObserver.disconnect();
+    }
 
     // 使用 IntersectionObserver 替代 scroll 事件监听
     // 这种方式性能更好，不会在滚动时频繁触发重排
@@ -856,7 +860,7 @@ function initScrollTracking() {
         threshold: 0
     };
 
-    const observer = new IntersectionObserver((entries) => {
+    groupScrollObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
                 const groupId = entry.target.dataset.groupId;
@@ -878,7 +882,7 @@ function initScrollTracking() {
 
     // 观察所有书签分组容器
     const groups = document.querySelectorAll('.bookmark-group');
-    groups.forEach(group => observer.observe(group));
+    groups.forEach(group => groupScrollObserver.observe(group));
 
     // 兼容逻辑：如果页面很短，Observer 可能无法触发，默认选中第一个
     const scrollContainer = dom.scrollContainer || document.documentElement;
@@ -887,7 +891,6 @@ function initScrollTracking() {
         if (firstItem) firstItem.classList.add('active');
     }
 
-    window._scrollTrackingInitialized = true;
 }
 
 const ContextMenu = {
@@ -1031,6 +1034,8 @@ function initBookmarkClickHandlers() {
     container._cardClickHandler?.();
     container._cardContextMenuHandler?.();
     container._cardTouchStartHandler?.();
+    container._cardTouchEndHandler?.();
+    container._cardTouchMoveHandler?.();
 
     // 点击事件 - 打开书签
     container._cardClickHandler = onEvent(container, 'click', '.bookmark-card', (e, card) => {
@@ -1055,10 +1060,12 @@ function initBookmarkClickHandlers() {
         }, 500);
     }, { passive: true });
 
-    // Global touch cleanup for bookmark cards (simplification)
+    // Global touch cleanup for bookmark cards
     const clearTouch = () => clearTimeout(touchTimer);
-    container.addEventListener('touchend', clearTouch);
-    container.addEventListener('touchmove', clearTouch);
+    container.addEventListener('touchend', clearTouch, { passive: true });
+    container.addEventListener('touchmove', clearTouch, { passive: true });
+    container._cardTouchEndHandler = () => container.removeEventListener('touchend', clearTouch);
+    container._cardTouchMoveHandler = () => container.removeEventListener('touchmove', clearTouch);
 }
 
 // 事件委托辅助函数
@@ -2157,7 +2164,7 @@ function initEventListeners() {
 
     // Search button and input field
     document.getElementById('searchBtn').addEventListener('click', performSearch);
-    document.getElementById('searchInput').addEventListener('keypress', (e) => {
+    document.getElementById('searchInput').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') performSearch();
     });
 

@@ -1,13 +1,52 @@
-// Login page functionality
+const AUTH_CHECK_ENDPOINT = '/api/auth/check';
+const LOGIN_ENDPOINT = '/api/login';
 
-// Check if user is already authenticated
+const dom = {
+    get form() { return this._form ||= document.getElementById('loginForm'); },
+    get username() { return this._username ||= document.getElementById('username'); },
+    get password() { return this._password ||= document.getElementById('password'); },
+    get loginBtn() { return this._loginBtn ||= document.getElementById('loginBtn'); },
+    get error() { return this._error ||= document.getElementById('loginError'); },
+    get languageSelect() { return this._languageSelect ||= document.getElementById('languageSelect'); }
+};
+
+async function safeParseJSON(response) {
+    try {
+        return await response.json();
+    } catch (error) {
+        return null;
+    }
+}
+
+function showLoginError(message) {
+    dom.error.textContent = message;
+    dom.error.classList.add('show');
+}
+
+function clearLoginError() {
+    dom.error.classList.remove('show');
+    dom.error.textContent = '';
+}
+
+function setLoginButtonState(isLoading, textKey = 'login.logging') {
+    dom.loginBtn.disabled = isLoading;
+    if (isLoading) {
+        dom.loginBtn.innerHTML = `<span data-i18n="${textKey}">${i18n.t(textKey)}</span>`;
+    }
+}
+
 async function checkAuth() {
     try {
-        const response = await fetch('/api/auth/check');
-        const data = await response.json();
+        const response = await fetch(AUTH_CHECK_ENDPOINT, {
+            headers: i18n.getRequestHeaders()
+        });
 
-        if (data.authenticated) {
-            // User is already logged in, redirect to home
+        if (!response.ok) {
+            return;
+        }
+
+        const data = await safeParseJSON(response);
+        if (data?.authenticated) {
             window.location.href = '/';
         }
     } catch (error) {
@@ -15,80 +54,70 @@ async function checkAuth() {
     }
 }
 
-// Handle login form submission
 async function handleLogin(event) {
     event.preventDefault();
 
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
-    const loginBtn = document.getElementById('loginBtn');
-    const errorDiv = document.getElementById('loginError');
+    const username = dom.username.value.trim();
+    const password = dom.password.value;
 
-    // Disable button and show loading
-    loginBtn.disabled = true;
-    const originalText = loginBtn.innerHTML;
-    loginBtn.innerHTML = `<span data-i18n="login.logging">${i18n.t('login.logging')}</span>`;
-    errorDiv.classList.remove('show');
+    if (!username || !password) {
+        showLoginError(i18n.t('login.invalidCredentials'));
+        return;
+    }
+
+    const originalText = dom.loginBtn.innerHTML;
+    let loginSucceeded = false;
+
+    clearLoginError();
+    setLoginButtonState(true);
 
     try {
-        const response = await fetch('/api/login', {
+        const response = await fetch(LOGIN_ENDPOINT, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                ...i18n.getRequestHeaders()
             },
-            body: JSON.stringify({ username, password }),
+            body: JSON.stringify({ username, password })
         });
 
-        const data = await response.json();
+        const data = await safeParseJSON(response);
 
-        if (data.success) {
-            // Login successful, show success message and redirect
-            loginBtn.innerHTML = `<span data-i18n="login.success">${i18n.t('login.success')}</span>`;
-
-            // Wait a short delay to ensure cookie is set before redirect
+        if (response.ok && data?.success) {
+            loginSucceeded = true;
+            dom.loginBtn.innerHTML = `<span data-i18n="login.success">${i18n.t('login.success')}</span>`;
             setTimeout(() => {
                 window.location.href = '/';
             }, 200);
-        } else {
-            // Login failed, show error
-            errorDiv.textContent = data.message;
-            errorDiv.classList.add('show');
-            loginBtn.disabled = false;
-            loginBtn.innerHTML = originalText;
+            return;
         }
+
+        showLoginError(data?.message ?? i18n.t('login.failed'));
     } catch (error) {
         console.error('Login error:', error);
-        errorDiv.textContent = 'Login failed. Please try again.';
-        errorDiv.classList.add('show');
-        loginBtn.disabled = false;
-        loginBtn.innerHTML = originalText;
+        showLoginError(i18n.t('login.failed'));
+    } finally {
+        if (!loginSucceeded) {
+            dom.loginBtn.innerHTML = originalText;
+            setLoginButtonState(false);
+        }
     }
 }
 
-// Initialize language selector
 function initLanguageSelector() {
-    const languageSelect = document.getElementById('languageSelect');
+    if (!dom.languageSelect) {
+        return;
+    }
 
-    // Set initial value
-    languageSelect.value = i18n.getCurrentLocale();
-
-    languageSelect.addEventListener('change', async (e) => {
-        const newLocale = e.target.value;
-        await i18n.setLocale(newLocale);
+    dom.languageSelect.value = i18n.getCurrentLocale();
+    dom.languageSelect.addEventListener('change', async ({ target }) => {
+        await i18n.setLocale(target.value);
     });
 }
 
-// Initialize page
 document.addEventListener('DOMContentLoaded', async () => {
-    // Initialize i18n
     await i18n.init();
-
-    // Initialize language selector
     initLanguageSelector();
-
-    // Check authentication status
     await checkAuth();
-
-    // Setup form submission
-    document.getElementById('loginForm').addEventListener('submit', handleLogin);
+    dom.form?.addEventListener('submit', handleLogin);
 });
