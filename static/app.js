@@ -256,6 +256,14 @@ function showError(message) {
     alert(message);
 }
 
+// 清理书签卡片可能残留的拖拽态（移动端长按场景）
+function clearBookmarkDraggingState() {
+    document.querySelectorAll('.bookmark-card.dragging').forEach(card => {
+        card.classList.remove('dragging');
+    });
+    state.draggedItem = null;
+}
+
 async function loadData(url, errorMsg) {
     try {
         const res = await apiRequest(url);
@@ -915,6 +923,7 @@ const ContextMenu = {
     hide() {
         this.menu.style.display = 'none';
         this.menu.dataset.currentBookmarkId = null;
+        clearBookmarkDraggingState();
     },
 
     handleMenuClick(e) {
@@ -998,6 +1007,7 @@ function initBookmarkClickHandlers() {
     container._cardTouchStartHandler?.();
     container._cardTouchEndHandler?.();
     container._cardTouchMoveHandler?.();
+    container._cardTouchCancelHandler?.();
 
     // 点击事件 - 打开书签
     container._cardClickHandler = onEvent(container, 'click', '.bookmark-card', (e, card) => {
@@ -1023,11 +1033,16 @@ function initBookmarkClickHandlers() {
     }, { passive: true });
 
     // Global touch cleanup for bookmark cards
-    const clearTouch = () => clearTimeout(touchTimer);
+    const clearTouch = () => {
+        clearTimeout(touchTimer);
+        clearBookmarkDraggingState();
+    };
     container.addEventListener('touchend', clearTouch, { passive: true });
     container.addEventListener('touchmove', clearTouch, { passive: true });
+    container.addEventListener('touchcancel', clearTouch, { passive: true });
     container._cardTouchEndHandler = () => container.removeEventListener('touchend', clearTouch);
     container._cardTouchMoveHandler = () => container.removeEventListener('touchmove', clearTouch);
+    container._cardTouchCancelHandler = () => container.removeEventListener('touchcancel', clearTouch);
 }
 
 // 事件委托辅助函数
