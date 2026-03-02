@@ -40,6 +40,12 @@ self.addEventListener('fetch', (event) => {
     // API 请求仍走网络，避免缓存过期认证态或用户数据
     if (url.pathname.startsWith('/api/')) return;
 
+    // i18n 清单优先走网络，避免长时间持有旧版本映射
+    if (url.pathname === '/static/i18n/manifest.json') {
+        event.respondWith(networkFirst(request));
+        return;
+    }
+
     // 页面导航优先走网络，失败时回退缓存
     if (request.mode === 'navigate') {
         event.respondWith(networkFirst(request));

@@ -42,4 +42,36 @@ for file in $FILES; do
     echo "✓ $file → $new_file"
 done
 
+# 为 i18n 生成版本清单（保留原文件名，通过 ?v= 做缓存失效）
+I18N_DIR="$STATIC_DIR/i18n"
+MANIFEST_FILE="$I18N_DIR/manifest.json"
+if [ -d "$I18N_DIR" ]; then
+    tmp_manifest=$(mktemp)
+    printf '{\n' > "$tmp_manifest"
+    first=1
+
+    for locale_file in "$I18N_DIR"/*.json; do
+        [ -f "$locale_file" ] || continue
+
+        locale_name=$(basename "$locale_file")
+        if [ "$locale_name" = "manifest.json" ]; then
+            continue
+        fi
+
+        locale="${locale_name%.json}"
+        locale_hash=$(md5sum "$locale_file" | cut -c1-8)
+        locale_url="/static/i18n/${locale}.json?v=${locale_hash}"
+
+        if [ "$first" -eq 0 ]; then
+            printf ',\n' >> "$tmp_manifest"
+        fi
+        first=0
+        printf '  "%s": "%s"' "$locale" "$locale_url" >> "$tmp_manifest"
+    done
+
+    printf '\n}\n' >> "$tmp_manifest"
+    mv "$tmp_manifest" "$MANIFEST_FILE"
+    echo "✓ i18n manifest → $MANIFEST_FILE"
+fi
+
 echo "=== 处理完成 ==="

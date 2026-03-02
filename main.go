@@ -408,13 +408,20 @@ type cacheControlResponseWriter struct {
 func (w *cacheControlResponseWriter) WriteHeader(statusCode int) {
 	if !w.headersSet {
 		path := w.Request.URL.Path
+		versionParam := w.Request.URL.Query().Get("v")
 
 		var cacheControl string
 		if path == "/sw.js" || strings.HasSuffix(path, "/sw.js") {
 			// Service Worker 需要及时更新，避免浏览器长期缓存旧脚本
 			cacheControl = "no-cache, no-store, must-revalidate"
+		} else if path == "/static/i18n/manifest.json" || strings.HasSuffix(path, "/i18n/manifest.json") {
+			// i18n 清单需尽快更新，以便客户端拿到最新版本化资源地址
+			cacheControl = "no-cache, must-revalidate"
 		} else if strings.HasSuffix(path, ".html") {
 			cacheControl = "no-cache, no-store, must-revalidate"
+		} else if versionParam != "" && isVersionedStaticAsset(path) {
+			// 带版本参数的静态资源可长期缓存
+			cacheControl = "public, max-age=31536000, immutable"
 		} else if hashedAssetPattern.MatchString(path) {
 			cacheControl = "public, max-age=31536000, immutable"
 		} else if strings.HasSuffix(path, ".css") || strings.HasSuffix(path, ".js") {
@@ -433,6 +440,26 @@ func (w *cacheControlResponseWriter) WriteHeader(statusCode int) {
 		w.headersSet = true
 	}
 	w.ResponseWriter.WriteHeader(statusCode)
+}
+
+// isVersionedStaticAsset 判断是否为可使用版本参数长期缓存的静态资源
+func isVersionedStaticAsset(path string) bool {
+	switch {
+	case strings.HasSuffix(path, ".js"),
+		strings.HasSuffix(path, ".css"),
+		strings.HasSuffix(path, ".json"),
+		strings.HasSuffix(path, ".png"),
+		strings.HasSuffix(path, ".jpg"),
+		strings.HasSuffix(path, ".jpeg"),
+		strings.HasSuffix(path, ".gif"),
+		strings.HasSuffix(path, ".svg"),
+		strings.HasSuffix(path, ".ico"),
+		strings.HasSuffix(path, ".woff"),
+		strings.HasSuffix(path, ".woff2"):
+		return true
+	default:
+		return false
+	}
 }
 
 // initializeSearchEngineIcons 为现有搜索引擎初始化图标

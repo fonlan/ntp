@@ -70,3 +70,46 @@ func TestIsIfNoneMatchHandlesWeakAndStrongTag(t *testing.T) {
 		t.Fatal("expected non-matching tag to return false")
 	}
 }
+
+func TestCacheControlWrapperVersionedJSONUsesImmutable(t *testing.T) {
+	handler := cacheControlWrapper(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/static/i18n/en.json?v=abcd1234", nil)
+	resp := httptest.NewRecorder()
+	handler.ServeHTTP(resp, req)
+
+	got := resp.Header().Get("Cache-Control")
+	want := "public, max-age=31536000, immutable"
+	if got != want {
+		t.Fatalf("expected Cache-Control %q, got %q", want, got)
+	}
+}
+
+func TestCacheControlWrapperManifestUsesNoCache(t *testing.T) {
+	handler := cacheControlWrapper(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{}`))
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/static/i18n/manifest.json", nil)
+	resp := httptest.NewRecorder()
+	handler.ServeHTTP(resp, req)
+
+	got := resp.Header().Get("Cache-Control")
+	want := "no-cache, must-revalidate"
+	if got != want {
+		t.Fatalf("expected Cache-Control %q, got %q", want, got)
+	}
+}
+
+func TestIsVersionedStaticAsset(t *testing.T) {
+	if !isVersionedStaticAsset("/static/i18n/en.json") {
+		t.Fatal("expected .json to be treated as versioned static asset")
+	}
+	if isVersionedStaticAsset("/static/index.html") {
+		t.Fatal("expected .html not to be treated as versioned static asset")
+	}
+}

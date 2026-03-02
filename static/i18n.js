@@ -5,6 +5,8 @@ class I18n {
     this.messages = {};
     this.supportedLocales = ['en', 'zh'];
     this.messageCache = new Map();
+    this.localeManifest = null;
+    this.localeManifestPromise = null;
     this.missingKeys = new Set();
     this.initPromise = null;
     this.ready = false;
@@ -58,7 +60,8 @@ class I18n {
     }
 
     try {
-      const response = await fetch(`/static/i18n/${targetLocale}.json`);
+      const localeURL = await this.getLocaleMessagesURL(targetLocale);
+      const response = await fetch(localeURL);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
@@ -76,6 +79,50 @@ class I18n {
         await this.loadMessages('en');
       }
     }
+  }
+
+  async getLocaleMessagesURL(locale) {
+    const manifest = await this.loadLocaleManifest();
+    if (manifest && typeof manifest[locale] === 'string' && manifest[locale] !== '') {
+      return manifest[locale];
+    }
+    return `/static/i18n/${locale}.json`;
+  }
+
+  async loadLocaleManifest() {
+    if (this.localeManifest) {
+      return this.localeManifest;
+    }
+
+    if (this.localeManifestPromise) {
+      return this.localeManifestPromise;
+    }
+
+    this.localeManifestPromise = (async () => {
+      try {
+        // 清单用于定位版本化 URL，每次初始化都请求最新版本
+        const response = await fetch('/static/i18n/manifest.json', { cache: 'no-cache' });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const manifest = await response.json();
+        if (manifest && typeof manifest === 'object') {
+          this.localeManifest = manifest;
+          return this.localeManifest;
+        }
+      } catch (error) {
+        // 本地开发或旧部署可能没有 manifest，回退到默认路径
+        console.warn('i18n manifest not available, fallback to default locale files:', error);
+      } finally {
+        this.localeManifestPromise = null;
+      }
+
+      this.localeManifest = null;
+      return null;
+    })();
+
+    return this.localeManifestPromise;
   }
 
   async setLocale(locale) {
