@@ -2,7 +2,8 @@
 const API = '/api';
 const INITIAL_DATA_CACHE_TTL_MS = 5 * 60 * 1000;
 const INITIAL_DATA_CACHE_PREFIX = 'ntp-initial-cache:v1';
-const INITIAL_DATA_CACHE_NAMES = ['search-engines', 'groups', 'bookmarks'];
+const INITIAL_DATA_CACHE_NAMES = ['search-engines', 'groups', 'bookmarks', 'initial-bundle'];
+const INITIAL_BUNDLE_CACHE_NAME = 'initial-bundle';
 
 function getInitialCacheStorageKey(name) {
     return `${INITIAL_DATA_CACHE_PREFIX}:${name}`;
@@ -50,6 +51,56 @@ function clearInitialDataCache() {
 function isSameArrayData(previousData, nextData) {
     try {
         return JSON.stringify(previousData) === JSON.stringify(nextData);
+    } catch {
+        return false;
+    }
+}
+
+function ensureInitialDataBundle(data) {
+    return {
+        bookmarks: ensureArray(data?.bookmarks),
+        groups: ensureArray(data?.groups),
+        search_engines: ensureArray(data?.search_engines)
+    };
+}
+
+function readInitialDataBundleCache() {
+    try {
+        const raw = localStorage.getItem(getInitialCacheStorageKey(INITIAL_BUNDLE_CACHE_NAME));
+        if (!raw) return null;
+
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed.updatedAt !== 'number' || typeof parsed.data !== 'object' || parsed.data === null) {
+            localStorage.removeItem(getInitialCacheStorageKey(INITIAL_BUNDLE_CACHE_NAME));
+            return null;
+        }
+
+        if (Date.now() - parsed.updatedAt > INITIAL_DATA_CACHE_TTL_MS) {
+            localStorage.removeItem(getInitialCacheStorageKey(INITIAL_BUNDLE_CACHE_NAME));
+            return null;
+        }
+
+        return ensureInitialDataBundle(parsed.data);
+    } catch {
+        return null;
+    }
+}
+
+function writeInitialDataBundleCache(bundle) {
+    try {
+        const normalized = ensureInitialDataBundle(bundle);
+        localStorage.setItem(getInitialCacheStorageKey(INITIAL_BUNDLE_CACHE_NAME), JSON.stringify({
+            updatedAt: Date.now(),
+            data: normalized
+        }));
+    } catch {
+        // 本地缓存写入失败时静默降级，不影响主流程
+    }
+}
+
+function isSameInitialDataBundle(previousBundle, nextBundle) {
+    try {
+        return JSON.stringify(previousBundle) === JSON.stringify(nextBundle);
     } catch {
         return false;
     }
@@ -269,8 +320,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadSettings();
     initSettingsPanelNavigation();
     try {
-        await Promise.all([loadInitialSearchEngines(), loadInitialGroups()]);
-        await loadInitialBookmarks();
+        const loadedByBundle = await loadInitialDataBundle();
+        if (!loadedByBundle) {
+            await Promise.all([loadInitialSearchEngines(), loadInitialGroups()]);
+            await loadInitialBookmarks();
+        }
     } catch (error) {
         console.error('Failed to load initial data:', error);
     }
@@ -354,6 +408,20 @@ async function fetchFreshListData(url, errorMsg) {
     return loadData(url, errorMsg, true);
 }
 
+async function fetchInitialDataBundle(returnNullOnError = false) {
+    try {
+        const res = await apiRequest(`${API}/initial-data`);
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        const data = await res.json();
+        return ensureInitialDataBundle(data);
+    } catch (err) {
+        if (err.message !== 'Unauthorized') {
+            console.error('Failed to load initial data bundle:', err);
+        }
+        return returnNullOnError ? null : ensureInitialDataBundle(null);
+    }
+}
+
 async function loadDataWithStaleWhileRevalidate(cacheName, fetchFresh, applyData) {
     const cachedData = readInitialDataCache(cacheName);
     if (cachedData) {
@@ -379,6 +447,45 @@ async function loadDataWithStaleWhileRevalidate(cacheName, fetchFresh, applyData
     }
     await applyData(dataToUse);
     return dataToUse;
+}
+
+async function applyInitialDataBundle(bundle) {
+    const normalized = ensureInitialDataBundle(bundle);
+    writeInitialDataCache('search-engines', normalized.search_engines);
+    writeInitialDataCache('groups', normalized.groups);
+    writeInitialDataCache('bookmarks', normalized.bookmarks);
+
+    applySearchEngines(normalized.search_engines);
+    applyGroups(normalized.groups);
+    await applyBookmarks(normalized.bookmarks);
+}
+
+async function loadInitialDataBundle() {
+    const cachedBundle = readInitialDataBundleCache();
+    if (cachedBundle) {
+        await applyInitialDataBundle(cachedBundle);
+
+        void (async () => {
+            const freshBundle = await fetchInitialDataBundle(true);
+            if (freshBundle === null) return;
+
+            writeInitialDataBundleCache(freshBundle);
+            if (!isSameInitialDataBundle(cachedBundle, freshBundle)) {
+                await applyInitialDataBundle(freshBundle);
+            }
+        })();
+
+        return true;
+    }
+
+    const freshBundle = await fetchInitialDataBundle(true);
+    if (freshBundle === null) {
+        return false;
+    }
+
+    writeInitialDataBundleCache(freshBundle);
+    await applyInitialDataBundle(freshBundle);
+    return true;
 }
 
 /**

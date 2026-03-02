@@ -64,6 +64,7 @@ func main() {
 	bookmarkHandler := handlers.NewBookmarkHandler(bookmarkRepo, groupRepo, iconService)
 	groupHandler := handlers.NewGroupHandler(groupRepo)
 	searchEngineHandler := handlers.NewSearchEngineHandler(searchEngineRepo, iconService)
+	initialDataHandler := handlers.NewInitialDataHandler(bookmarkRepo, groupRepo, searchEngineRepo)
 	fetchHandler := handlers.NewFetchHandler()
 	authHandler := handlers.NewAuthHandler()
 	versionHandler := handlers.NewVersionHandler(Version)
@@ -111,7 +112,7 @@ func main() {
 
 	// 首页和 API 路由（需要认证）
 	mux.Handle("/", middleware.AuthMiddleware(cacheControlWrapper(http.FileServer(http.Dir("static")))))
-	registerAPIRoutes(mux, bookmarkHandler, groupHandler, searchEngineHandler, fetchHandler)
+	registerAPIRoutes(mux, bookmarkHandler, groupHandler, searchEngineHandler, initialDataHandler, fetchHandler)
 
 	// 版本信息（公开访问，无需认证）
 	mux.HandleFunc("/api/version", methodRouter(map[string]http.HandlerFunc{
@@ -173,7 +174,7 @@ func main() {
 }
 
 // registerAPIRoutes 注册所有 API 路由
-func registerAPIRoutes(mux *http.ServeMux, bh *handlers.BookmarkHandler, gh *handlers.GroupHandler, sh *handlers.SearchEngineHandler, fh *handlers.FetchHandler) {
+func registerAPIRoutes(mux *http.ServeMux, bh *handlers.BookmarkHandler, gh *handlers.GroupHandler, sh *handlers.SearchEngineHandler, ih *handlers.InitialDataHandler, fh *handlers.FetchHandler) {
 	// 书签路由（需要认证）
 	mux.Handle("/api/bookmarks", middleware.APIAuthMiddleware(withConditionalETag(methodRouter(map[string]http.HandlerFunc{
 		"GET":  bh.List,
@@ -222,6 +223,11 @@ func registerAPIRoutes(mux *http.ServeMux, bh *handlers.BookmarkHandler, gh *han
 		"DELETE": sh.Delete,
 		"POST":   sh.SetDefault,
 	})))
+
+	// 首屏聚合数据（需要认证）
+	mux.Handle("/api/initial-data", middleware.APIAuthMiddleware(withConditionalETag(methodRouter(map[string]http.HandlerFunc{
+		"GET": ih.Get,
+	}))))
 
 	// 其他 API（需要认证）
 	mux.Handle("/api/fetch-metadata", middleware.APIAuthMiddleware(methodRouter(map[string]http.HandlerFunc{
