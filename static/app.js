@@ -111,11 +111,37 @@ function registerServiceWorker() {
         return;
     }
 
+    // 临时关闭 SW 注册，用于隔离移动端 WebView 域名访问崩溃问题
+    if (shouldDisableServiceWorker()) {
+        cleanupServiceWorkerState();
+        return;
+    }
+
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js').catch(error => {
             console.error('Service Worker registration failed:', error);
         });
     });
+}
+
+function shouldDisableServiceWorker() {
+    return true;
+}
+
+function cleanupServiceWorkerState() {
+    navigator.serviceWorker.getRegistrations()
+        .then(registrations => Promise.all(registrations.map(reg => reg.unregister())))
+        .catch(() => {
+            // 清理失败时不影响主流程
+        });
+
+    if ('caches' in window) {
+        caches.keys()
+            .then(keys => Promise.all(keys.map(key => caches.delete(key))))
+            .catch(() => {
+                // 清理失败时不影响主流程
+            });
+    }
 }
 
 // ===================================

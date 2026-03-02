@@ -1,10 +1,8 @@
-const STATIC_CACHE = 'ntp-static-v1';
-const RUNTIME_CACHE = 'ntp-runtime-v1';
+const STATIC_CACHE = 'ntp-static-v2';
+const RUNTIME_CACHE = 'ntp-runtime-v2';
 const PRECACHE_URLS = [
     '/',
-    '/login',
     '/static/index.html',
-    '/static/login.html',
     '/static/logo.svg',
     '/static/i18n/en.json',
     '/static/i18n/zh.json'
@@ -39,6 +37,12 @@ self.addEventListener('fetch', (event) => {
 
     // API 请求仍走网络，避免缓存过期认证态或用户数据
     if (url.pathname.startsWith('/api/')) return;
+
+    // 登录页相关资源强制走网络，降低特定 WebView 命中旧缓存导致崩溃的概率
+    if (isLoginPageAsset(url.pathname)) {
+        event.respondWith(networkOnlyWithFallback(request));
+        return;
+    }
 
     // i18n 清单优先走网络，避免长时间持有旧版本映射
     if (url.pathname === '/static/i18n/manifest.json') {
@@ -92,4 +96,28 @@ async function cacheFirst(request) {
         await cache.put(request, response.clone());
     }
     return response;
+}
+
+function isLoginPageAsset(pathname) {
+    return pathname === '/login' ||
+        pathname === '/static/login.html' ||
+        pathname === '/static/login.css' ||
+        pathname === '/static/login.js';
+}
+
+async function networkOnlyWithFallback(request) {
+    const staticCache = await caches.open(STATIC_CACHE);
+    const runtimeCache = await caches.open(RUNTIME_CACHE);
+    try {
+        const networkRequest = new Request(request, { cache: 'no-store' });
+        const response = await fetch(networkRequest);
+        if (response && response.ok) {
+            await staticCache.put(request, response.clone());
+        }
+        return response;
+    } catch {
+        return (await staticCache.match(request)) ||
+            (await runtimeCache.match(request)) ||
+            Response.error();
+    }
 }

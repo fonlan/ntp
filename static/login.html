@@ -4,11 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title data-i18n="login.title">Login - NTP</title>
+    <title id="pageTitle">Login - NTP</title>
     <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
     <link rel="stylesheet" href="/static/style.css">
     <link rel="stylesheet" href="/static/login.css">
-    <script src="/static/i18n.js"></script>
 </head>
 
 <body class="login-page">
@@ -16,25 +15,25 @@
         <div class="login-box">
             <div class="login-header">
                 <img src="/static/logo.svg" alt="NTP Logo" class="login-logo">
-                <h1 data-i18n="app.title">NTP - Bookmark Navigation</h1>
-                <p data-i18n="login.subtitle">Please login to continue</p>
+                <h1 id="loginHeaderTitle">NTP - Bookmark Navigation</h1>
+                <p id="loginSubtitle">Please login to continue</p>
             </div>
-            <form id="loginForm" class="login-form">
+            <form id="loginForm" class="login-form" autocomplete="off">
                 <div class="form-group">
-                    <label for="username" data-i18n="login.username">Username</label>
-                    <input type="text" id="username" name="username" required autocomplete="username">
+                    <label for="username" id="usernameLabel">Username</label>
+                    <input type="text" id="username" name="ntp_user" required autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="text">
                 </div>
                 <div class="form-group">
-                    <label for="password" data-i18n="login.password">Password</label>
-                    <input type="password" id="password" name="password" required autocomplete="current-password">
+                    <label for="password" id="passwordLabel">Password</label>
+                    <input type="text" id="password" class="password-mask" name="ntp_pass" required autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
                 </div>
                 <div id="loginError" class="error-message" style="display: none;"></div>
                 <button type="submit" class="btn btn-primary btn-block" id="loginBtn">
-                    <span data-i18n="login.submit">Login</span>
+                    <span id="loginBtnText">Login</span>
                 </button>
             </form>
             <div class="login-footer">
-                <label for="languageSelect" class="sr-only" data-i18n="settings.language">Language</label>
+                <label for="languageSelect" class="sr-only" id="languageLabel">Language</label>
                 <select id="languageSelect" class="language-select">
                     <option value="en">English</option>
                     <option value="zh">简体中文</option>
