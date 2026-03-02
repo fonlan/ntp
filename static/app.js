@@ -1,5 +1,71 @@
 // API base path
 const API = '/api';
+const INITIAL_DATA_CACHE_TTL_MS = 5 * 60 * 1000;
+const INITIAL_DATA_CACHE_PREFIX = 'ntp-initial-cache:v1';
+const INITIAL_DATA_CACHE_NAMES = ['search-engines', 'groups', 'bookmarks'];
+
+function getInitialCacheStorageKey(name) {
+    return `${INITIAL_DATA_CACHE_PREFIX}:${name}`;
+}
+
+function readInitialDataCache(name) {
+    try {
+        const raw = localStorage.getItem(getInitialCacheStorageKey(name));
+        if (!raw) return null;
+
+        const parsed = JSON.parse(raw);
+        if (!parsed || !Array.isArray(parsed.data) || typeof parsed.updatedAt !== 'number') {
+            localStorage.removeItem(getInitialCacheStorageKey(name));
+            return null;
+        }
+
+        if (Date.now() - parsed.updatedAt > INITIAL_DATA_CACHE_TTL_MS) {
+            localStorage.removeItem(getInitialCacheStorageKey(name));
+            return null;
+        }
+
+        return parsed.data;
+    } catch {
+        return null;
+    }
+}
+
+function writeInitialDataCache(name, data) {
+    try {
+        localStorage.setItem(getInitialCacheStorageKey(name), JSON.stringify({
+            updatedAt: Date.now(),
+            data: Array.isArray(data) ? data : []
+        }));
+    } catch {
+        // 本地缓存写入失败时静默降级，不影响主流程
+    }
+}
+
+function clearInitialDataCache() {
+    INITIAL_DATA_CACHE_NAMES.forEach(name => {
+        localStorage.removeItem(getInitialCacheStorageKey(name));
+    });
+}
+
+function isSameArrayData(previousData, nextData) {
+    try {
+        return JSON.stringify(previousData) === JSON.stringify(nextData);
+    } catch {
+        return false;
+    }
+}
+
+function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) {
+        return;
+    }
+
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(error => {
+            console.error('Service Worker registration failed:', error);
+        });
+    });
+}
 
 // ===================================
 // 移动端布局调整
@@ -72,6 +138,8 @@ async function apiRequest(url, options = {}) {
 
     // 处理 401 未授权响应，重定向到登录页
     if (response.status === 401) {
+        // 未授权时清理首屏缓存，避免共享设备出现旧数据闪现
+        clearInitialDataCache();
         // 如果当前不在登录页面，则重定向
         if (window.location.pathname !== '/login') {
             window.location.href = '/login';
@@ -196,11 +264,13 @@ const dom = {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
+    registerServiceWorker();
     await i18n.init();
     loadSettings();
     initSettingsPanelNavigation();
     try {
-        await Promise.all([loadSearchEngines(), loadGroups(), loadBookmarks()]);
+        await Promise.all([loadInitialSearchEngines(), loadInitialGroups()]);
+        await loadInitialBookmarks();
     } catch (error) {
         console.error('Failed to load initial data:', error);
     }
@@ -264,7 +334,7 @@ function clearBookmarkDraggingState() {
     state.draggedItem = null;
 }
 
-async function loadData(url, errorMsg) {
+async function loadData(url, errorMsg, returnNullOnError = false) {
     try {
         const res = await apiRequest(url);
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
@@ -276,8 +346,39 @@ async function loadData(url, errorMsg) {
         if (err.message !== 'Unauthorized') {
             console.error(errorMsg, err);
         }
-        return [];
+        return returnNullOnError ? null : [];
     }
+}
+
+async function fetchFreshListData(url, errorMsg) {
+    return loadData(url, errorMsg, true);
+}
+
+async function loadDataWithStaleWhileRevalidate(cacheName, fetchFresh, applyData) {
+    const cachedData = readInitialDataCache(cacheName);
+    if (cachedData) {
+        await applyData(cachedData);
+
+        void (async () => {
+            const freshData = await fetchFresh();
+            if (freshData === null) return;
+
+            writeInitialDataCache(cacheName, freshData);
+            if (!isSameArrayData(cachedData, freshData)) {
+                await applyData(freshData);
+            }
+        })();
+
+        return cachedData;
+    }
+
+    const freshData = await fetchFresh();
+    const dataToUse = freshData || [];
+    if (freshData !== null) {
+        writeInitialDataCache(cacheName, freshData);
+    }
+    await applyData(dataToUse);
+    return dataToUse;
 }
 
 /**
@@ -609,11 +710,29 @@ function applyBackgroundPattern(patternClass) {
 // ===================================
 // Search Engine
 // ===================================
-async function loadSearchEngines() {
-    state.engines = await loadData(`${API}/search-engines`, i18n.t('errors.loadEngineFailed'));
-    state.currentEngine = state.engines.find(e => e.is_default) || state.engines[0] || null;
+function applySearchEngines(engines) {
+    const previousEngineID = state.currentEngine?.id;
+    state.engines = ensureArray(engines);
+    state.currentEngine = state.engines.find(e => e.id === previousEngineID) ||
+        state.engines.find(e => e.is_default) ||
+        state.engines[0] ||
+        null;
     renderCurrentEngine();
     renderEngineDropdown();
+}
+
+async function loadSearchEngines() {
+    const engines = await loadData(`${API}/search-engines`, i18n.t('errors.loadEngineFailed'));
+    writeInitialDataCache('search-engines', engines);
+    applySearchEngines(engines);
+}
+
+async function loadInitialSearchEngines() {
+    await loadDataWithStaleWhileRevalidate(
+        'search-engines',
+        () => fetchFreshListData(`${API}/search-engines`, i18n.t('errors.loadEngineFailed')),
+        applySearchEngines
+    );
 }
 
 function renderCurrentEngine() {
@@ -674,10 +793,24 @@ function toggleEngineDropdown() {
 // ===================================
 // Groups
 // ===================================
-async function loadGroups() {
-    state.groups = await loadData(`${API}/groups`, i18n.t('errors.loadGroupFailed'));
+function applyGroups(groups) {
+    state.groups = ensureArray(groups);
     updateGroupSelect();
     renderSettingsGroups();
+}
+
+async function loadGroups() {
+    const groups = await loadData(`${API}/groups`, i18n.t('errors.loadGroupFailed'));
+    writeInitialDataCache('groups', groups);
+    applyGroups(groups);
+}
+
+async function loadInitialGroups() {
+    await loadDataWithStaleWhileRevalidate(
+        'groups',
+        () => fetchFreshListData(`${API}/groups`, i18n.t('errors.loadGroupFailed')),
+        applyGroups
+    );
 }
 
 
@@ -690,9 +823,7 @@ function updateGroupSelect() {
 // ===================================
 // Bookmarks
 // ===================================
-async function loadBookmarks() {
-    state.bookmarks = await loadData(`${API}/bookmarks`, i18n.t('errors.loadBookmarkFailed'));
-
+async function waitForGroupsForBookmarkRender() {
     // 确保分组数据已加载后再渲染书签（避免竞态条件）
     // 如果分组还未加载，等待最多 100ms
     let attempts = 0;
@@ -700,8 +831,26 @@ async function loadBookmarks() {
         await new Promise(resolve => setTimeout(resolve, 10));
         attempts++;
     }
+}
 
+async function applyBookmarks(bookmarks) {
+    state.bookmarks = ensureArray(bookmarks);
+    await waitForGroupsForBookmarkRender();
     renderBookmarks();
+}
+
+async function loadBookmarks() {
+    const bookmarks = await loadData(`${API}/bookmarks`, i18n.t('errors.loadBookmarkFailed'));
+    writeInitialDataCache('bookmarks', bookmarks);
+    await applyBookmarks(bookmarks);
+}
+
+async function loadInitialBookmarks() {
+    await loadDataWithStaleWhileRevalidate(
+        'bookmarks',
+        () => fetchFreshListData(`${API}/bookmarks`, i18n.t('errors.loadBookmarkFailed')),
+        applyBookmarks
+    );
 }
 
 function renderBookmarkGroup(id, title, bookmarks) {
@@ -2097,6 +2246,7 @@ async function handleLogout() {
         const data = await response.json();
 
         if (data.success) {
+            clearInitialDataCache();
             // Redirect to login page
             window.location.href = '/login.html';
         } else {

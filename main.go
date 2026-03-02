@@ -82,6 +82,15 @@ func main() {
 		http.ServeFile(w, r, "static/login.html")
 	})
 
+	// Service Worker 脚本（公开访问，确保可在根路径注册）
+	mux.Handle("/sw.js", cacheControlWrapper(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/sw.js" {
+			http.NotFound(w, r)
+			return
+		}
+		http.ServeFile(w, r, "static/sw.js")
+	})))
+
 	// 认证 API（公开访问，无需认证）
 	mux.HandleFunc("/api/login", methodRouter(map[string]http.HandlerFunc{
 		"POST": authHandler.Login,
@@ -287,7 +296,10 @@ func (w *cacheControlResponseWriter) WriteHeader(statusCode int) {
 		path := w.Request.URL.Path
 
 		var cacheControl string
-		if strings.HasSuffix(path, ".html") {
+		if path == "/sw.js" || strings.HasSuffix(path, "/sw.js") {
+			// Service Worker 需要及时更新，避免浏览器长期缓存旧脚本
+			cacheControl = "no-cache, no-store, must-revalidate"
+		} else if strings.HasSuffix(path, ".html") {
 			cacheControl = "no-cache, no-store, must-revalidate"
 		} else if hashedAssetPattern.MatchString(path) {
 			cacheControl = "public, max-age=31536000, immutable"
