@@ -1,6 +1,9 @@
 package main
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -172,10 +175,10 @@ func main() {
 // registerAPIRoutes 注册所有 API 路由
 func registerAPIRoutes(mux *http.ServeMux, bh *handlers.BookmarkHandler, gh *handlers.GroupHandler, sh *handlers.SearchEngineHandler, fh *handlers.FetchHandler) {
 	// 书签路由（需要认证）
-	mux.Handle("/api/bookmarks", middleware.APIAuthMiddleware(methodRouter(map[string]http.HandlerFunc{
+	mux.Handle("/api/bookmarks", middleware.APIAuthMiddleware(withConditionalETag(methodRouter(map[string]http.HandlerFunc{
 		"GET":  bh.List,
 		"POST": bh.Create,
-	})))
+	}))))
 	mux.Handle("/api/bookmarks/search", middleware.APIAuthMiddleware(methodRouter(map[string]http.HandlerFunc{
 		"GET": bh.Search,
 	})))
@@ -194,10 +197,10 @@ func registerAPIRoutes(mux *http.ServeMux, bh *handlers.BookmarkHandler, gh *han
 	})))
 
 	// 分组路由（需要认证）
-	mux.Handle("/api/groups", middleware.APIAuthMiddleware(methodRouter(map[string]http.HandlerFunc{
+	mux.Handle("/api/groups", middleware.APIAuthMiddleware(withConditionalETag(methodRouter(map[string]http.HandlerFunc{
 		"GET":  gh.List,
 		"POST": gh.Create,
-	})))
+	}))))
 	mux.Handle("/api/groups/reorder", middleware.APIAuthMiddleware(methodRouter(map[string]http.HandlerFunc{
 		"POST": gh.Reorder,
 	})))
@@ -207,10 +210,10 @@ func registerAPIRoutes(mux *http.ServeMux, bh *handlers.BookmarkHandler, gh *han
 	})))
 
 	// 搜索引擎路由（需要认证）
-	mux.Handle("/api/search-engines", middleware.APIAuthMiddleware(methodRouter(map[string]http.HandlerFunc{
+	mux.Handle("/api/search-engines", middleware.APIAuthMiddleware(withConditionalETag(methodRouter(map[string]http.HandlerFunc{
 		"GET":  sh.List,
 		"POST": sh.Create,
-	})))
+	}))))
 	mux.Handle("/api/search-engines/reorder", middleware.APIAuthMiddleware(methodRouter(map[string]http.HandlerFunc{
 		"POST": sh.Reorder,
 	})))
@@ -242,6 +245,117 @@ func methodRouter(handlers map[string]http.HandlerFunc) http.HandlerFunc {
 		}
 		handler(w, r)
 	}
+}
+
+// withConditionalETag 为 GET 请求添加 ETag/304 支持
+func withConditionalETag(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		recorder := newETagResponseRecorder()
+		next.ServeHTTP(recorder, r)
+
+		// 默认状态码与 net/http 保持一致
+		if recorder.statusCode == 0 {
+			recorder.statusCode = http.StatusOK
+		}
+
+		// 仅对 200 + JSON 响应启用 ETag，其他响应原样透传
+		if recorder.statusCode != http.StatusOK || !strings.Contains(strings.ToLower(recorder.header.Get("Content-Type")), "application/json") {
+			writeRecordedResponse(w, recorder)
+			return
+		}
+
+		etag := buildWeakETag(recorder.body.Bytes())
+		copyHeaders(w.Header(), recorder.header)
+		w.Header().Set("ETag", etag)
+		// 允许浏览器缓存但每次需与服务端再验证，可命中 304
+		w.Header().Set("Cache-Control", "private, no-cache")
+
+		if isIfNoneMatch(r.Header.Get("If-None-Match"), etag) {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+
+		w.WriteHeader(recorder.statusCode)
+		_, _ = w.Write(recorder.body.Bytes())
+	})
+}
+
+// etagResponseRecorder 记录响应状态、头与 Body，用于计算 ETag
+type etagResponseRecorder struct {
+	header     http.Header
+	body       bytes.Buffer
+	statusCode int
+}
+
+func newETagResponseRecorder() *etagResponseRecorder {
+	return &etagResponseRecorder{
+		header: make(http.Header),
+	}
+}
+
+func (r *etagResponseRecorder) Header() http.Header {
+	return r.header
+}
+
+func (r *etagResponseRecorder) Write(p []byte) (int, error) {
+	if r.statusCode == 0 {
+		r.statusCode = http.StatusOK
+	}
+	return r.body.Write(p)
+}
+
+func (r *etagResponseRecorder) WriteHeader(statusCode int) {
+	r.statusCode = statusCode
+}
+
+func writeRecordedResponse(w http.ResponseWriter, recorder *etagResponseRecorder) {
+	copyHeaders(w.Header(), recorder.header)
+	w.WriteHeader(recorder.statusCode)
+	_, _ = w.Write(recorder.body.Bytes())
+}
+
+func copyHeaders(dst, src http.Header) {
+	for key, values := range src {
+		dst.Del(key)
+		for _, value := range values {
+			dst.Add(key, value)
+		}
+	}
+}
+
+func buildWeakETag(content []byte) string {
+	sum := sha256.Sum256(content)
+	// 截断哈希可显著缩短头部长度，同时保持足够区分度
+	return `W/"` + hex.EncodeToString(sum[:8]) + `"`
+}
+
+func isIfNoneMatch(ifNoneMatch, etag string) bool {
+	if strings.TrimSpace(ifNoneMatch) == "" {
+		return false
+	}
+
+	target := normalizeETag(etag)
+	for _, item := range strings.Split(ifNoneMatch, ",") {
+		candidate := strings.TrimSpace(item)
+		if candidate == "*" {
+			return true
+		}
+		if normalizeETag(candidate) == target {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizeETag(value string) string {
+	cleaned := strings.TrimSpace(value)
+	cleaned = strings.TrimPrefix(cleaned, "W/")
+	return strings.Trim(cleaned, `"`)
 }
 
 // enableCORS 启用 CORS 中间件
