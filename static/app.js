@@ -1147,6 +1147,8 @@ function initScrollTracking() {
 
 const ContextMenu = {
     menu: null,
+    suppressBookmarkClickUntil: 0,
+    lastTouchMenuActionAt: 0,
     
     init() {
         this.menu = dom.contextMenu;
@@ -1155,9 +1157,7 @@ const ContextMenu = {
 
     bindEvents() {
         if (this.menu._menuHandlerAdded) return;
-        
-        // Menu item clicks
-        this.menu.addEventListener('click', (e) => this.handleMenuClick(e));
+        this.bindMenuItemEvents();
         
         // Hide on outside click
         document.addEventListener('click', (e) => {
@@ -1173,8 +1173,23 @@ const ContextMenu = {
         this.menu._menuHandlerAdded = true;
     },
 
-    show(e, card = null) {
+    bindMenuItemEvents() {
+        if (this.menu._itemHandlersAdded) return;
+
+        this.menu.querySelectorAll('.context-menu-item').forEach(item => {
+            item.addEventListener('click', (e) => this.handleMenuItemClick(e, item));
+            item.addEventListener('touchend', (e) => this.handleMenuItemTouchEnd(e, item), { passive: false });
+        });
+
+        this.menu._itemHandlersAdded = true;
+    },
+
+    show(e, card = null, options = {}) {
         const isBookmarkCard = !!card;
+        this.lastTouchMenuActionAt = 0;
+        if (options.fromTouch && isBookmarkCard) {
+            this.suppressBookmarkClickUntil = Date.now() + 800;
+        }
         
         // Toggle menu items
         this.menu.querySelectorAll('.global-action').forEach(el => 
@@ -1187,8 +1202,8 @@ const ContextMenu = {
         i18n.updateElement(this.menu);
 
         // Position logic
-        const menuWidth = 180;
-        const menuHeight = isBookmarkCard ? 100 : 160;
+        const menuWidth = 200;
+        const menuHeight = isBookmarkCard ? 112 : 104;
         const offset = 5;
         
         let x = e.clientX + offset;
@@ -1208,9 +1223,33 @@ const ContextMenu = {
         clearBookmarkDraggingState();
     },
 
-    handleMenuClick(e) {
-        const item = e.target.closest('.context-menu-item');
-        if (!item) return;
+    handleMenuItemClick(e, item) {
+        if (Date.now() - this.lastTouchMenuActionAt < 700) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
+
+        this.runMenuAction(item, e);
+    },
+
+    handleMenuItemTouchEnd(e, item) {
+        if (Date.now() - this.lastTouchMenuActionAt < 300) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
+
+        e.preventDefault();
+        this.lastTouchMenuActionAt = Date.now();
+        this.runMenuAction(item, e);
+    },
+
+    runMenuAction(item, e) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation?.();
+        this.suppressBookmarkClickUntil = Date.now() + 1000;
 
         const action = item.dataset.action;
         const bookmarkId = parseInt(this.menu.dataset.currentBookmarkId);
@@ -1219,7 +1258,9 @@ const ContextMenu = {
             case 'add-bookmark': showBookmarkModal(); break;
             case 'settings': this.openSettings(); break;
             case 'edit': editBookmark(bookmarkId); break;
-            case 'delete': deleteBookmark(bookmarkId); break;
+            case 'delete':
+                if (!Number.isNaN(bookmarkId)) deleteBookmark(bookmarkId);
+                break;
         }
         this.hide();
     },
@@ -1293,6 +1334,11 @@ function initBookmarkClickHandlers() {
 
     // 点击事件 - 打开书签
     container._cardClickHandler = onEvent(container, 'click', '.bookmark-card', (e, card) => {
+        if (Date.now() < ContextMenu.suppressBookmarkClickUntil) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
         const url = card.dataset.url;
         const target = card.dataset.target || '_blank';
         if (url) window.open(url, target);
@@ -1310,7 +1356,7 @@ function initBookmarkClickHandlers() {
         touchTimer = setTimeout(() => {
             if (navigator.vibrate) navigator.vibrate(50);
             const touch = e.touches[0];
-            ContextMenu.show({ clientX: touch.clientX, clientY: touch.clientY }, card);
+            ContextMenu.show({ clientX: touch.clientX, clientY: touch.clientY }, card, { fromTouch: true });
         }, 500);
     }, { passive: true });
 
@@ -2408,6 +2454,8 @@ async function loadVersionInfo() {
 // Event Listeners Initialization
 // ===================================
 function initEventListeners() {
+    ContextMenu.init();
+
     // Search engine selector
     document.getElementById('searchEngineSelector').addEventListener('click', (e) => {
         if (!e.target.closest('.engine-dropdown-item')) {
