@@ -120,6 +120,7 @@ CGO_ENABLED=1 go build -o ntp .
 - `AUTH_USERNAME`：登录用户名（可选，与 `AUTH_PASSWORD` 同时设置时启用认证）
 - `AUTH_PASSWORD`：登录密码（可选，与 `AUTH_USERNAME` 同时设置时启用认证）
 - `SESSION_SECRET`：Session 加密密钥（可选，不设置时自动生成）
+- `SESSION_TTL`：登录有效期（可选，默认 `7d`，支持 Go duration 格式和 `Nd`，例如 `168h` 或 `7d`）
 
 **认证配置说明**：
 - 如果设置了 `AUTH_USERNAME` 和 `AUTH_PASSWORD`，访问首页和 API 需要先登录
@@ -141,6 +142,7 @@ services:
       - AUTH_USERNAME=admin
       - AUTH_PASSWORD=your_secure_password_here
       - SESSION_SECRET=your_random_secret_string_here
+      - SESSION_TTL=7d
 ```
 
 ## 数据与持久化

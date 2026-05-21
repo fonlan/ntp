@@ -4,17 +4,23 @@ package middleware
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"log"
 	"net/http"
 	"os"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
+
+const defaultSessionTTL = 7 * 24 * time.Hour
 
 // AuthConfig holds authentication configuration
 type AuthConfig struct {
 	Username      string
 	Password      string
 	SessionSecret string
+	SessionTTL    time.Duration
 	Enabled       bool
 }
 
@@ -36,6 +42,7 @@ func GetAuthConfig() *AuthConfig {
 		username := os.Getenv("AUTH_USERNAME")
 		password := os.Getenv("AUTH_PASSWORD")
 		secret := os.Getenv("SESSION_SECRET")
+		sessionTTL := parseSessionTTL(os.Getenv("SESSION_TTL"))
 
 		// If both username and password are not set, disable authentication
 		enabled := username != "" && password != ""
@@ -49,10 +56,33 @@ func GetAuthConfig() *AuthConfig {
 			Username:      username,
 			Password:      password,
 			SessionSecret: secret,
+			SessionTTL:    sessionTTL,
 			Enabled:       enabled,
 		}
 	})
 	return authConfig
+}
+
+// parseSessionTTL parses the session validity period from environment variables.
+func parseSessionTTL(raw string) time.Duration {
+	if raw == "" {
+		return defaultSessionTTL
+	}
+
+	if strings.HasSuffix(raw, "d") {
+		days, err := strconv.Atoi(strings.TrimSuffix(raw, "d"))
+		if err == nil && days > 0 {
+			return time.Duration(days) * 24 * time.Hour
+		}
+	}
+
+	ttl, err := time.ParseDuration(raw)
+	if err == nil && ttl > 0 {
+		return ttl
+	}
+
+	log.Printf("无效的 SESSION_TTL=%q，使用默认值 %s", raw, defaultSessionTTL)
+	return defaultSessionTTL
 }
 
 // generateRandomSecret generates a random 32-byte secret
@@ -141,11 +171,13 @@ func CreateSession(username string) (string, error) {
 	}
 	sessionID := base64.StdEncoding.EncodeToString(randomBytes)
 
-	// Store session (7 day expiration)
+	config := GetAuthConfig()
+
+	// Store session with configurable expiration
 	sessionMutex.Lock()
 	sessionStore[sessionID] = &sessionInfo{
 		Username:  username,
-		ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
+		ExpiresAt: time.Now().Add(config.SessionTTL),
 	}
 	sessionMutex.Unlock()
 
