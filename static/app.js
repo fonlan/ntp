@@ -310,6 +310,8 @@ const dom = {
     get settingsModal() { return this._settingsModal ||= document.getElementById('settingsModal'); },
     get bookmarkModal() { return this._bookmarkModal ||= document.getElementById('bookmarkModal'); },
     get groupModal() { return this._groupModal ||= document.getElementById('groupModal'); },
+    get groupDeleteModal() { return this._groupDeleteModal ||= document.getElementById('groupDeleteModal'); },
+    get groupDeleteMessage() { return this._groupDeleteMessage ||= document.getElementById('groupDeleteMessage'); },
     get engineEditModal() { return this._engineEditModal ||= document.getElementById('engineEditModal'); },
     get importModal() { return this._importModal ||= document.getElementById('importModal'); },
     get contextMenu() { return this._contextMenu ||= document.getElementById('contextMenu'); },
@@ -329,6 +331,8 @@ const dom = {
         this._settingsModal = null;
         this._bookmarkModal = null;
         this._groupModal = null;
+        this._groupDeleteModal = null;
+        this._groupDeleteMessage = null;
         this._engineEditModal = null;
         this._importModal = null;
         this._contextMenu = null;
@@ -2113,16 +2117,59 @@ async function editGroup(id) {
 }
 
 async function deleteGroup(id) {
-    if (!confirm(i18n.t('group.deleteConfirm'))) return;
+    const choice = await showGroupDeleteDialog(id);
+    if (choice === 'cancel') return;
 
     try {
-        await apiRequest(`${API}/groups/${id}`, { method: 'DELETE' });
+        await apiRequest(buildDeleteGroupUrl(id, choice === 'delete-bookmarks'), { method: 'DELETE' });
         await loadGroups();
+        await loadBookmarks();
         renderSettingsGroups();
     } catch (err) {
         console.error(i18n.t('errors.deleteFailed'), err);
         showError(i18n.t('errors.deleteFailed'));
     }
+}
+
+function showGroupDeleteDialog(id) {
+    const group = state.groups.find(g => g.id === id);
+    const bookmarkCount = group?.bookmark_count || 0;
+    const modal = dom.groupDeleteModal;
+    const message = dom.groupDeleteMessage;
+
+    if (!modal || !message) {
+        return Promise.resolve(confirm(i18n.t('group.deleteConfirm')) ? 'keep-bookmarks' : 'cancel');
+    }
+
+    message.textContent = i18n.t('group.deleteChoiceMessage', {
+        name: group?.name || '',
+        count: bookmarkCount
+    });
+
+    modal.dataset.preventBackdropClose = 'true';
+    modal.classList.add('show');
+
+    return new Promise(resolve => {
+        const finish = (choice) => {
+            modal.classList.remove('show');
+            delete modal.dataset.preventBackdropClose;
+            modal.removeEventListener('click', handleChoice);
+            resolve(choice);
+        };
+
+        const handleChoice = (e) => {
+            const btn = e.target.closest('[data-group-delete-choice]');
+            if (!btn || !modal.contains(btn)) return;
+            finish(btn.dataset.groupDeleteChoice);
+        };
+
+        modal.addEventListener('click', handleChoice);
+    });
+}
+
+function buildDeleteGroupUrl(id, deleteBookmarks) {
+    const url = `${API}/groups/${id}`;
+    return deleteBookmarks ? `${url}?delete_bookmarks=true` : url;
 }
 
 function renderSettingsGroups() {
@@ -2172,15 +2219,7 @@ function initGroupListActions() {
             const group = state.groups.find(g => g.id === id);
             if (group) showGroupModal(group);
         } else if (action === 'delete-group') {
-            if (!confirm(i18n.t('group.deleteConfirm'))) return;
-            try {
-                await apiRequest(`${API}/groups/${id}`, { method: 'DELETE' });
-                await loadGroups();
-                renderSettingsGroups();
-            } catch (err) {
-                console.error(i18n.t('errors.deleteFailed'), err);
-                showError(i18n.t('errors.deleteFailed'));
-            }
+            await deleteGroup(id);
         }
     });
 }
@@ -2520,6 +2559,7 @@ function initEventListeners() {
 
     document.querySelectorAll('.modal').forEach(modal => {
         modal.addEventListener('click', (e) => {
+            if (modal.dataset.preventBackdropClose === 'true') return;
             // 只有当鼠标按下和释放在同一个元素上，且点击的是遮罩层时才关闭
             if (e.target === modal && mouseDownTarget === modal) {
                 modal.classList.remove('show');

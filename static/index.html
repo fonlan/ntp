@@ -428,6 +428,26 @@
         </div>
     </div>
 
+    <!-- Delete group confirmation modal -->
+    <div id="groupDeleteModal" class="modal">
+        <div class="modal-content confirm-modal">
+            <div class="modal-header">
+                <h2 data-i18n="group.deleteTitle">Delete Group</h2>
+            </div>
+            <div class="modal-body">
+                <p id="groupDeleteMessage" class="confirm-message"></p>
+            </div>
+            <div class="modal-footer confirm-footer">
+                <button type="button" class="btn btn-danger" data-group-delete-choice="delete-bookmarks"
+                    data-i18n="actions.yes">Yes</button>
+                <button type="button" class="btn btn-primary" data-group-delete-choice="keep-bookmarks"
+                    data-i18n="actions.no">No</button>
+                <button type="button" class="btn btn-secondary" data-group-delete-choice="cancel"
+                    data-i18n="actions.cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Add/Edit group modal -->
     <div id="groupModal" class="modal">
         <div class="modal-content">

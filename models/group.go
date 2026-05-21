@@ -101,8 +101,32 @@ func (r *GroupRepository) Update(group *Group) error {
 
 // Delete 删除分组
 func (r *GroupRepository) Delete(id int64) error {
-	_, err := r.db.Exec("DELETE FROM groups WHERE id = ?", id)
-	return err
+	return r.DeleteWithBookmarks(id, false)
+}
+
+// DeleteWithBookmarks 删除分组，并可同时删除该分组下的书签
+func (r *GroupRepository) DeleteWithBookmarks(id int64, deleteBookmarks bool) error {
+	if !deleteBookmarks {
+		_, err := r.db.Exec("DELETE FROM groups WHERE id = ?", id)
+		return err
+	}
+
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+
+	if _, err := tx.Exec("DELETE FROM bookmarks WHERE group_id = ?", id); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if _, err := tx.Exec("DELETE FROM groups WHERE id = ?", id); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit()
 }
 
 // BatchReorder 批量排序

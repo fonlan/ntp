@@ -3,9 +3,10 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
-	"ntp/models"
 	"ntp/middleware"
+	"ntp/models"
 )
 
 // GroupHandler 分组处理器
@@ -105,8 +106,13 @@ func (h *GroupHandler) Update(w http.ResponseWriter, r *http.Request) {
 func (h *GroupHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	translator := middleware.TranslatorFromContext(r.Context())
 	id := extractPathID(r, "/api/groups/")
+	deleteBookmarks, err := strconv.ParseBool(r.URL.Query().Get("delete_bookmarks"))
+	if err != nil && r.URL.Query().Get("delete_bookmarks") != "" {
+		respondError(w, http.StatusBadRequest, translator.T("common.invalidRequest"))
+		return
+	}
 
-	if err := h.groupRepo.Delete(id); err != nil {
+	if err := h.groupRepo.DeleteWithBookmarks(id, deleteBookmarks); err != nil {
 		respondError(w, http.StatusInternalServerError, translator.T("group.deleteFailed")+": "+err.Error())
 		return
 	}

@@ -86,7 +86,9 @@
     "titlePlaceholder": "分组名称",
     "save": "保存",
     "cancel": "取消",
-    "deleteConfirm": "确定要删除这个分组吗？分组内的书签将变为未分组。",
+    "deleteConfirm": "确定要删除这个分组吗？",
+    "deleteTitle": "删除分组",
+    "deleteChoiceMessage": "确定要删除「${name}」分组吗？该分组下有 ${count} 个书签。选择“是”会同时删除这些书签；选择“否”只删除分组，书签将变为未分组；选择“取消”则不删除。",
     "untitled": "未命名",
     "ungrouped": "未分组",
     "bookmarks": "个书签"
@@ -153,6 +155,8 @@
     "add": "添加",
     "create": "创建",
     "confirm": "确认",
+    "yes": "是",
+    "no": "否",
     "addBookmark": "新建书签",
     "settings": "设置"
   },
