@@ -49,7 +49,7 @@ go run .
 - `PORT`：服务端口，默认 `8080`
 - `AUTH_USERNAME` / `AUTH_PASSWORD`：启用登录认证
 - `SESSION_SECRET`：Session 密钥
-- `SESSION_TTL`：登录有效期
+- `SESSION_TTL`：登录有效期，默认 `365d`（一年）
 
 ## 数据持久化
 

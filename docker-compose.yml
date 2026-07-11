@@ -15,5 +15,5 @@ services:
       # - AUTH_USERNAME=admin
       # - AUTH_PASSWORD=your_password_here
       # - SESSION_SECRET=your_random_secret_here
-      # - SESSION_TTL=7d
+      # - SESSION_TTL=365d
     # 如果不设置 AUTH_USERNAME 和 AUTH_PASSWORD，认证将被禁用（公开访问）

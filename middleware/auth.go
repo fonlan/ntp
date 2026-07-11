@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-const defaultSessionTTL = 7 * 24 * time.Hour
+const defaultSessionTTL = 365 * 24 * time.Hour
 
 // AuthConfig holds authentication configuration
 type AuthConfig struct {
