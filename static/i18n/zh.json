@@ -89,6 +89,9 @@
     "deleteConfirm": "确定要删除这个分组吗？",
     "deleteTitle": "删除分组",
     "deleteChoiceMessage": "确定要删除「${name}」分组吗？该分组下有 ${count} 个书签。选择“是”会同时删除这些书签；选择“否”只删除分组，书签将变为未分组；选择“取消”则不删除。",
+    "hide": "隐藏分组",
+    "show": "显示分组",
+    "hidden": "已隐藏",
     "untitled": "未命名",
     "ungrouped": "未分组",
     "bookmarks": "个书签"

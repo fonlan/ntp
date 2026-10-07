@@ -28,6 +28,7 @@ func setupGroupRepositoryTestDB(t *testing.T) *sql.DB {
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			name TEXT NOT NULL UNIQUE,
 			sort_order INTEGER NOT NULL DEFAULT 0,
+			hidden BOOLEAN NOT NULL DEFAULT 0,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		);
 
@@ -101,5 +102,56 @@ func TestGroupRepositoryDeleteWithBookmarks_deletesAssociatedBookmarks(t *testin
 
 	if bookmarkCount != 0 {
 		t.Fatalf("expected associated bookmarks to be deleted, got %d", bookmarkCount)
+	}
+}
+
+func TestGroupRepositoryHidden(t *testing.T) {
+	db := setupGroupRepositoryTestDB(t)
+	repo := NewGroupRepository(db)
+	groupID := seedGroupWithBookmark(t, db)
+
+	// 默认创建的分组不隐藏
+	group, err := repo.GetByID(groupID)
+	if err != nil {
+		t.Fatalf("get group: %v", err)
+	}
+	if group.Hidden {
+		t.Fatalf("expected new group to be visible")
+	}
+
+	// 隐藏分组
+	group.Hidden = true
+	if err := repo.Update(group); err != nil {
+		t.Fatalf("update group: %v", err)
+	}
+
+	group, err = repo.GetByID(groupID)
+	if err != nil {
+		t.Fatalf("get group: %v", err)
+	}
+	if !group.Hidden {
+		t.Fatalf("expected group to be hidden after update")
+	}
+
+	groups, err := repo.GetAll()
+	if err != nil {
+		t.Fatalf("get all groups: %v", err)
+	}
+	if len(groups) != 1 || !groups[0].Hidden {
+		t.Fatalf("expected GetAll to return hidden group, got %+v", groups)
+	}
+
+	// 恢复显示
+	group.Hidden = false
+	if err := repo.Update(group); err != nil {
+		t.Fatalf("update group: %v", err)
+	}
+
+	groups, err = repo.GetAll()
+	if err != nil {
+		t.Fatalf("get all groups: %v", err)
+	}
+	if len(groups) != 1 || groups[0].Hidden {
+		t.Fatalf("expected GetAll to return visible group, got %+v", groups)
 	}
 }

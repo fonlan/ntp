@@ -29,6 +29,7 @@ type GroupCreateRequest struct {
 type GroupUpdateRequest struct {
 	Name      *string `json:"name,omitempty"`
 	SortOrder *int    `json:"sort_order,omitempty"`
+	Hidden    *bool   `json:"hidden,omitempty"`
 }
 
 // GroupReorderRequest 排序请求
@@ -92,6 +93,9 @@ func (h *GroupHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.SortOrder != nil {
 		group.SortOrder = *req.SortOrder
+	}
+	if req.Hidden != nil {
+		group.Hidden = *req.Hidden
 	}
 
 	if err := h.groupRepo.Update(group); err != nil {

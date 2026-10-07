@@ -10,6 +10,7 @@ type Group struct {
 	ID            int64     `json:"id"`
 	Name          string    `json:"name"`
 	SortOrder     int       `json:"sort_order"`
+	Hidden        bool      `json:"hidden"`
 	CreatedAt     time.Time `json:"created_at"`
 	BookmarkCount int       `json:"bookmark_count"`
 }
@@ -27,8 +28,8 @@ func NewGroupRepository(db *sql.DB) *GroupRepository {
 // Create 创建分组
 func (r *GroupRepository) Create(group *Group) error {
 	result, err := r.db.Exec(
-		"INSERT INTO groups (name, sort_order) VALUES (?, ?)",
-		group.Name, group.SortOrder,
+		"INSERT INTO groups (name, sort_order, hidden) VALUES (?, ?, ?)",
+		group.Name, group.SortOrder, group.Hidden,
 	)
 	if err != nil {
 		return err
@@ -47,9 +48,9 @@ func (r *GroupRepository) Create(group *Group) error {
 func (r *GroupRepository) GetByID(id int64) (*Group, error) {
 	group := &Group{}
 	err := r.db.QueryRow(
-		"SELECT id, name, sort_order, created_at FROM groups WHERE id = ?",
+		"SELECT id, name, sort_order, hidden, created_at FROM groups WHERE id = ?",
 		id,
-	).Scan(&group.ID, &group.Name, &group.SortOrder, &group.CreatedAt)
+	).Scan(&group.ID, &group.Name, &group.SortOrder, &group.Hidden, &group.CreatedAt)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -60,7 +61,7 @@ func (r *GroupRepository) GetByID(id int64) (*Group, error) {
 // GetAll 获取所有分组
 func (r *GroupRepository) GetAll() ([]Group, error) {
 	rows, err := r.db.Query(`
-		SELECT g.id, g.name, g.sort_order, g.created_at,
+		SELECT g.id, g.name, g.sort_order, g.hidden, g.created_at,
 		       (
 			SELECT COUNT(*)
 			FROM bookmarks b
@@ -77,7 +78,7 @@ func (r *GroupRepository) GetAll() ([]Group, error) {
 	groups := []Group{}
 	for rows.Next() {
 		var g Group
-		if err := rows.Scan(&g.ID, &g.Name, &g.SortOrder, &g.CreatedAt, &g.BookmarkCount); err != nil {
+		if err := rows.Scan(&g.ID, &g.Name, &g.SortOrder, &g.Hidden, &g.CreatedAt, &g.BookmarkCount); err != nil {
 			return nil, err
 		}
 		groups = append(groups, g)
@@ -93,8 +94,8 @@ func (r *GroupRepository) GetAll() ([]Group, error) {
 // Update 更新分组
 func (r *GroupRepository) Update(group *Group) error {
 	_, err := r.db.Exec(
-		"UPDATE groups SET name = ?, sort_order = ? WHERE id = ?",
-		group.Name, group.SortOrder, group.ID,
+		"UPDATE groups SET name = ?, sort_order = ?, hidden = ? WHERE id = ?",
+		group.Name, group.SortOrder, group.Hidden, group.ID,
 	)
 	return err
 }

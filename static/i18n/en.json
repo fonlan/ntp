@@ -89,6 +89,9 @@
     "deleteConfirm": "Are you sure you want to delete this group?",
     "deleteTitle": "Delete Group",
     "deleteChoiceMessage": "Delete the \"${name}\" group? This group has ${count} bookmarks. Choose Yes to delete those bookmarks too, No to delete only the group and keep bookmarks ungrouped, or Cancel to keep everything.",
+    "hide": "Hide Group",
+    "show": "Show Group",
+    "hidden": "Hidden",
     "untitled": "Untitled",
     "ungrouped": "No Group",
     "bookmarks": "bookmarks"

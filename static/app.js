@@ -1026,22 +1026,26 @@ function renderBookmarks() {
         }
     });
 
+    // 隐藏分组不渲染，其书签也不会并入未分组
+    const visibleGroups = sortedGroups.filter(g => !g.hidden);
+
     // 渲染 HTML
-    const html = sortedGroups
+    const html = visibleGroups
         .filter(group => groupedBookmarks[group.id]?.length > 0)
         .map(group => renderBookmarkGroup(group.id, group.name, groupedBookmarks[group.id]))
         .join('');
 
-    const ungroupedHtml = ungroupedBookmarks.length > 0 
+    const ungroupedHtml = ungroupedBookmarks.length > 0
         ? renderBookmarkGroup('ungrouped', i18n.t('group.ungrouped'), ungroupedBookmarks)
         : '';
 
-    dom.bookmarksContainer.innerHTML = html + ungroupedHtml;
+    // 全部内容被隐藏时显示空状态，快捷导航同步刷新
+    dom.bookmarksContainer.innerHTML = (html + ungroupedHtml) || `<div class="empty-state">${i18n.t('bookmark.empty')}</div>`;
     applyBookmarkSize();
     applyCardOpacity();
     initDragAndDrop();
     initBookmarkClickHandlers();
-    renderGroupQuickNav(sortedGroups, groupedBookmarks, ungroupedBookmarks.length > 0);
+    renderGroupQuickNav(visibleGroups, groupedBookmarks, ungroupedBookmarks.length > 0);
 }
 
 function renderGroupQuickNav(sortedGroups, groupedBookmarks, hasUngrouped) {
@@ -2172,15 +2176,22 @@ function buildDeleteGroupUrl(id, deleteBookmarks) {
     return deleteBookmarks ? `${url}?delete_bookmarks=true` : url;
 }
 
+// 分组隐藏/显示切换图标
+const GROUP_EYE_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+const GROUP_EYE_OFF_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+
 function renderSettingsGroups() {
     const container = document.getElementById('groupsList');
     container.innerHTML = state.groups.map(g => `
-        <div class="settings-item" draggable="true" data-id="${g.id}">
+        <div class="settings-item ${g.hidden ? 'is-hidden' : ''}" draggable="true" data-id="${g.id}">
             <div class="settings-item-info">
-                <div class="settings-item-name">${escapeHtml(g.name)}</div>
+                <div class="settings-item-name">${escapeHtml(g.name)}${g.hidden ? `<span class="settings-item-badge">${i18n.t('group.hidden')}</span>` : ''}</div>
                 <div class="settings-item-url">${g.bookmark_count} ${i18n.t('group.bookmarks')}</div>
             </div>
             <div class="settings-item-actions">
+                <button class="btn-icon" data-action="toggle-group-hidden" data-id="${g.id}" title="${i18n.t(g.hidden ? 'group.show' : 'group.hide')}">
+                    ${g.hidden ? GROUP_EYE_ICON : GROUP_EYE_OFF_ICON}
+                </button>
                 <button class="btn-icon" data-action="edit-group" data-id="${g.id}" title="${i18n.t('actions.edit')}">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
@@ -2198,6 +2209,24 @@ function renderSettingsGroups() {
     `).join('');
 
     initGroupDragAndDrop();
+}
+
+// 切换分组隐藏状态
+async function toggleGroupHidden(id) {
+    const group = state.groups.find(g => g.id === id);
+    if (!group) return;
+
+    try {
+        await apiRequest(`${API}/groups/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ hidden: !group.hidden })
+        });
+        await loadGroups();
+        renderBookmarks();
+    } catch (err) {
+        console.error(i18n.t('errors.saveFailed'), err);
+        showError(i18n.t('errors.saveFailed'));
+    }
 }
 
 function initGroupListActions() {
@@ -2218,6 +2247,8 @@ function initGroupListActions() {
         if (action === 'edit-group') {
             const group = state.groups.find(g => g.id === id);
             if (group) showGroupModal(group);
+        } else if (action === 'toggle-group-hidden') {
+            await toggleGroupHidden(id);
         } else if (action === 'delete-group') {
             await deleteGroup(id);
         }
