@@ -12,15 +12,15 @@ import (
 
 // Translator holds the translation data for a specific locale
 type Translator struct {
-	locale  string
+	locale   string
 	messages map[string]interface{}
-	mu      sync.RWMutex
+	mu       sync.RWMutex
 }
 
 var (
-	translators = make(map[string]*Translator)
-	mu          sync.RWMutex
-	defaultLocale = "en"
+	translators      = make(map[string]*Translator)
+	mu               sync.RWMutex
+	defaultLocale    = "en"
 	supportedLocales = []string{"en", "zh"}
 )
 
@@ -42,7 +42,7 @@ func LoadTranslations(dir string) error {
 		}
 
 		translators[locale] = &Translator{
-			locale:  locale,
+			locale:   locale,
 			messages: messages,
 		}
 	}

@@ -21,4 +21,3 @@ func TestGetBookmarksByURLs_emptyOrDuplicate(t *testing.T) {
 		t.Fatalf("expected nil map for empty urls")
 	}
 }
-
